@@ -5,7 +5,7 @@ import { fetchUserSessions, clearChat } from '../../redux/slices/chatSlice';
 import { fetchUserPayments } from '../../redux/slices/paymentSlice';
 import { fetchUserAppointments } from '../../redux/slices/appointmentSlice';
 import { Link, useNavigate } from 'react-router-dom';
-import { MessageSquare, Calendar, CreditCard, User, Settings, Clock, FileText, LogOut, Trash2, Edit2, Bell, Key, MessageCircle, History, Trash } from 'lucide-react';
+import { MessageSquare, Calendar, CreditCard, User, Settings, Clock, FileText, LogOut, Trash2, Edit2, Bell, Key, MessageCircle, History, Trash, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '../../hooks/useAuth';
 import UserAppointments from './UserAppointments';
@@ -596,39 +596,33 @@ const UserDashboard: React.FC = () => {
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
       <div className="flex flex-col lg:flex-row">
         {/* Sidebar */}
-        <div className="w-full lg:w-64 bg-white dark:bg-gray-800 shadow-lg flex flex-col min-h-screen">
-          <div className="p-4 lg:p-6">
+        <div className="w-full lg:w-64 bg-white dark:bg-gray-800 shadow-lg fixed lg:relative top-0 z-50">
+          <div className="p-4 lg:p-6 flex justify-between items-center">
             <h1 className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-white">My Dashboard</h1>
+            <Link to="/" className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
+              <X className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+            </Link>
           </div>
-          <nav className="flex-1">
+          <nav className="flex flex-row lg:flex-col justify-around lg:justify-start bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`w-full flex items-center px-4 lg:px-6 py-3 text-sm font-medium transition-colors ${
+                className={`flex items-center px-4 lg:px-6 py-3 text-sm font-medium transition-colors ${
                   activeTab === tab.id
                     ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400'
                     : 'text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700'
                 }`}
               >
-                <tab.icon className="h-5 w-5 mr-3" />
-                {tab.label}
+                <tab.icon className="h-5 w-5 lg:mr-3" />
+                <span className="hidden lg:inline">{tab.label}</span>
               </button>
             ))}
           </nav>
-          <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-            >
-              <LogOut className="h-5 w-5 mr-3" />
-              Logout
-            </button>
-          </div>
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 p-4 lg:p-8">
+        <div className="flex-1 p-4 lg:p-8 mt-20 lg:mt-0">
           {renderContent()}
         </div>
       </div>
