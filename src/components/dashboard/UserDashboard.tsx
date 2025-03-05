@@ -112,7 +112,12 @@ const UserDashboard: React.FC = () => {
   const renderContent = () => {
     switch (activeTab) {
       case 'appointments':
-        return <UserAppointments />;
+        return (
+          <div className="space-y-6">
+            <h2 className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-white">My Appointments</h2>
+            <UserAppointments />
+          </div>
+        );
       case 'chats':
         return (
           <div className="space-y-6">
@@ -232,44 +237,10 @@ const UserDashboard: React.FC = () => {
       case 'payments':
         return (
           <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Payment History</h2>
-              <Link
-                to="/pricing"
-                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
-              >
-                Upgrade Plan
-              </Link>
-            </div>
-
-            {/* Current Plan Card */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-              {paymentLoading ? (
-                <div className="animate-pulse">
-                  <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/3 mb-2"></div>
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4"></div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white">Current Plan</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Your active subscription</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                      {currentPlan?.name || 'Free Plan'}
-                    </p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      {currentPlan?.price ? `₹${currentPlan.price}/month` : 'No active subscription'}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white">Recent Payments</h3>
+            <h2 className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-white">Payment History</h2>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 lg:p-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4 sm:mb-0">Recent Payments</h3>
                 {userPayments.length > 5 && (
                   <button
                     onClick={() => setShowAllPayments(!showAllPayments)}
@@ -288,26 +259,12 @@ const UserDashboard: React.FC = () => {
                     </div>
                   ))}
                 </div>
-              ) : userPayments.length === 0 ? (
-                <div className="text-center py-12">
-                  <CreditCard className="mx-auto h-12 w-12 text-gray-400" />
-                  <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No payment history</h3>
-                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">You haven't made any payments yet.</p>
-                  <div className="mt-6">
-                    <Link
-                      to="/pricing"
-                      className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
-                    >
-                      View Plans
-                    </Link>
-                  </div>
-                </div>
               ) : (
                 <div className="space-y-4">
                   {(showAllPayments ? userPayments : userPayments.slice(0, 5)).map((payment) => (
                     <div
                       key={payment.id}
-                      className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                      className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg space-y-2 sm:space-y-0"
                     >
                       <div className="flex items-center space-x-4">
                         <div className="flex-shrink-0">
@@ -322,7 +279,7 @@ const UserDashboard: React.FC = () => {
                           </p>
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-left sm:text-right">
                         <p className="text-sm font-medium text-gray-900 dark:text-white">
                           ₹{payment.amount.toFixed(2)}
                         </p>
@@ -340,8 +297,8 @@ const UserDashboard: React.FC = () => {
       case 'profile':
         return (
           <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">My Profile</h2>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+              <h2 className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-0">My Profile</h2>
               <button
                 onClick={() => setIsEditing(!isEditing)}
                 className="flex items-center px-4 py-2 text-sm font-medium text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
@@ -351,12 +308,11 @@ const UserDashboard: React.FC = () => {
               </button>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 lg:p-6">
               <div className="space-y-6">
-                {/* Profile Information */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white">Profile Information</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label>
                       {isEditing ? (
@@ -387,7 +343,6 @@ const UserDashboard: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Notification Settings */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white">Notification Settings</h3>
                   <div className="flex items-center justify-between">
@@ -413,7 +368,6 @@ const UserDashboard: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Security Settings */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white">Security</h3>
                   <div className="space-y-4">
@@ -434,7 +388,6 @@ const UserDashboard: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Account Actions */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white">Account Actions</h3>
                   <div className="space-y-4">
@@ -574,8 +527,8 @@ const UserDashboard: React.FC = () => {
       case 'settings':
         return (
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Settings</h2>
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+            <h2 className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-white">Settings</h2>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 lg:p-6">
               <p className="text-gray-600 dark:text-gray-400">Settings content will be added here.</p>
             </div>
           </div>
@@ -641,18 +594,18 @@ const UserDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
-      <div className="flex">
+      <div className="flex flex-col lg:flex-row">
         {/* Sidebar */}
-        <div className="w-64 bg-white dark:bg-gray-800 shadow-lg flex flex-col min-h-screen">
-          <div className="p-6">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">My Dashboard</h1>
+        <div className="w-full lg:w-64 bg-white dark:bg-gray-800 shadow-lg flex flex-col min-h-screen">
+          <div className="p-4 lg:p-6">
+            <h1 className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-white">My Dashboard</h1>
           </div>
           <nav className="flex-1">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`w-full flex items-center px-6 py-3 text-sm font-medium transition-colors ${
+                className={`w-full flex items-center px-4 lg:px-6 py-3 text-sm font-medium transition-colors ${
                   activeTab === tab.id
                     ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400'
                     : 'text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700'
@@ -675,7 +628,7 @@ const UserDashboard: React.FC = () => {
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 p-8">
+        <div className="flex-1 p-4 lg:p-8">
           {renderContent()}
         </div>
       </div>
