@@ -50,6 +50,8 @@ const AppointmentScheduler: React.FC = () => {
       await dispatch(scheduleAppointment({
         userId: user.uid,
         expertId: selectedExpert.id,
+        expertName: selectedExpert.name,
+        expertSpecialization: selectedExpert.specialization,
         date: selectedDate,
         time: selectedTime,
         notes: `Mobile: ${mobileNumber.trim()}`, // Store mobile number in notes for now

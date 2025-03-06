@@ -1,13 +1,24 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '../../redux/store';
-import { cancelAppointment } from '../../redux/slices/appointmentSlice';
+import { cancelAppointment, fetchUserAppointments } from '../../redux/slices/appointmentSlice';
 import { Calendar, Clock, User, X } from 'lucide-react';
 import { format } from 'date-fns';
 
 const UserAppointments: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { userAppointments, experts } = useSelector((state: RootState) => state.appointment);
+  const { user } = useSelector((state: RootState) => state.auth);
+
+  useEffect(() => {
+    if (user?.uid) {
+      console.log('Dispatching fetchUserAppointments for user:', user.uid);
+      dispatch(fetchUserAppointments(user.uid));
+    }
+  }, [dispatch, user?.uid]);
+
+  console.log('UserAppointments - userAppointments:', userAppointments);
+  console.log('UserAppointments - experts:', experts);
 
   const handleCancelAppointment = async (appointmentId: string) => {
     if (window.confirm('Are you sure you want to cancel this appointment?')) {
@@ -21,13 +32,16 @@ const UserAppointments: React.FC = () => {
 
   // Get expert details for each appointment
   const getExpertDetails = (expertId: string) => {
-    return experts.find(expert => expert.id === expertId) || {
+    const expert = experts.find(expert => expert.id === expertId);
+    console.log('Getting expert details for ID:', expertId, 'Found:', expert);
+    return expert || {
       name: 'Unknown Expert',
       specialization: 'Unknown Specialization'
     };
   };
 
   if (userAppointments.length === 0) {
+    console.log('No appointments found in userAppointments array');
     return (
       <div className="text-center py-12">
         <p className="text-gray-500 dark:text-gray-400">No appointments found.</p>
@@ -35,9 +49,12 @@ const UserAppointments: React.FC = () => {
     );
   }
 
+  const scheduledAppointments = userAppointments.filter((appointment) => appointment.status === 'scheduled');
+  console.log('Filtered scheduled appointments:', scheduledAppointments);
+
   return (
     <div className="space-y-4">
-      {userAppointments.filter((appointment) => appointment.status === 'scheduled').map((appointment) => {
+      {scheduledAppointments.map((appointment) => {
         const expert = getExpertDetails(appointment.expertId);
         return (
           <div
@@ -51,10 +68,10 @@ const UserAppointments: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                    {expert.name}
+                    {appointment.expertName || 'Unknown Expert'}
                   </h3>
                   <p className="text-sm text-indigo-600 dark:text-indigo-400">
-                    {expert.specialization}
+                    {appointment.expertSpecialization || 'Unknown Specialization'}
                   </p>
                 </div>
               </div>

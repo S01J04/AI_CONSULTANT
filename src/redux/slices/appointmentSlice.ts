@@ -19,6 +19,8 @@ export interface Appointment {
   id: string;
   userId: string;
   expertId: string;
+  expertName?: string;
+  expertSpecialization?: string;
   date: string;
   time: string;
   status: 'scheduled' | 'completed' | 'cancelled';
@@ -133,33 +135,40 @@ export const fetchUserAppointments = createAsyncThunk(
   'appointment/fetchUserAppointments',
   async (userId: string, { rejectWithValue }) => {
     try {
+      console.log('Fetching appointments for user:', userId);
       const appointmentsRef = collection(db, 'appointments');
       const q = query(
         appointmentsRef,
-        where('userId', '==', userId),
-        // orderBy('createdAt', 'desc')
+        where('userId', '==', userId)
       );
       
       const querySnapshot = await getDocs(q);
+      console.log('Query snapshot size:', querySnapshot.size);
+      
       const appointments: Appointment[] = [];
       
       querySnapshot.forEach((doc) => {
         const data = doc.data();
+        console.log('Appointment data:', data);
         appointments.push({
           id: doc.id,
           userId: data.userId,
           expertId: data.expertId,
+          expertName: data.expertName || 'Unknown Expert',
+          expertSpecialization: data.expertSpecialization || 'Not specified',
           date: data.date,
           time: data.time,
           status: data.status,
           meetingLink: data.meetingLink,
           notes: data.notes,
-          createdAt: data.createdAt.toMillis(),
+          createdAt: data.createdAt?.toMillis() || Date.now(),
         });
       });
       
+      console.log('Processed appointments:', appointments);
       return appointments;
     } catch (error: any) {
+      console.error('Error fetching appointments:', error);
       return rejectWithValue(error.message);
     }
   }
@@ -171,16 +180,45 @@ export const scheduleAppointment = createAsyncThunk(
     userId, 
     expertId, 
     date, 
+    expertName,
+    expertSpecialization,
     time,
     notes 
   }: { 
     userId: string; 
     expertId: string; 
     date: string; 
+    expertName: string;
+    expertSpecialization: string;
     time: string;
     notes?: string;
   }, { rejectWithValue }) => {
     try {
+      console.log('Starting appointment scheduling with data:', {
+        userId,
+        expertId,
+        date,
+        expertName,
+        expertSpecialization,
+        time,
+        notes
+      });
+
+      // Validate required fields
+      if (!userId || !expertId || !date || !time) {
+        throw new Error('Missing required fields for appointment');
+      }
+
+      // Get expert details from mockExperts if not provided
+      const expert = mockExperts.find(e => e.id === expertId);
+      if (!expert) {
+        throw new Error('Expert not found');
+      }
+
+      // Use provided expert details or fallback to mock data
+      const finalExpertName = expertName || expert.name;
+      const finalExpertSpecialization = expertSpecialization || expert.specialization;
+
       // Check if the time slot is still available
       const appointmentsRef = collection(db, 'appointments');
       const q = query(
@@ -192,6 +230,8 @@ export const scheduleAppointment = createAsyncThunk(
       );
       
       const querySnapshot = await getDocs(q);
+      console.log('Checking availability - existing appointments:', querySnapshot.size);
+      
       if (!querySnapshot.empty) {
         throw new Error('This time slot is no longer available. Please select another time.');
       }
@@ -203,6 +243,8 @@ export const scheduleAppointment = createAsyncThunk(
       const appointmentData = {
         userId,
         expertId,
+        expertName: finalExpertName,
+        expertSpecialization: finalExpertSpecialization,
         date,
         time,
         status: 'scheduled',
@@ -212,13 +254,17 @@ export const scheduleAppointment = createAsyncThunk(
         updatedAt: serverTimestamp(),
       };
       
+      console.log('Attempting to create appointment with data:', appointmentData);
+      
       const docRef = await addDoc(collection(db, 'appointments'), appointmentData);
+      console.log('Appointment created successfully with ID:', docRef.id);
       
       // Update expert's availability
       const expertRef = doc(db, 'experts', expertId);
       await updateDoc(expertRef, {
         [`availability.${date}.${time}`]: false
       });
+      console.log('Expert availability updated successfully');
       
       return {
         id: docRef.id,
@@ -226,6 +272,7 @@ export const scheduleAppointment = createAsyncThunk(
         createdAt: Date.now(),
       };
     } catch (error: any) {
+      console.error('Error in scheduleAppointment:', error);
       return rejectWithValue(error.message);
     }
   }

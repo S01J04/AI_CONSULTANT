@@ -6,6 +6,7 @@ import chatReducer from './slices/chatSlice';
 import paymentReducer from './slices/paymentSlice';
 import appointmentReducer from './slices/appointmentSlice';
 import uiReducer from './slices/uiSlice';
+import adminReducer from './slices/adminSlice';
 
 // 🔥 Configuring Redux Persist
 const persistConfig = {
@@ -25,6 +26,7 @@ export const store = configureStore({
     payment: paymentReducer, // Not persisted
     appointment: appointmentReducer, // Not persisted
     ui: uiReducer, // Not persisted
+    admin: adminReducer, // Not persisted
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
