@@ -15,7 +15,8 @@ interface FirestoreAppointment {
   id: string;
   userId: string;
   expertId: string;
-  userName: string;
+  displayName: string;
+  notes: string;
   expertName: string;
   expertSpecialization: string;
   date: string;
@@ -45,7 +46,8 @@ export interface AdminStats {
   }>;
   recentAppointments: Array<{
     id: string;
-    userName: string;
+    displayName: string;
+    notes: string;
     expertName: string;
     expertSpecialization: string;
     date: string;
@@ -147,7 +149,8 @@ export const fetchAdminStats = createAsyncThunk(
         .slice(-5)
         .map(apt => ({
           id: apt.id,
-          userName: apt.userName || 'Unknown User',
+          userName: apt.displayName || 'Unknown User',
+          notes: apt.notes || 'No notes',
           expertName: apt.expertName || 'Unknown Expert',
           expertSpecialization: apt.expertSpecialization || 'Not specified',
           date: apt.date || 'Not available',

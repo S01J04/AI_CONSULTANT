@@ -23,8 +23,43 @@ import {
 } from 'recharts';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+const handleappointment = (appointmentdetails) => {
+  console.log(appointmentdetails)
+  const modal = document.createElement('div');
+  modal.className = 'fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50';
 
-// ConsultantProfileTab component
+  const modalContent = document.createElement('div');
+  modalContent.className = 'bg-white rounded-lg shadow-lg p-6 w-96 relative flex flex-col items-center';
+
+  const closeButton = document.createElement('button');
+  closeButton.innerText = '×';
+  closeButton.className = 'absolute top-2 right-2 text-gray-500 hover:text-gray-700 focus:outline-none';
+  closeButton.onclick = () => {
+    document.body.removeChild(modal);
+  };
+
+  const title = document.createElement('h2');
+  title.className = 'text-xl font-bold text-center mb-4';
+  title.innerText = 'Appointment Details';
+
+  const details = document.createElement('div');
+  details.className = 'space-y-2';
+  details.innerHTML = `
+    <p><strong>User Name:</strong> ${appointmentdetails.userName}</p>
+    <p><strong>Expert Name:</strong> ${appointmentdetails.expertName}</p>
+    <p><strong>Specialization:</strong> ${appointmentdetails.expertSpecialization}</p>
+    <p><strong>Date:</strong> ${appointmentdetails.date}</p>
+    <p><strong>Time:</strong> ${appointmentdetails.time}</p>
+    <p><strong>Contact:</strong> ${appointmentdetails?.notes?.split(',')[0]}</p>
+    <p><strong>Status:</strong> ${appointmentdetails.status}</p>
+  `;
+
+  modalContent.appendChild(closeButton);
+  modalContent.appendChild(title);
+  modalContent.appendChild(details);
+  modal.appendChild(modalContent);
+  document.body.appendChild(modal);
+};
 const ConsultantProfileTab: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { user } = useSelector((state: RootState) => state.auth);
@@ -987,7 +1022,7 @@ const AdminDashboard: React.FC = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                    <button className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">
+                    <button onClick={()=>{handleappointment(appointment)}} className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">
                       View Details
                     </button>
                   </td>

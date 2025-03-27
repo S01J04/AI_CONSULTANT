@@ -95,7 +95,7 @@ const AppointmentScheduler: React.FC = () => {
   const handleMobileNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setMobileNumber(e.target.value);
   };
-
+ console.log(user)
   const handleSchedule = () => {
     if (!selectedDate || !selectedTime || !mobileNumber || !user) return;
     
@@ -108,6 +108,8 @@ const AppointmentScheduler: React.FC = () => {
         expertName: selectedExpert.name,
         expertSpecialization: selectedExpert.specialization,
         date: selectedDate,
+        displayName: user.displayName,
+        email: user.email,
         time: selectedTime,
         notes: `Mobile: ${mobileNumber.trim()}`
       }) as any);

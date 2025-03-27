@@ -21,6 +21,7 @@ export interface Appointment {
   expertId: string;
   expertName?: string;
   expertSpecialization?: string;
+  displayName?: string;
   date: string;
   time: string;
   status: 'scheduled' | 'completed' | 'cancelled';
@@ -297,6 +298,7 @@ export const scheduleAppointment = createAsyncThunk(
     expertId, 
     date, 
     expertName,
+    displayName,
     expertSpecialization,
     time,
     notes 
@@ -304,6 +306,7 @@ export const scheduleAppointment = createAsyncThunk(
     userId: string; 
     expertId: string; 
     date: string; 
+    displayName: string;
     expertName: string;
     expertSpecialization: string;
     time: string;
@@ -352,6 +355,7 @@ export const scheduleAppointment = createAsyncThunk(
         expertId,
         expertName: finalExpertName,
         expertSpecialization: finalExpertSpecialization,
+        displayName,
         date,
         time,
         status: 'scheduled',
