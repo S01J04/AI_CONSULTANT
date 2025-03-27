@@ -1,13 +1,26 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import ChatInterface from '../components/chat/ChatInterface';
 import ChatSidebar from '../components/chat/ChatSidebar';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../redux/store';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+import { fetchUserSessions, setCurrentSession } from '../redux/slices/chatSlice';
 
 const ChatPage: React.FC = () => {
+  const dispatch = useDispatch();
   const { user } = useSelector((state: RootState) => state.auth);
-  
+  const { sessions,currentSession, loading } = useSelector((state: RootState) => state.chat);
+  const {state}=useLocation(state=>state.state)
+
+  // Always call useEffect, but dispatch fetch only if user exists.
+
+  console.log("state id",state)
+  useEffect(() => { 
+    if(state!=null){
+      console.log("setting current session from chat page",state)
+      dispatch(setCurrentSession(state))
+    }} , [state,dispatch])
+
   if (!user) {
     return (
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex flex-col items-center justify-center p-4">
@@ -36,9 +49,9 @@ const ChatPage: React.FC = () => {
       </div>
     );
   }
-  
+
   return (
-    <div className="h-[90svh] border border-gray-200 dark:border-gray-700  bg-gray-100 dark:bg-gray-900 flex flex-col">
+    <div className="h-[90svh] border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-900 flex flex-col">
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
         <div className="w-full md:w-64 flex-shrink-0 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
           <ChatSidebar />
@@ -49,6 +62,6 @@ const ChatPage: React.FC = () => {
       </div>
     </div>
   );
-}
+};
 
 export default ChatPage;

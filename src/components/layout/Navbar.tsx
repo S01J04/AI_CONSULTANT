@@ -5,9 +5,10 @@ import { RootState } from '../../redux/store';
 import { signOut } from '../../redux/slices/authSlice';
 import { toggleSidebar } from '../../redux/slices/uiSlice';
 import { Menu, X, Moon, Sun, User, LogOut, MessageSquare, ChevronDown, Settings, LayoutDashboard } from 'lucide-react';
+import { AppDispatch } from '../../redux/store';
 
 const Navbar: React.FC = () => {
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
   const { user } = useSelector((state: RootState) => state.auth);
   const { sidebarOpen, darkMode } = useSelector((state: RootState) => state.ui);
@@ -30,6 +31,22 @@ const Navbar: React.FC = () => {
   const handleSignOut = async () => {
     await dispatch(signOut());
     navigate('/');
+  };
+
+  const handleAdminClick = () => {
+    // First check if user still has admin privileges
+    if (user?.role !== 'admin' && user?.role !== 'superadmin') {
+      // If not, show an alert
+      alert("Access Denied: You no longer have admin privileges. If you believe this is an error, please contact support.");
+      
+      // Redirect to the dashboard
+      navigate('/dashboard');
+      return;
+    }
+    
+    // If they do have privileges, continue to admin dashboard
+    navigate('/admin');
+    setIsDropdownOpen(false);
   };
 
   return (
@@ -126,14 +143,15 @@ const Navbar: React.FC = () => {
                         <Settings className="h-4 w-4 mr-3" />
                         Settings
                       </Link>
-                      <Link
-                        to="/admin"
-                        className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                        role="menuitem"
-                      >
-                        <LayoutDashboard className="h-4 w-4 mr-3" />
-                        Admin Panel
-                      </Link>
+                      {(user.role === 'admin' || user.role === 'superadmin') && (
+                        <button
+                          onClick={handleAdminClick}
+                          className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        >
+                          <LayoutDashboard className="h-4 w-4 mr-3" />
+                          Admin Panel
+                        </button>
+                      )}
                       <button
                         onClick={handleSignOut}
                         className="flex items-center w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
@@ -245,13 +263,14 @@ const Navbar: React.FC = () => {
                   >
                     Settings
                   </Link>
-                  <Link
-                    onClick={() => dispatch(toggleSidebar())}
-                    to="/admin"
-                    className="block px-4 py-2 text-base font-medium text-gray-500 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700"
-                  >
-                    Admin Panel
-                  </Link>
+                  {(user.role === 'admin' || user.role === 'superadmin') && (
+                    <button
+                      onClick={handleAdminClick}
+                      className="block w-full text-left px-4 py-2 text-base font-medium text-gray-500 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700"
+                    >
+                      Admin Panel
+                    </button>
+                  )}
                   <button
                     onClick={handleSignOut}
                     className="block w-full text-left px-4 py-2 text-base font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"

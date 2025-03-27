@@ -1,274 +1,403 @@
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { collection, addDoc, serverTimestamp, query, where, orderBy,doc, getDocs, updateDoc, arrayUnion, getDoc, deleteDoc } from 'firebase/firestore';
-import { auth, db } from '../../firebase/config';
+import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
+import {
+  addDoc,
+  arrayUnion,
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
+  writeBatch,
+  Timestamp
+} from "firebase/firestore";
+import { auth, db } from "../../firebase/config";
 import { v4 as uuidv4 } from 'uuid';
+import { AppDispatch, RootState } from "../store";
 
+// -----------------------
+// Interfaces
+// -----------------------
 export interface Message {
   id: string;
+  sender: "user" | "ai" | "system";
   text: string;
-  sender: 'user' | 'ai' | 'system';
-  timestamp: number;
-  isVoice?: boolean;
+  timeStamp: number;
 }
 
-interface ChatSession {
-  id: string;
-  title: string;
+export interface ChatSession {
+  id: string | null;
   messages: Message[];
-  createdAt: number;
-  updatedAt: number;
+  title: string;
+  updatedAt: Date;
+  createdAt: Date;
 }
 
-interface ChatState {
+export interface ChatState {
   sessions: ChatSession[];
   currentSession: ChatSession | null;
   loading: boolean;
+  aiLoading: boolean;
   error: string | null;
-  isVoiceEnabled: boolean;
+  sessionCache: Record<string, ChatSession>;
 }
 
-const initialState: ChatState = {
-  sessions: [],
-  currentSession: null,
-  loading: false,
-  error: null,
-  isVoiceEnabled: false,
-};
+// Create a response cache for performance
+const responseCache = new Map<string, string>();
 
-// Simulated AI response function (in a real app, this would call an actual AI service)
-const getAIResponse = async (message: string): Promise<string> => {
-  // Simulate network delay
-  
-  const responses = [
-    "I understand your concern. Based on the symptoms you've described, it could be related to stress or anxiety. However, I recommend consulting with a healthcare professional for a proper diagnosis.",
-    "That's a great question! The recommended approach would be to maintain a balanced diet and regular exercise routine. Would you like more specific advice?",
-    "Based on current medical guidelines, it's advisable to get this checked by a specialist. Would you like me to help you schedule a consultation with one of our experts?",
-    "I'm here to help! Could you provide more details about your symptoms so I can give you more accurate information?",
-    "From what you've shared, this seems like a common condition that can be managed with proper care. Let me explain some self-care strategies you might find helpful."
+// -----------------------
+// Mock AI Response Function
+// -----------------------
+const handleAiResponse = (message: string): Promise<string> => {
+  // Check cache first for better performance
+  if (responseCache.has(message)) {
+    return Promise.resolve(responseCache.get(message)!);
+  }
+
+  const dummyResponses = [
+    "I understand your concern. Based on the symptoms you've described, it appears that you might be experiencing stress and anxiety, which can manifest in various physical ways. It might be beneficial to take some time to relax, practice mindfulness, and consider consulting a professional for further guidance.",
+    "That's a great question! Maintaining a balanced diet and regular exercise routine is essential for overall health. Consider incorporating more fruits, vegetables, and lean proteins into your meals, and aim to engage in physical activity for at least 30 minutes each day to improve your well-being.",
+    "Based on current medical guidelines, it is advisable to get this checked by a specialist, especially if your symptoms persist or worsen. Early intervention can lead to better outcomes, and a specialist will be able to provide you with a more personalized treatment plan to address your concerns.",
+    "I'm here to help! Could you please provide more details about your symptoms so I can better understand your situation? The more information you share, the more accurately I can suggest steps or recommend professional advice tailored to your needs.",
+    "From what you've shared, it seems like a common condition that can often be managed effectively with proper care and lifestyle adjustments. However, it might be beneficial to monitor your symptoms closely and consult with a healthcare professional for a comprehensive evaluation and advice, ensuring you receive the most appropriate care."
   ];
-  
-  return responses[Math.floor(Math.random() * responses.length)];
+
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const response = dummyResponses[Math.floor(Math.random() * dummyResponses.length)];
+      responseCache.set(message, response); // Cache the response
+      resolve(response);
+    }, 2000);
+  });
 };
 
-export const fetchUserSessions = createAsyncThunk(
-  'chat/fetchUserSessions',
-  async (userId: string, { rejectWithValue }) => {
+// Utility function to convert Firestore timestamps
+const convertTimestamp = (timestamp: any): Date => {
+  if (timestamp?.toMillis) {
+    return new Date(timestamp.toMillis());
+  }
+  if (timestamp?.seconds) {
+    return new Date(timestamp.seconds * 1000);
+  }
+  return new Date();
+};
+
+// Helper function to map Firestore messages
+const mapFirestoreMessages = (messages: any[]): Message[] => {
+  if (!messages || !Array.isArray(messages)) return [];
+  return messages.map(msg => ({
+    id: msg.id,
+    sender: msg.sender,
+    text: msg.text,
+    timeStamp: msg.timeStamp || msg.timestamp || Date.now()
+  }));
+};
+
+// -----------------------
+// Thunks
+// -----------------------
+
+// Fetch User Sessions
+export const fetchUserSessions = createAsyncThunk<
+  ChatSession[],
+  void,
+  { state: RootState; rejectValue: string }
+>(
+  "chat/fetchUserSessions",
+  async (_, { rejectWithValue, getState }) => {
     try {
-      const sessionsRef = collection(db, 'chatSessions');
-      const q = query(
-        sessionsRef,
-        where('userId', '==', userId),
-        // orderBy('updatedAt', 'desc')
-      );
+      console.log("Fetching user sessions...");
+      const userId = auth.currentUser?.uid;
+      if (!userId) return rejectWithValue("User ID is required");
 
-      const querySnapshot = await getDocs(q);
-      const sessions: ChatSession[] = [];
+      const chatRef = collection(db, "chatSessions");
+      const q = query(chatRef, where("userId", "==", userId));
+      const getChats = await getDocs(q);
 
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        sessions.push({
-          id: doc.id,
-          title: data.title,
-          messages: data.messages.map((msg: any) => ({
-            ...msg,
-            timestamp: msg.timestamp.toMillis ? msg.timestamp.toMillis() : msg.timestamp,
-          })),
-          createdAt: data.createdAt.toMillis ? data.createdAt.toMillis() : data.createdAt,
-          updatedAt: data.updatedAt.toMillis ? data.updatedAt.toMillis() : data.updatedAt,
-        });
+      // Map Firestore documents to ChatSession objects with proper type handling
+      const sessions: ChatSession[] = getChats.docs.map((chat) => {
+        const item = chat.data();
+        return {
+          id: chat.id,
+          messages: mapFirestoreMessages(item.messages || []),
+          title: item.title || "New Conversation",
+          updatedAt: convertTimestamp(item.updatedAt),
+          createdAt: convertTimestamp(item.createdAt),
+        };
       });
-      console.log(sessions)
+
       return sessions;
     } catch (error: any) {
       console.error("Error fetching user sessions:", error);
-      return rejectWithValue(error.message || "Failed to fetch user sessions");
+      return rejectWithValue(error.message || "Failed to fetch sessions");
     }
   }
 );
 
-export const sendMessage = createAsyncThunk(
+// Send Message & Generate AI Response
+export const sendMessage = createAsyncThunk<
+  { sessionId: string; updatedTitle: string },
+  { setinputLoading: (loading: boolean) => void; setMessage: (message: string) => void; message: string; sessionId: string },
+  { state: RootState; dispatch: AppDispatch; rejectValue: string }
+>(
   "chat/sendMessage",
-  async ({ text, sessionId, userId }: { text: string; sessionId: string | null; userId: string }, { getState, dispatch }) => {
+  async (
+    { setinputLoading, setMessage, message, sessionId },
+    { dispatch, rejectWithValue, getState }
+  ) => {
     try {
-      const state = getState() as { chat: ChatState };
-      let currentSessionId = sessionId;
-      let sessionRef;
+      const userId = auth.currentUser?.uid;
+      if (!userId) return rejectWithValue("User not found");
 
-      // 1. Create user message with temporary ID
-      const userMessage: Message = {
-        id: `temp-${Date.now()}`,
-        text,
-        sender: "user",
-        timestamp: Date.now(),
-      };
-
-      // 2. Add user message to Redux immediately (optimistic update)
-      dispatch(addMessageToRedux({ sessionId: currentSessionId || '', message: userMessage }));
-
-      // 3. Create or get session in Firestore
-      if (!currentSessionId) {
-        const sessionData = {
-          title: text.substring(0, 30) + (text.length > 30 ? "..." : ""),
-          messages: [userMessage],
-          userId,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        };
-
-        const docRef = await addDoc(collection(db, "chatSessions"), sessionData);
-        currentSessionId = docRef.id;
-        sessionRef = doc(db, "chatSessions", currentSessionId);
-      } else {
-        sessionRef = doc(db, "chatSessions", currentSessionId);
+      // Create new session if needed
+      if (!sessionId) {
+        const action = await dispatch(createNewSession());
+        if (createNewSession.fulfilled.match(action)) {
+          sessionId = action.payload.id as string;
+          if (!sessionId) return rejectWithValue("Failed to create session");
+        } else {
+          return rejectWithValue("Failed to create new session");
+        }
       }
 
-      // 4. Save user message to Firestore
-      await updateDoc(sessionRef, {
-        messages: arrayUnion({ ...userMessage, id: uuidv4() }),
-        updatedAt: serverTimestamp(),
-      });
+      // Create user message
+      const newMessage: Message = {
+        id: Date.now().toString(),
+        sender: "user",
+        text: message,
+        timeStamp: Date.now()
+      };
+      
+      // Update UI immediately
+      dispatch(addMessage({ sessionId, message: newMessage }));
+      dispatch(setAiLoading({ sessionId, loading: true }));
 
-      // 5. Update Redux with permanent ID for user message
-      dispatch(updateMessageInRedux({ 
-        sessionId: currentSessionId, 
-        tempId: userMessage.id, 
-        newMessageId: uuidv4() 
-      }));
+      // Generate AI response
+      let fullText = "";
+      try {
+        const response = await handleAiResponse(message);
+        // Turn off AI loading immediately after getting the response
+        dispatch(setAiLoading({ sessionId, loading: false }));
+        
+        // Create AI message
+        const aiMessageId = Date.now().toString();
+        const initialAiMessage: Message = {
+          id: aiMessageId,
+          sender: "ai",
+          text: "",
+          timeStamp: Date.now()
+        };
+        dispatch(addMessage({ sessionId, message: initialAiMessage }));
 
-      // 6. Get AI response asynchronously
-      const aiResponseText = await getAIResponse(text);
-      const aiMessage: Message = {
-        id: uuidv4(),
-        text: aiResponseText,
+        // Simulate typing effect
+        const words = response.split(' ');
+        for (let i = 0; i < words.length; i++) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          fullText += (i === 0 ? "" : " ") + words[i];
+          dispatch(updateMessage({ sessionId, messageId: aiMessageId, text: fullText }));
+        }
+        setinputLoading(false);
+        setMessage("");
+      } catch (error) {
+        console.error("Error generating AI response:", error);
+        dispatch(setAiLoading({ sessionId, loading: false }));
+        // Continue with saving the user message even if AI response fails
+      }
+
+      // Update Firestore
+      const chatRef = doc(db, "chatSessions", sessionId);
+      const aiMessage = {
+        id: Date.now().toString(),
         sender: "ai",
-        timestamp: Date.now(),
+        text: fullText,
+        timeStamp: Date.now()
       };
 
-      // 7. Add AI message to Firestore
-      await updateDoc(sessionRef, {
-        messages: arrayUnion(aiMessage),
-        updatedAt: serverTimestamp(),
-      });
+      try {
+        await updateDoc(chatRef, {
+          messages: arrayUnion(newMessage, aiMessage),
+          updatedAt: serverTimestamp()
+        });
 
-      // 8. Add AI message to Redux
-      dispatch(addMessageToRedux({ sessionId: currentSessionId, message: aiMessage }));
+        // Update title if this is one of the first messages
+        const updatedDoc = await getDoc(chatRef);
+        const updatedData = updatedDoc.data();
+        const updatedMessages = mapFirestoreMessages(updatedData?.messages || []);
+        
+        if (updatedMessages.length > 0 && updatedMessages.length < 4) {
+          const updatedTitle = updatedMessages[0].text.slice(0, 50) + (updatedMessages[0].text.length > 50 ? '...' : '');
+          await updateDoc(chatRef, {
+            title: updatedTitle,
+            updatedAt: serverTimestamp()
+          });
+          
+          // Refresh sessions to get the updated title
+          dispatch(fetchUserSessions());
+           // Cleanup
+          return { sessionId, updatedTitle };
+        }
+      } catch (error) {
+        console.error("Error updating Firestore:", error);
+        // The message is already in the Redux store, so we can continue
+      }
 
-      return { sessionId: currentSessionId, userMessage, aiMessage };
+      // Cleanup
+      setinputLoading(false);
+      setMessage("");
+      
+      return { sessionId, updatedTitle: "" };
     } catch (error: any) {
-      console.error("Error sending message:", error);
-      // Reset loading state on error
-      dispatch({ type: 'chat/setLoading', payload: false });
-      throw error;
+      console.error("Error in sendMessage:", error);
+      setinputLoading(false);
+      return rejectWithValue(error.message || "Failed to send message");
     }
   }
 );
 
-
-export const createNewSession = createAsyncThunk(
-  "chat/createNewSession",
-  async (_, { getState }) => {
-    // Ensure user is logged in
-    if (!auth.currentUser) {
-      throw new Error("User is not logged in");
-    }
-
-    const userId = auth.currentUser.uid;
-    console.log("Creating session for user:", userId);
-
-    const sessionData: Omit<ChatSession, "id"> = {
-      title: "New Conversation",
-      messages: [],
-      userId,
-      createdAt: serverTimestamp(), // Firestore timestamp
-      updatedAt: serverTimestamp(),
-    };
-
-    // 🔹 Save to Firestore
-    const docRef = await addDoc(collection(db, "chatSessions"), sessionData);
-
-    // 🔹 Fetch session data from Firestore
-    const sessionSnap = await getDoc(docRef);
-
-    if (!sessionSnap.exists()) {
-      throw new Error("Session creation failed.");
-    }
-
-    const session = sessionSnap.data();
-
-    // Convert Firestore timestamp to JavaScript timestamp
-    return {
-      id: docRef.id,
-      ...session,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-  }
-);
-
-export const clearChat = createAsyncThunk(
-  'chat/clearChat',
-  async (userId: string, { rejectWithValue }) => {
+// Clear User Chat Sessions
+export const clearChat = createAsyncThunk<
+  boolean,
+  void,
+  { state: RootState; dispatch: AppDispatch; rejectValue: string }
+>(
+  "chat/clearChats",
+  async (_, { dispatch, rejectWithValue }) => {
     try {
-      const sessionsRef = collection(db, 'chatSessions');
-      const q = query(
-        sessionsRef,
-        where('userId', '==', userId)
-      );
+      const userId = auth.currentUser?.uid;
+      if (!userId) return rejectWithValue("User not found");
 
-      const querySnapshot = await getDocs(q);
-      const deletePromises = querySnapshot.docs.map(doc => 
-        deleteDoc(doc.ref)
-      );
+      // Update local state first for immediate UI feedback
+      dispatch(clearChats());
 
-      await Promise.all(deletePromises);
+      // Delete from Firestore
+      const chatCollectionRef = collection(db, "chatSessions");
+      const chatQuery = query(chatCollectionRef, where("userId", "==", userId));
+      const chatDocs = await getDocs(chatQuery);
+      
+      if (chatDocs.empty) {
+        return true;
+      }
+
+      // Use batch for better performance with multiple documents
+      const batch = writeBatch(db);
+      chatDocs.docs.forEach((chatDoc) => {
+        batch.delete(doc(db, "chatSessions", chatDoc.id));
+      });
+      
+      await batch.commit();
       return true;
     } catch (error: any) {
-      return rejectWithValue(error.message || "Failed to clear chat history");
+      console.error("Error clearing chat sessions:", error);
+      return rejectWithValue(error.message || "Failed to clear chats");
     }
   }
 );
 
+// Create a New Chat Session
+export const createNewSession = createAsyncThunk<
+  ChatSession,
+  void,
+  { rejectValue: string }
+>(
+  "chat/createNewSession",
+  async (_, { rejectWithValue }) => {
+    try {
+      const userId = auth.currentUser?.uid;
+      if (!userId) return rejectWithValue("User is not logged in");
+
+      // Prepare new session data
+      const sessionId = uuidv4();
+      const newChatSession: ChatSession = {
+        id: sessionId,
+        title: "New Conversation",
+        messages: [],
+        updatedAt: new Date(),
+        createdAt: new Date()
+      };
+
+      // Create in Firestore
+      const chatRef = collection(db, "chatSessions");
+      const newChatDoc = await addDoc(chatRef, {
+        userId,
+        title: newChatSession.title,
+        messages: [],
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+
+      // Return with Firestore ID
+      return {
+        ...newChatSession,
+        id: newChatDoc.id
+      };
+    } catch (error: any) {
+      console.error("Error creating new chat session:", error);
+      return rejectWithValue(error.message || "Failed to create new session");
+    }
+  }
+);
+
+// -----------------------
+// Redux Slice
+// -----------------------
 const chatSlice = createSlice({
-  name: 'chat',
-  initialState,
+  name: "chat",
+  initialState: {
+    sessions: [],
+    currentSession: null,
+    loading: false,
+    aiLoading: false,
+    error: null,
+    sessionCache: {}
+  } as ChatState,
   reducers: {
-    addMessageToRedux: (state, action: PayloadAction<{ sessionId: string; message: Message }>) => {
+    addMessage: (state, action: PayloadAction<{ sessionId: string; message: Message }>) => {
       const { sessionId, message } = action.payload;
-      const session = state.sessions.find((s) => s.id === sessionId);
-      if (session) {
-        session.messages.push(message);
-      }
-    },
-    // **Replace temp message ID with Firestore ID**
-    updateMessageInRedux: (state, action: PayloadAction<{ sessionId: string; tempId: string; newMessageId: string }>) => {
-      const { sessionId, tempId, newMessageId } = action.payload;
-      const session = state.sessions.find((s) => s.id === sessionId);
-      if (session) {
-        const message = session.messages.find((m) => m.id === tempId);
-        if (message) {
-          message.id = newMessageId;
+      const chat = state.sessions.find((chat) => chat.id === sessionId);
+      if (chat) {
+        chat.messages.push(message);
+        if (state.currentSession && state.currentSession.id === sessionId) {
+          state.currentSession.messages.push(message);
         }
       }
     },
-    setNewSession: (state, action: PayloadAction<ChatSession>) => {
-      state.sessions.unshift(action.payload); // Use Firestore session
-      state.currentSession = action.payload;
+    setMessages: (state, action: PayloadAction<{ sessionId: string; messages: Message[] }>) => {
+      const { sessionId, messages } = action.payload;
+      const chat = state.sessions.find((chat) => chat.id === sessionId);
+      if (chat) {
+        chat.messages = messages;
+        if (state.currentSession && state.currentSession.id === sessionId) {
+          state.currentSession.messages = messages;
+        }
+      }
+    },
+    setAiLoading: (state, action: PayloadAction<{ sessionId: string; loading: boolean }>) => {
+      state.aiLoading = action.payload.loading;
     },
     setCurrentSession: (state, action: PayloadAction<string>) => {
+      // Find session by ID in sessions array
       const session = state.sessions.find(s => s.id === action.payload);
-      if (session) {
-        state.currentSession = session;
+      // Update current session
+      state.currentSession = session || null;
+    },
+    clearChats: (state) => {
+      state.sessions = [];
+      state.currentSession = null;
+      state.sessionCache = {};
+    },
+    updateMessage: (state, action: PayloadAction<{ sessionId: string; messageId: string; text: string }>) => {
+      const { sessionId, messageId, text } = action.payload;
+      // Only update if it's the current session
+      if (!state.currentSession || state.currentSession.id !== sessionId) return;
+      
+      const messageIndex = state.currentSession.messages.findIndex(msg => msg.id === messageId);
+      if (messageIndex !== -1) {
+        state.currentSession.messages[messageIndex].text = text;
       }
-    },    
-    toggleVoice: (state) => {
-      state.isVoiceEnabled = !state.isVoiceEnabled;
-    },
-    clearError: (state) => {
-      state.error = null;
-    },
-    setLoading: (state, action: PayloadAction<boolean>) => {
-      state.loading = action.payload;
-    },
+    }
   },
   extraReducers: (builder) => {
     builder
@@ -280,13 +409,21 @@ const chatSlice = createSlice({
         state.loading = false;
         state.sessions = action.payload;
         
-        if (action.payload.length > 0) {
+        // Update current session only if not already set
+        if (!state.currentSession && action.payload.length > 0) {
           state.currentSession = action.payload[0];
         }
+        
+        // Update session cache
+        action.payload.forEach(session => {
+          if (session.id) {
+            state.sessionCache[session.id] = session;
+          }
+        });
       })
       .addCase(fetchUserSessions.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload as string;
+        state.error = action.payload || "Failed to fetch sessions";
       })
       .addCase(sendMessage.pending, (state) => {
         state.loading = true;
@@ -294,58 +431,76 @@ const chatSlice = createSlice({
       })
       .addCase(sendMessage.fulfilled, (state, action) => {
         state.loading = false;
-        state.error = null;
-      
-        const { sessionId, userMessage, aiMessage } = action.payload;
-        let sessionIndex = state.sessions.findIndex(s => s.id === sessionId);
-      
-        if (sessionIndex === -1) {
-          console.warn(`Session with ID ${sessionId} not found in Redux store. Adding it now.`);
-      
-          const newSession: ChatSession = {
-            id: sessionId,
-            title: userMessage.text.substring(0, 30) + (userMessage.text.length > 30 ? "..." : ""),
-            messages: [userMessage, aiMessage],
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-          };
-      
-          state.sessions.unshift(newSession);
-          state.currentSession = newSession;
-        } else {
-          state.sessions[sessionIndex].messages.push(userMessage, aiMessage);
-          state.sessions[sessionIndex].updatedAt = Date.now();
-      
-          if (state.sessions[sessionIndex].messages.length === 2) {
-            state.sessions[sessionIndex].title = userMessage.text.substring(0, 30) + 
-              (userMessage.text.length > 30 ? "..." : "");
-          }
-      
-          if (state.currentSession?.id === sessionId) {
-            state.currentSession.messages.push(userMessage, aiMessage);
-            state.currentSession.updatedAt = Date.now();
+        const { sessionId } = action.payload;
+        
+        // Find session
+        const sessionIndex = state.sessions.findIndex(s => s.id === sessionId);
+        if (sessionIndex !== -1) {
+          const session = state.sessions[sessionIndex];
+          
+          // Update title based on first message if needed
+          if (session.messages.length > 0) {
+            const firstMessage = session.messages[0].text;
+            const truncatedTitle = firstMessage.length > 50 
+              ? `${firstMessage.substring(0, 50)}...` 
+              : firstMessage;
+              
+            state.sessions[sessionIndex].title = truncatedTitle;
+            state.sessions[sessionIndex].updatedAt = new Date();
+            
+            // Update current session if it matches
+            if (state.currentSession && state.currentSession.id === sessionId) {
+              state.currentSession.title = truncatedTitle;
+              state.currentSession.updatedAt = new Date();
+            }
+            
+            // Update cache
+            if (session.id) {
+              state.sessionCache[session.id] = state.sessions[sessionIndex];
+            }
           }
         }
       })
       .addCase(sendMessage.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message || 'Failed to send message';
-      })
-      .addCase(clearChat.pending, (state) => {
-        state.loading = true;
-        state.error = null;
+        state.aiLoading = false;
+        state.error = action.payload || "Failed to send message";
       })
       .addCase(clearChat.fulfilled, (state) => {
+        // State already cleared in clearChats reducer
         state.loading = false;
-        state.sessions = [];
-        state.currentSession = null;
       })
       .addCase(clearChat.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload as string;
+        state.error = action.payload || "Failed to clear chats";
+      })
+      .addCase(createNewSession.fulfilled, (state, action) => {
+        const newSession = action.payload;
+        
+        // Add to sessions array
+        state.sessions.push(newSession);
+        
+        // Set as current session
+        state.currentSession = newSession;
+        
+        // Add to cache
+        if (newSession.id) {
+          state.sessionCache[newSession.id] = newSession;
+        }
+      })
+      .addCase(createNewSession.rejected, (state, action) => {
+        state.error = action.payload || "Failed to create new session";
       });
-  },
+  }
 });
 
-export const { addMessageToRedux, updateMessageInRedux,setNewSession, setCurrentSession, toggleVoice, clearError, setLoading } = chatSlice.actions;
+export const { 
+  addMessage, 
+  setMessages, 
+  setAiLoading, 
+  setCurrentSession, 
+  clearChats, 
+  updateMessage 
+} = chatSlice.actions;
+
 export default chatSlice.reducer;

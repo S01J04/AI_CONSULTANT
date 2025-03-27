@@ -22,6 +22,7 @@ import { AboutUs } from './pages/AboutusPage';
 import ForgotPasswordForm from './pages/forgetPage';
 import AdminDashboard from './pages/AdminDashboard';
 import UserDashboard from './components/dashboard/UserDashboard';
+import ConsultantDetailsPage from './pages/ConsultantDetailsPage';
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -71,6 +72,7 @@ const AppContent: React.FC = () => {
           <Route path="/chat" element={<ChatPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordForm />} />
           <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin/consultant/:consultantId" element={<ConsultantDetailsPage />} />
           <Route path="/settings" element={<UserDashboard />} />
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/appointments" element={<AppointmentsPage />} />
@@ -83,8 +85,8 @@ const AppContent: React.FC = () => {
               </ProtectedRoute>
             }
           />
-          <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <LoginPage />} />
-          <Route path="/signup" element={user ? <Navigate to="/dashboard" /> : <SignupPage />} />
+          <Route path="/login" element={user ? <Navigate to="/" /> : <LoginPage />} />
+          <Route path="/signup" element={user ? <Navigate to="/" /> : <SignupPage />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </main>

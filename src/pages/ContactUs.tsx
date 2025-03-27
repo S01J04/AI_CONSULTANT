@@ -17,7 +17,6 @@ const ContactUs = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Form Data Submitted:", formData);
     setSubmitted(true);
     setFormData({ name: "", email: "", message: "" });
 

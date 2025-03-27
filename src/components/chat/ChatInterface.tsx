@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../redux/store';
-import { sendMessage, toggleVoice } from '../../redux/slices/chatSlice';
+import { fetchUserSessions, sendMessage } from '../../redux/slices/chatSlice';
 import { Mic, MicOff, Send, Volume2, VolumeX, MessageSquare, Clock, ArrowRight } from 'lucide-react';
 import { RiVoiceAiLine } from "react-icons/ri";
 import Skeleton from 'react-loading-skeleton'
@@ -9,6 +9,7 @@ import 'react-loading-skeleton/dist/skeleton.css'
 import { useAuth } from '../../hooks/useAuth';
 
 const ChatInterface: React.FC = () => {
+  
   useEffect(() => {
     setTimeout(() => {
       window.dispatchEvent(new Event('resize'));
@@ -16,17 +17,20 @@ const ChatInterface: React.FC = () => {
   }, []);
   
   const dispatch = useDispatch();
-  const { currentSession, loading, isVoiceEnabled } = useSelector((state: RootState) => state.chat);
+  const { currentSession, loading,aiLoading } = useSelector((state: RootState) => state.chat);
   const { user  } = useSelector((state: RootState) => state.auth);
   const { currentPlan } = useSelector((state: RootState) => state.payment);
  const {authloading}=useAuth()
   const [message, setMessage] = useState('');
+  const [inputLoading, setinputLoading] = useState(false);
+  
   const [isRecording, setIsRecording] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const footerHeight = 10; // Adjust this value based on your footer height
   // Scroll to bottom whenever messages change
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+ const inputfocus=useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     if (messagesContainerRef.current) {
@@ -34,30 +38,40 @@ const ChatInterface: React.FC = () => {
     }
   }, [currentSession?.messages, loading]);
   
-
+    // useEffect(() => {
+    //   if (user) {
+    //    console.log("fetching user sessions from chat page")
+    //   dispatch(fetchUserSessions() as any);
+    //   }
+    // }, []);
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
-
+  useEffect(() => {
+     inputfocus.current?.focus()
+  }, [currentSession]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    setinputLoading(true)
     if (!message.trim()) return;
 
     if (!user) {
       // Handle unauthenticated user
       return;
     }
+    console.log("current session",user)
 
     try {
       await dispatch(sendMessage({
-        text: message,
+        setinputLoading,
+        setMessage,
+        message,
         sessionId: currentSession?.id || null,
-        userId: user.uid,
+        // userId: user.uid,
       }) as any);
-
-      setMessage('');
+      console.log("setting message to none")
+     
       const textarea = document.querySelector("textarea");
       if (textarea) {
         textarea.style.height = "40px"; // Reset to initial height
@@ -70,7 +84,7 @@ const ChatInterface: React.FC = () => {
   const handleToggleVoice = () => {
     dispatch(toggleVoice());
   };
-
+// console.log("current messages",currentSession?.messages)
   const handleToggleRecording = () => {
     // In a real app, this would use the Web Speech API or a similar service
     setIsRecording(!isRecording);
@@ -80,6 +94,7 @@ const ChatInterface: React.FC = () => {
       console.log('Recording started...');
       // Simulate recording for demo purposes
       setTimeout(() => {
+        
         setIsRecording(false);
         setMessage('This is a simulated voice message that would be transcribed from actual speech in a production environment.');
       }, 3000);
@@ -104,16 +119,17 @@ const ChatInterface: React.FC = () => {
           )}
         </div>
         <div className="flex items-center space-x-2">
-          <button
+          {/* <button
             onClick={handleToggleVoice}
-            className={`p-2 rounded-full ${isVoiceEnabled
+            className={`p-2 rounded-full 
+              ${isVoiceEnabled
                 ? 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900 dark:text-indigo-400'
                 : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
               }`}
             title={isVoiceEnabled ? 'Disable voice responses' : 'Enable voice responses'}
           >
             {isVoiceEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
-          </button>
+          </button> */}
         </div>
       </div>
 
@@ -142,21 +158,23 @@ const ChatInterface: React.FC = () => {
     <>
       {/* Show previous messages */}
       {currentSession?.messages?.map((msg) => (
-        <div ref={messagesEndRef} key={msg.id} className={`flex pt-5 ${msg.sender === "user" ? "justify-end" : "justify-start"}`}>
-          <div
-            className={`max-w-[75%] rounded-lg px-4 py-2 ${
-              msg.sender === "user"
-                ? "bg-indigo-600 text-white"
-                : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700"
-            }`}
-          >
-            <p className="break-words whitespace-pre-wrap">{msg.text}</p>
-          </div>
-        </div>
-      ))}
+  msg ? (
+    <div ref={messagesEndRef} key={msg?.id} className={`flex pt-5 ${msg?.sender === "user" ? "justify-end" : "justify-start"}`}>
+      <div className={`max-w-[75%] rounded-lg px-4 py-2 ${
+          msg?.sender === "user"
+            ? "bg-indigo-600 text-white"
+            : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700"
+        }`}
+      >
+        <p className="break-words whitespace-pre-wrap">{msg?.text}</p>
+      </div>
+    </div>
+  ) : null
+))}
+
 
       {/* Show typing indicator when waiting for AI response */}
-      {loading && (
+      {aiLoading && (
         <div ref={messagesEndRef} className="flex justify-start">
           <div className="max-w-[75%] bg-white dark:bg-gray-800 rounded-lg px-4 py-2 border border-gray-200 dark:border-gray-700">
             <div className="flex space-x-2">
@@ -213,20 +231,21 @@ const ChatInterface: React.FC = () => {
             </button>
 
             <textarea
+            ref={inputfocus}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder={loading ? "AI is typing..." : "Type your message..."}
               className="flex-1 border border-gray-300 dark:border-gray-600 rounded-md py-2 px-3 text-gray-700 dark:text-gray-200 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none overflow-hidden max-h-40 min-h-[40px] disabled:opacity-50 disabled:cursor-not-allowed"
               rows={1}
-              disabled={loading}
+              disabled={inputLoading}
               onInput={(e) => {
                 e.currentTarget.style.height = "40px";
                 e.currentTarget.style.height = `${e.currentTarget.scrollHeight}px`;
               }}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
+                if (e.key === 'Enter') {
                   e.preventDefault();
-                  if (message.trim() && !loading) {
+                  if (message.trim() && !aiLoading) {
                     handleSendMessage(e);
                   }
                 }
@@ -236,14 +255,14 @@ const ChatInterface: React.FC = () => {
             {message.length > 0 ? (
               <button
                 type="submit"
-                disabled={!message.trim() || loading}
+                disabled={!message.trim() || inputLoading}
                 className="bg-indigo-600 text-white p-2 rounded-full disabled:opacity-50 disabled:cursor-not-allowed hover:bg-indigo-700 transition-colors"
               >
                 <Send className="h-5 w-5" />
               </button>
             ) : (
               <button 
-                disabled={loading}
+                disabled={inputLoading}
                 className="bg-indigo-600 text-white p-2 rounded-full hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <RiVoiceAiLine className="h-5 w-5" />

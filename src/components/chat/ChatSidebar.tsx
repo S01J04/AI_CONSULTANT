@@ -1,20 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../redux/store';
-import { createNewSession, setCurrentSession, setNewSession } from '../../redux/slices/chatSlice';
+import { createNewSession, setCurrentSession } from '../../redux/slices/chatSlice';
 import { format, isToday, isYesterday, subDays, subMonths, isWithinInterval } from 'date-fns';
 import { MessageSquare, X } from 'lucide-react';
 import { GoSidebarExpand } from "react-icons/go";
 import { HiOutlinePencilSquare } from "react-icons/hi2";
 import Skeleton from 'react-loading-skeleton';
 import { useAuth } from '../../hooks/useAuth';
+import { useLocation } from 'react-router-dom';
 
 const ChatSidebar: React.FC = () => {
   const dispatch = useDispatch();
   const {loading, sessions, currentSession } = useSelector((state: RootState) => state.chat);
+
+  // console.log("sessions",sessions,currentSession)
   const {authloading}=useAuth()
   const [isOpen, setIsOpen] = useState(false);
-
+  
   // Handle outside click to close sidebar
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
@@ -32,10 +35,10 @@ const ChatSidebar: React.FC = () => {
   
     console.log("New session created:", action.payload);
   
-    if (createNewSession.fulfilled.match(action)) {
-      dispatch(setNewSession(action.payload)); // Update Redux store
-      dispatch(setCurrentSession(action.payload.id)); // Set active session
-    }
+    // if (createNewSession.fulfilled.match(action)) {
+    //   // dispatch(setNewSession(action.payload)); // Update Redux store
+    //   dispatch(setCurrentSession(action.payload.id)); // Set active session
+    // }
   };
   
 

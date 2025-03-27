@@ -111,7 +111,6 @@ export const fetchUserPayments = createAsyncThunk(
         });
       });
       
-      console.log('Fetched payments:', payments);
       return payments;
     } catch (error: any) {
       console.error('Error fetching payments:', error);

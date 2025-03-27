@@ -1,62 +1,155 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '../firebase/config';
-import { setUser } from '../redux/slices/authSlice';
-import { RootState } from '../redux/store';
+import { setUser, updateLocalUserRole } from '../redux/slices/authSlice';
+import { RootState, AppDispatch } from '../redux/store';
 import { fetchUserSessions } from '../redux/slices/chatSlice';
 import { fetchUserAppointments } from '../redux/slices/appointmentSlice';
 import { fetchUserPayments } from '../redux/slices/paymentSlice';
 
+interface UserData {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+  role: 'user' | 'admin' | 'superadmin';
+  createdAt: number;
+}
+
 export const useAuth = () => {
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
   const { user, loading, error } = useSelector((state: RootState) => state.auth);
-  const[authloading,setauthloading]=useState(true)
+  const [authLoading, setAuthLoading] = useState(true);
+
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      dispatch(setUser(JSON.parse(storedUser)));
-    }
+    let mounted = true;
+    let userDocUnsubscribe: (() => void) | null = null;
 
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      console.log(firebaseUser)
-      if (firebaseUser) {
-        try {
-          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+    const initializeAuth = async () => {
+      try {
+        const storedUser = localStorage.getItem("user");
+        if (storedUser) {
+          const parsedUser = JSON.parse(storedUser) as UserData;
+          dispatch(setUser(parsedUser));
           
-          if (userDoc.exists()) {
-            dispatch(setUser(userDoc.data() as any));
-          } else {
-            // Create a new user document if it doesn't exist
-            const userData = {
-              uid: firebaseUser.uid,
-              email: firebaseUser.email,
-              displayName: firebaseUser.displayName,
-              photoURL: firebaseUser.photoURL,
-              role: 'user',
-              createdAt: Date.now(),
-            };
-            localStorage.setItem("user", JSON.stringify(userData));
-            dispatch(setUser(userData as any) );
-            
+          // Set up real-time listener for this user right away
+          if (parsedUser && parsedUser.uid) {
+            setupUserListener(parsedUser.uid);
           }
-          dispatch(fetchUserSessions(firebaseUser.uid)as any);
-          dispatch(fetchUserAppointments(firebaseUser.uid)as any);
-          dispatch(fetchUserPayments(firebaseUser.uid)as any);
-          setauthloading(false)
-        } catch (error) {
-          console.error('Error fetching user data:', error);
         }
-      } else {
-        localStorage.removeItem("user");
-        dispatch(setUser(null));
-        setauthloading(false)
-      }
-    });
 
-    return () => unsubscribe();
+        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+          if (!mounted) return;
+
+          if (firebaseUser) {
+            try {
+              const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+              
+              if (userDoc.exists()) {
+                const userData = userDoc.data() as UserData;
+                if (mounted) {
+                  dispatch(setUser(userData));
+                  dispatch(fetchUserSessions());
+                  
+                  // Set up real-time listener for this user
+                  setupUserListener(firebaseUser.uid);
+                }
+              } else {
+                const userData: UserData = {
+                  uid: firebaseUser.uid,
+                  email: firebaseUser.email,
+                  displayName: firebaseUser.displayName,
+                  photoURL: firebaseUser.photoURL,
+                  role: 'user' as const,
+                  createdAt: Date.now(),
+                };
+                
+                if (mounted) {
+                  dispatch(setUser(userData));
+                  dispatch(fetchUserSessions());
+                  
+                  // Set up real-time listener for this user
+                  setupUserListener(firebaseUser.uid);
+                }
+              }
+            } catch (error) {
+              console.error('Error fetching user data:', error);
+              if (mounted) {
+                dispatch(setUser(null));
+              }
+            }
+          } else {
+            if (mounted) {
+              dispatch(setUser(null));
+              
+              // Clean up any user listener
+              if (userDocUnsubscribe) {
+                userDocUnsubscribe();
+                userDocUnsubscribe = null;
+              }
+            }
+          }
+          if (mounted) {
+            setAuthLoading(false);
+          }
+        });
+
+        return () => {
+          unsubscribe();
+          if (userDocUnsubscribe) {
+            userDocUnsubscribe();
+          }
+        };
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+        if (mounted) {
+          setAuthLoading(false);
+        }
+      }
+    };
+    
+    // Function to set up real-time listener for user document changes
+    const setupUserListener = (uid: string) => {
+      // Clean up previous listener if exists
+      if (userDocUnsubscribe) {
+        userDocUnsubscribe();
+      }
+      
+      // Set up new listener
+      userDocUnsubscribe = onSnapshot(doc(db, 'users', uid), (docSnapshot) => {
+        if (!mounted) return;
+        
+        if (docSnapshot.exists()) {
+          const userData = docSnapshot.data() as UserData;
+          
+          // Update role specifically to avoid full user replacement
+          dispatch(updateLocalUserRole({ uid, role: userData.role }));
+          
+          // Optional: Update full user data if needed
+          // dispatch(setUser(userData));
+        }
+      }, (error) => {
+        console.error('Error in user document listener:', error);
+      });
+    };
+
+    initializeAuth();
+
+    return () => {
+      mounted = false;
+      if (userDocUnsubscribe) {
+        userDocUnsubscribe();
+      }
+    };
   }, [dispatch]);
 
-  return { user, authloading,loading, error, isAuthenticated: !!user };
+  return { 
+    user, 
+    authLoading, 
+    loading, 
+    error, 
+    isAuthenticated: !!user 
+  };
 };

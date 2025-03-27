@@ -33,6 +33,15 @@ const UserDashboard: React.FC = () => {
   const [passwordError, setPasswordError] = useState('');
   const [emailError, setEmailError] = useState('');
 
+  useEffect(() => {
+    if (user) {
+      if(sessions){
+        dispatch(fetchUserSessions() as any);
+      }
+      dispatch(fetchUserPayments() as any);
+      dispatch(fetchUserAppointments() as any);
+    }
+  }, [dispatch, user]);
   const tabs = [
     { id: 'appointments', label: 'My Appointments', icon: Calendar },
     { id: 'chats', label: 'My Chats', icon: MessageCircle },
@@ -186,7 +195,8 @@ const UserDashboard: React.FC = () => {
                         </div>
                       </div>
                       <Link
-                        to={`/chat/${session.id}`}
+                        to={`/chat`}
+                        state={session.id}
                         className="text-sm font-medium text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
                       >
                         Continue Chat
@@ -540,7 +550,7 @@ const UserDashboard: React.FC = () => {
 
   useEffect(() => {
     if (user) {
-      dispatch(fetchUserSessions(user.uid));
+      // dispatch(fetchUserSessions(user.uid));
       dispatch(fetchUserPayments(user.uid));
       dispatch(fetchUserAppointments(user.uid));
     }

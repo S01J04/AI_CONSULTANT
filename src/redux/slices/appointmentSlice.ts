@@ -30,13 +30,16 @@ export interface Appointment {
 }
 
 interface AppointmentState {
-  experts: Expert[];
+  appointments: Appointment[];
   userAppointments: Appointment[];
-  selectedExpert: Expert | null;
-  selectedDate: string | null;
-  selectedTime: string | null;
+  consultantAppointments: Appointment[];
+  experts?: Expert[];
+  selectedExpert?: Expert | null;
+  selectedDate?: string | null;
+  selectedTime?: string | null;
   loading: boolean;
   error: string | null;
+  success?: boolean;
 }
 
 // Mock experts data
@@ -122,20 +125,22 @@ const mockExperts: Expert[] = [
 ];
 
 const initialState: AppointmentState = {
-  experts: mockExperts,
+  appointments: [],
   userAppointments: [],
+  consultantAppointments: [],
+  experts: [],
   selectedExpert: null,
   selectedDate: null,
   selectedTime: null,
   loading: false,
   error: null,
+  success: false
 };
 
 export const fetchUserAppointments = createAsyncThunk(
   'appointment/fetchUserAppointments',
   async (userId: string, { rejectWithValue }) => {
     try {
-      console.log('Fetching appointments for user:', userId);
       const appointmentsRef = collection(db, 'appointments');
       const q = query(
         appointmentsRef,
@@ -143,13 +148,11 @@ export const fetchUserAppointments = createAsyncThunk(
       );
       
       const querySnapshot = await getDocs(q);
-      console.log('Query snapshot size:', querySnapshot.size);
       
       const appointments: Appointment[] = [];
       
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        console.log('Appointment data:', data);
         appointments.push({
           id: doc.id,
           userId: data.userId,
@@ -165,10 +168,123 @@ export const fetchUserAppointments = createAsyncThunk(
         });
       });
       
-      console.log('Processed appointments:', appointments);
       return appointments;
     } catch (error: any) {
       console.error('Error fetching appointments:', error);
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+export const fetchExperts = createAsyncThunk(
+  'appointment/fetchExperts',
+  async (_, { rejectWithValue }) => {
+    try {
+      // Query consultantProfiles collection (not consultants)
+      const expertsRef = collection(db, 'consultantProfiles');
+      const querySnapshot = await getDocs(expertsRef);
+      
+      const experts: Expert[] = [];
+      
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        
+        // Generate available time slots based on consultant's availability
+        const availability = [];
+        const today = new Date();
+        
+        // Create 7 days of availability
+        for (let i = 0; i < 7; i++) {
+          const date = new Date(today);
+          date.setDate(today.getDate() + i);
+          const dayName = date.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 3);
+          const dateString = date.toISOString().split('T')[0];
+          
+          // Check if this day is in the consultant's available days
+          const isAvailableDay = data.days?.includes(dayName) || 
+                              data.availability?.days?.includes(dayName);
+          
+          if (isAvailableDay) {
+            // Generate time slots based on consultant's hours
+            const slots: string[] = [];
+            const fromHour = data.hours?.from || data.availability?.hours?.from || 9;
+            const toHour = data.hours?.to || data.availability?.hours?.to || 17;
+            const duration = data.duration || data.availability?.duration || 30;
+            
+            // Calculate number of slots based on duration
+            const slotsCount = Math.floor((toHour - fromHour) * 60 / duration);
+            
+            for (let j = 0; j < slotsCount; j++) {
+              const minutes = j * duration;
+              const hour = Math.floor(fromHour + minutes / 60);
+              const minute = minutes % 60;
+              slots.push(`${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`);
+            }
+            
+            if (slots.length > 0) {
+              availability.push({
+                day: dateString,
+                slots: slots
+              });
+            }
+          }
+        }
+        
+        // Map consultant profile to Expert interface
+        experts.push({
+          id: doc.id,
+          name: data.fullName || data.name || 'Unnamed Consultant',
+          specialization: data.title || data.specializations?.[0] || 'General Consultant',
+          experience: data.yearsOfExperience || 0,
+          rating: data.rating || 4.5, // Default rating if not provided
+          photoURL: data.photoURL || data.profilePicture || '',
+          availability: availability.length > 0 ? availability : [
+            {
+              day: new Date().toISOString().split('T')[0],
+              slots: ['09:00', '10:00', '11:00', '14:00']
+            },
+            {
+              day: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+              slots: ['09:00', '10:00', '11:00', '14:00']
+            }
+          ]
+        });
+      });
+      
+      return experts;
+    } catch (error: any) {
+      console.error('Error fetching experts:', error);
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+// Fetch appointments for a consultant
+export const fetchConsultantAppointments = createAsyncThunk(
+  'appointment/fetchConsultantAppointments',
+  async (consultantId: string, { rejectWithValue }) => {
+    try {
+      // Query appointments where consultantId matches
+      const appointmentsRef = collection(db, 'appointments');
+      const q = query(appointmentsRef, where("consultantId", "==", consultantId));
+      const appointmentsSnapshot = await getDocs(q);
+      
+      const appointments: Appointment[] = appointmentsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        userId: doc.data().userId || '',
+        expertId: doc.data().expertId || '',
+        date: doc.data().date || '',
+        time: doc.data().time || '',
+        status: doc.data().status as 'scheduled' | 'completed' | 'cancelled',
+        meetingLink: doc.data().meetingLink,
+        notes: doc.data().notes,
+        createdAt: doc.data().createdAt?.toMillis() || Date.now(),
+        expertName: doc.data().expertName,
+        expertSpecialization: doc.data().expertSpecialization
+      }));
+      
+      return appointments;
+    } catch (error: any) {
       return rejectWithValue(error.message);
     }
   }
@@ -192,30 +308,22 @@ export const scheduleAppointment = createAsyncThunk(
     expertSpecialization: string;
     time: string;
     notes?: string;
-  }, { rejectWithValue }) => {
+  }, { rejectWithValue, getState }) => {
     try {
-      console.log('Starting appointment scheduling with data:', {
-        userId,
-        expertId,
-        date,
-        expertName,
-        expertSpecialization,
-        time,
-        notes
-      });
-
       // Validate required fields
       if (!userId || !expertId || !date || !time) {
         throw new Error('Missing required fields for appointment');
       }
 
-      // Get expert details from mockExperts if not provided
-      const expert = mockExperts.find(e => e.id === expertId);
+      // Get expert details from the state
+      const state = getState() as { appointment: AppointmentState };
+      const expert = state.appointment.experts?.find(e => e.id === expertId);
+      
       if (!expert) {
         throw new Error('Expert not found');
       }
 
-      // Use provided expert details or fallback to mock data
+      // Use provided expert details or fallback to state data
       const finalExpertName = expertName || expert.name;
       const finalExpertSpecialization = expertSpecialization || expert.specialization;
 
@@ -230,7 +338,6 @@ export const scheduleAppointment = createAsyncThunk(
       );
       
       const querySnapshot = await getDocs(q);
-      console.log('Checking availability - existing appointments:', querySnapshot.size);
       
       if (!querySnapshot.empty) {
         throw new Error('This time slot is no longer available. Please select another time.');
@@ -254,17 +361,7 @@ export const scheduleAppointment = createAsyncThunk(
         updatedAt: serverTimestamp(),
       };
       
-      console.log('Attempting to create appointment with data:', appointmentData);
-      
       const docRef = await addDoc(collection(db, 'appointments'), appointmentData);
-      console.log('Appointment created successfully with ID:', docRef.id);
-      
-      // Update expert's availability
-      const expertRef = doc(db, 'experts', expertId);
-      await updateDoc(expertRef, {
-        [`availability.${date}.${time}`]: false
-      });
-      console.log('Expert availability updated successfully');
       
       return {
         id: docRef.id,
@@ -301,7 +398,7 @@ const appointmentSlice = createSlice({
   reducers: {
     setSelectedExpert: (state, action: PayloadAction<string>) => {
       const expertId = action.payload;
-      state.selectedExpert = state.experts.find(expert => expert.id === expertId) || null;
+      state.selectedExpert = state.experts?.find(expert => expert.id === expertId) || null;
     },
     setSelectedDate: (state, action: PayloadAction<string>) => {
       state.selectedDate = action.payload;
@@ -329,6 +426,18 @@ const appointmentSlice = createSlice({
         state.userAppointments = action.payload;
       })
       .addCase(fetchUserAppointments.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(fetchConsultantAppointments.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchConsultantAppointments.fulfilled, (state, action) => {
+        state.loading = false;
+        state.consultantAppointments = action.payload;
+      })
+      .addCase(fetchConsultantAppointments.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })
@@ -364,6 +473,18 @@ const appointmentSlice = createSlice({
         }
       })
       .addCase(cancelAppointment.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(fetchExperts.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchExperts.fulfilled, (state, action) => {
+        state.loading = false;
+        state.experts = action.payload;
+      })
+      .addCase(fetchExperts.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       });
