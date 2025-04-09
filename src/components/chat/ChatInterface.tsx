@@ -247,9 +247,7 @@ const ChatInterface: React.FC = () => {
                   startListening(); // ✅ call it
                 } else {
                   SpeechRecognition.stopListening();  // ✅ call it
-                  resetTranscript();
-
-                  
+                  resetTranscript();   
                 }
                 setIsRecording(!isRecording);
               }}
