@@ -9,6 +9,8 @@ export interface Expert {
   experience: number;
   rating: number;
   photoURL: string;
+  bio?: string;
+  specializations?: string[];
   availability: {
     day: string;
     slots: string[];
@@ -147,11 +149,11 @@ export const fetchUserAppointments = createAsyncThunk(
         appointmentsRef,
         where('userId', '==', userId)
       );
-      
+
       const querySnapshot = await getDocs(q);
-      
+
       const appointments: Appointment[] = [];
-      
+
       querySnapshot.forEach((doc) => {
         const data = doc.data();
         appointments.push({
@@ -168,7 +170,7 @@ export const fetchUserAppointments = createAsyncThunk(
           createdAt: data.createdAt?.toMillis() || Date.now(),
         });
       });
-      
+
       return appointments;
     } catch (error: any) {
       console.error('Error fetching appointments:', error);
@@ -183,45 +185,45 @@ export const fetchExperts = createAsyncThunk(
     try {
       // Query consultantProfiles collection (not consultants)
       const expertsRef = collection(db, 'consultantProfiles');
-      const querySnapshot = await getDocs(expertsRef);
-      
+      const querySnapshot = await getDocs(query(expertsRef, where("isActive", "==", true)));
+
       const experts: Expert[] = [];
-      
+
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        
+
         // Generate available time slots based on consultant's availability
         const availability = [];
         const today = new Date();
-        
+
         // Create 7 days of availability
         for (let i = 0; i < 7; i++) {
           const date = new Date(today);
           date.setDate(today.getDate() + i);
           const dayName = date.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 3);
           const dateString = date.toISOString().split('T')[0];
-          
+
           // Check if this day is in the consultant's available days
-          const isAvailableDay = data.days?.includes(dayName) || 
-                              data.availability?.days?.includes(dayName);
-          
+          const isAvailableDay = data.days?.includes(dayName) ||
+            data.availability?.days?.includes(dayName);
+
           if (isAvailableDay) {
             // Generate time slots based on consultant's hours
             const slots: string[] = [];
             const fromHour = data.hours?.from || data.availability?.hours?.from || 9;
             const toHour = data.hours?.to || data.availability?.hours?.to || 17;
             const duration = data.duration || data.availability?.duration || 30;
-            
+
             // Calculate number of slots based on duration
             const slotsCount = Math.floor((toHour - fromHour) * 60 / duration);
-            
+
             for (let j = 0; j < slotsCount; j++) {
               const minutes = j * duration;
               const hour = Math.floor(fromHour + minutes / 60);
               const minute = minutes % 60;
               slots.push(`${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`);
             }
-            
+
             if (slots.length > 0) {
               availability.push({
                 day: dateString,
@@ -230,13 +232,15 @@ export const fetchExperts = createAsyncThunk(
             }
           }
         }
-        
+
         // Map consultant profile to Expert interface
         experts.push({
           id: doc.id,
           name: data.fullName || data.name || 'Unnamed Consultant',
           specialization: data.title || data.specializations?.[0] || 'General Consultant',
           experience: data.yearsOfExperience || 0,
+          bio:data.bio,
+          specializations:data.specializations,
           rating: data.rating || 4.5, // Default rating if not provided
           photoURL: data.photoURL || data.profilePicture || '',
           availability: availability.length > 0 ? availability : [
@@ -251,7 +255,7 @@ export const fetchExperts = createAsyncThunk(
           ]
         });
       });
-      
+
       return experts;
     } catch (error: any) {
       console.error('Error fetching experts:', error);
@@ -266,12 +270,14 @@ export const fetchConsultantAppointments = createAsyncThunk(
   async (consultantId: string, { rejectWithValue }) => {
     try {
       // Query appointments where consultantId matches
+      console.log(consultantId)
       const appointmentsRef = collection(db, 'appointments');
-      const q = query(appointmentsRef, where("consultantId", "==", consultantId));
+      const q = query(appointmentsRef, where("expertId", "==", consultantId));
       const appointmentsSnapshot = await getDocs(q);
-      
+
       const appointments: Appointment[] = appointmentsSnapshot.docs.map(doc => ({
         id: doc.id,
+        userName: doc.data().displayName,
         userId: doc.data().userId || '',
         expertId: doc.data().expertId || '',
         date: doc.data().date || '',
@@ -283,7 +289,7 @@ export const fetchConsultantAppointments = createAsyncThunk(
         expertName: doc.data().expertName,
         expertSpecialization: doc.data().expertSpecialization
       }));
-      
+      console.log(appointments)
       return appointments;
     } catch (error: any) {
       return rejectWithValue(error.message);
@@ -293,19 +299,19 @@ export const fetchConsultantAppointments = createAsyncThunk(
 
 export const scheduleAppointment = createAsyncThunk(
   'appointment/scheduleAppointment',
-  async ({ 
-    userId, 
-    expertId, 
-    date, 
+  async ({
+    userId,
+    expertId,
+    date,
     expertName,
     displayName,
     expertSpecialization,
     time,
-    notes 
-  }: { 
-    userId: string; 
-    expertId: string; 
-    date: string; 
+    notes
+  }: {
+    userId: string;
+    expertId: string;
+    date: string;
     displayName: string;
     expertName: string;
     expertSpecialization: string;
@@ -321,7 +327,7 @@ export const scheduleAppointment = createAsyncThunk(
       // Get expert details from the state
       const state = getState() as { appointment: AppointmentState };
       const expert = state.appointment.experts?.find(e => e.id === expertId);
-      
+
       if (!expert) {
         throw new Error('Expert not found');
       }
@@ -339,16 +345,16 @@ export const scheduleAppointment = createAsyncThunk(
         where('time', '==', time),
         where('status', '==', 'scheduled')
       );
-      
+
       const querySnapshot = await getDocs(q);
-      
+
       if (!querySnapshot.empty) {
         throw new Error('This time slot is no longer available. Please select another time.');
       }
-      
+
       // Generate a meeting link
       const meetingLink = `https://meet.google.com/abc-${Math.random().toString(36).substring(2, 7)}`;
-      
+
       // Create an appointment record
       const appointmentData = {
         userId,
@@ -364,9 +370,9 @@ export const scheduleAppointment = createAsyncThunk(
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
-      
+
       const docRef = await addDoc(collection(db, 'appointments'), appointmentData);
-      
+
       return {
         id: docRef.id,
         ...appointmentData,
@@ -384,11 +390,11 @@ export const cancelAppointment = createAsyncThunk(
   async (appointmentId: string, { rejectWithValue }) => {
     try {
       const appointmentRef = doc(db, 'appointments', appointmentId);
-      
+
       await updateDoc(appointmentRef, {
         status: 'cancelled',
       });
-      
+
       return appointmentId;
     } catch (error: any) {
       return rejectWithValue(error.message);
@@ -471,7 +477,7 @@ const appointmentSlice = createSlice({
         const appointmentIndex = state.userAppointments.findIndex(
           (appointment) => appointment.id === appointmentId
         );
-        
+
         if (appointmentIndex !== -1) {
           state.userAppointments[appointmentIndex].status = 'cancelled';
         }
@@ -495,11 +501,11 @@ const appointmentSlice = createSlice({
   },
 });
 
-export const { 
-  setSelectedExpert, 
-  setSelectedDate, 
-  setSelectedTime, 
-  clearSelections, 
-  clearError 
+export const {
+  setSelectedExpert,
+  setSelectedDate,
+  setSelectedTime,
+  clearSelections,
+  clearError
 } = appointmentSlice.actions;
 export default appointmentSlice.reducer;

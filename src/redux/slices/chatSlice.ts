@@ -51,27 +51,35 @@ const responseCache = new Map<string, string>();
 // -----------------------
 // Mock AI Response Function
 // -----------------------
-const handleAiResponse = (message: string): Promise<string> => {
-  // Check cache first for better performance
-  if (responseCache.has(message)) {
-    return Promise.resolve(responseCache.get(message)!);
-  }
+const handleAiResponse = async (message: string,userId:string): Promise<string> => {
+  // const dummyResponses = [
+  //   "I understand your concern. Based on the symptoms you've described, it appears that you might be experiencing stress and anxiety, which can manifest in various physical ways. It might be beneficial to take some time to relax, practice mindfulness, and consider consulting a professional for further guidance.",
+  //   "That's a great question! Maintaining a balanced diet and regular exercise routine is essential for overall health. Consider incorporating more fruits, vegetables, and lean proteins into your meals, and aim to engage in physical activity for at least 30 minutes each day to improve your well-being.",
+  //   "Based on current medical guidelines, it is advisable to get this checked by a specialist, especially if your symptoms persist or worsen. Early intervention can lead to better outcomes, and a specialist will be able to provide you with a more personalized treatment plan to address your concerns.",
+  //   "I'm here to help! Could you please provide more details about your symptoms so I can better understand your situation? The more information you share, the more accurately I can suggest steps or recommend professional advice tailored to your needs.",
+  //   "From what you've shared, it seems like a common condition that can often be managed effectively with proper care and lifestyle adjustments. However, it might be beneficial to monitor your symptoms closely and consult with a healthcare professional for a comprehensive evaluation and advice, ensuring you receive the most appropriate care."
+  // ];
 
-  const dummyResponses = [
-    "I understand your concern. Based on the symptoms you've described, it appears that you might be experiencing stress and anxiety, which can manifest in various physical ways. It might be beneficial to take some time to relax, practice mindfulness, and consider consulting a professional for further guidance.",
-    "That's a great question! Maintaining a balanced diet and regular exercise routine is essential for overall health. Consider incorporating more fruits, vegetables, and lean proteins into your meals, and aim to engage in physical activity for at least 30 minutes each day to improve your well-being.",
-    "Based on current medical guidelines, it is advisable to get this checked by a specialist, especially if your symptoms persist or worsen. Early intervention can lead to better outcomes, and a specialist will be able to provide you with a more personalized treatment plan to address your concerns.",
-    "I'm here to help! Could you please provide more details about your symptoms so I can better understand your situation? The more information you share, the more accurately I can suggest steps or recommend professional advice tailored to your needs.",
-    "From what you've shared, it seems like a common condition that can often be managed effectively with proper care and lifestyle adjustments. However, it might be beneficial to monitor your symptoms closely and consult with a healthcare professional for a comprehensive evaluation and advice, ensuring you receive the most appropriate care."
-  ];
+  // return new Promise((resolve) => {
+  //   setTimeout(() => {
+  //     const response =
+  //       dummyResponses[Math.floor(Math.random() * dummyResponses.length)];
+  //     resolve(response);
+  //   }, 2000);
+  // });
+  const response = await fetch(`${import.meta.env.VITE_openAIKey}/chat/text`, {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+        user_id: userId,
+        message: message
+    })
+});
+const data = await response.json();
+return data.message
 
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const response = dummyResponses[Math.floor(Math.random() * dummyResponses.length)];
-      responseCache.set(message, response); // Cache the response
-      resolve(response);
-    }, 2000);
-  });
 };
 
 // Utility function to convert Firestore timestamps
@@ -178,7 +186,7 @@ export const sendMessage = createAsyncThunk<
       // Generate AI response
       let fullText = "";
       try {
-        const response = await handleAiResponse(message);
+        const response = await handleAiResponse(message,userId);
         // Turn off AI loading immediately after getting the response
         dispatch(setAiLoading({ sessionId, loading: false }));
         

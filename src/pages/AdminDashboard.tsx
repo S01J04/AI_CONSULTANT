@@ -1,26 +1,28 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../redux/store';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { 
-  Users, MessageSquare, Calendar, CreditCard, Settings, 
+import {
+  Users, MessageSquare, Calendar, CreditCard, Settings,
   BarChart2, PieChart as PieChartIcon, Activity, Bell, Search
 } from 'lucide-react';
 import { fetchAdminStats } from '../redux/slices/adminSlice';
-import { 
-  fetchConsultantProfile, 
+import {
+  fetchConsultantProfile,
   saveConsultantProfile,
   fetchAllConsultantProfiles
 } from '../redux/slices/authSlice';
-import { fetchConsultantAppointments } from '../redux/slices/appointmentSlice';
+import { Appointment, fetchConsultantAppointments } from '../redux/slices/appointmentSlice';
 import UserManagement from '../components/admin/UserManagement';
 
 // Chart components
-import { 
-  LineChart, Line, BarChart, Bar, PieChart, Pie, 
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, 
-  ResponsiveContainer, Cell 
+import {
+  LineChart, Line, BarChart, Bar, PieChart, Pie,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  ResponsiveContainer, Cell
 } from 'recharts';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../firebase/config';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 const handleappointment = (appointmentdetails) => {
@@ -61,6 +63,8 @@ const handleappointment = (appointmentdetails) => {
   document.body.appendChild(modal);
 };
 const ConsultantProfileTab: React.FC = () => {
+
+
   const dispatch = useDispatch<AppDispatch>();
   const { user } = useSelector((state: RootState) => state.auth);
   const [consultantData, setConsultantData] = useState({
@@ -138,7 +142,7 @@ const ConsultantProfileTab: React.FC = () => {
       const days = prev.availability.days.includes(day)
         ? prev.availability.days.filter(d => d !== day)
         : [...prev.availability.days, day];
-      
+
       return {
         ...prev,
         availability: {
@@ -154,13 +158,13 @@ const ConsultantProfileTab: React.FC = () => {
       ...prev,
       availability: {
         ...prev.availability,
-        [type === 'duration' ? 'duration' : 'hours']: 
-          type === 'duration' 
-            ? value 
+        [type === 'duration' ? 'duration' : 'hours']:
+          type === 'duration'
+            ? value
             : {
-                ...prev.availability.hours,
-                [type]: value
-              }
+              ...prev.availability.hours,
+              [type]: value
+            }
       }
     }));
   };
@@ -198,7 +202,7 @@ const ConsultantProfileTab: React.FC = () => {
     return (
       <div className="space-y-6">
         <h2 className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-white">Consultant Profile</h2>
-        
+
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
           <div className="flex flex-col items-center justify-center p-8 text-center">
             <div className="rounded-full bg-yellow-100 p-4 text-yellow-500 mb-4">
@@ -228,7 +232,7 @@ const ConsultantProfileTab: React.FC = () => {
         <h2 className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-white">Consultant Profile</h2>
         <div className="flex items-center space-x-2">
           <span className="text-sm text-gray-500 dark:text-gray-400">Profile Visibility:</span>
-          <div 
+          <div
             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 cursor-pointer
               ${consultantData.isActive ? 'bg-indigo-600' : 'bg-gray-200 dark:bg-gray-700'}`}
             onClick={handleToggleActive}
@@ -243,7 +247,7 @@ const ConsultantProfileTab: React.FC = () => {
           </span>
         </div>
       </div>
-      
+
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
         {consultantProfileLoading ? (
           <div className="flex justify-center p-6">
@@ -389,7 +393,7 @@ const ConsultantProfileTab: React.FC = () => {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-xs text-gray-500 dark:text-gray-400">From</label>
-                        <select 
+                        <select
                           className="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white sm:text-sm rounded-md"
                           value={consultantData.availability.hours.from}
                           onChange={e => handleAvailabilityChange('from', parseInt(e.target.value))}
@@ -403,7 +407,7 @@ const ConsultantProfileTab: React.FC = () => {
                       </div>
                       <div>
                         <label className="block text-xs text-gray-500 dark:text-gray-400">To</label>
-                        <select 
+                        <select
                           className="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white sm:text-sm rounded-md"
                           value={consultantData.availability.hours.to}
                           onChange={e => handleAvailabilityChange('to', parseInt(e.target.value))}
@@ -422,7 +426,7 @@ const ConsultantProfileTab: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Consultation Duration (minutes)
                   </label>
-                  <select 
+                  <select
                     className="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white sm:text-sm rounded-md"
                     value={consultantData.availability.duration}
                     onChange={e => handleAvailabilityChange('duration', parseInt(e.target.value))}
@@ -449,67 +453,6 @@ const ConsultantProfileTab: React.FC = () => {
           </form>
         )}
       </div>
-
-      {/* My Appointments */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-        <h3 className="text-lg font-medium text-gray-700 dark:text-gray-200 mb-4">My Appointments</h3>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-700">
-              <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Client
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Date & Time
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Status
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {consultantAppointments.length > 0 ? (
-                consultantAppointments.map((appointment) => (
-                  <tr key={appointment.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                      {appointment.userName || 'Client'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {formatAppointmentDate(appointment.date)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        appointment.status === 'scheduled'
-                          ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                          : appointment.status === 'completed'
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                      }`}>
-                        {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      <button className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">
-                        View Details
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500 dark:text-gray-400" colSpan={4}>
-                    No appointments scheduled yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
     </div>
   );
 };
@@ -521,7 +464,35 @@ const AdminDashboard: React.FC = () => {
   const { consultantAppointments } = useSelector((state: RootState) => state.appointment);
   const [activeTab, setActiveTab] = useState('overview');
   const navigate = useNavigate();
-  
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [apointmentloading, setapointmentLoading] = useState(false);
+  const filteredAppointments = useMemo(() => {
+    return stats?.recentAppointments.filter((appointment) => {
+      const matchesSearch =
+        appointment.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        appointment.expertName.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const matchesStatus =
+        statusFilter === "all" || appointment.status === statusFilter;
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [searchTerm, statusFilter, stats]);
+
+  const handleViewDetails = (appointment: Appointment) => {
+    setSelectedAppointment(appointment);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setSelectedAppointment(null);
+    setIsModalOpen(false);
+  };
+
   // Check for role changes in real-time
   useEffect(() => {
     // If the user is no longer an admin or superadmin, redirect them
@@ -530,7 +501,7 @@ const AdminDashboard: React.FC = () => {
       navigate('/dashboard');
     }
   }, [user, navigate]);
-  
+
   const [notifications, setNotifications] = useState([
     {
       id: 1,
@@ -554,7 +525,7 @@ const AdminDashboard: React.FC = () => {
       read: true
     }
   ]);
-  
+
   useEffect(() => {
     dispatch(fetchAdminStats());
     if (user?.uid && (user.role === 'admin' || user.role === 'superadmin')) {
@@ -566,6 +537,7 @@ const AdminDashboard: React.FC = () => {
   useEffect(() => {
     if (user?.role === 'superadmin') {
       dispatch(fetchAllConsultantProfiles());
+      
     }
   }, [dispatch, user?.role]);
 
@@ -580,7 +552,7 @@ const AdminDashboard: React.FC = () => {
   const markAllAsRead = () => {
     setNotifications(notifications.map(notification => ({ ...notification, read: true })));
   };
-  
+
   const renderOverviewTab = () => {
     return (
       <div className="space-y-6">
@@ -617,21 +589,25 @@ const AdminDashboard: React.FC = () => {
               </p>
             </div>
           )}
-          
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200">Appointments</h3>
-              <Calendar className="h-8 w-8 text-indigo-500" />
-            </div>
-            <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats?.totalAppointments || 0}</p>
-            <p className="text-sm text-green-600 dark:text-green-400 mt-2 flex items-center">
-              <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-              </svg>
-              <span>Total Bookings</span>
-            </p>
-          </div>
-          
+
+          {
+            user.role == 'superadmin' && (
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200">Appointments</h3>
+                  <Calendar className="h-8 w-8 text-indigo-500" />
+                </div>
+                <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats?.totalAppointments || 0}</p>
+                <p className="text-sm text-green-600 dark:text-green-400 mt-2 flex items-center">
+                  <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                  </svg>
+                  <span>Total Bookings</span>
+                </p>
+              </div>
+            )
+          }
+
           {user?.role === 'superadmin' && (
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
               <div className="flex items-center justify-between mb-4">
@@ -648,9 +624,9 @@ const AdminDashboard: React.FC = () => {
             </div>
           )}
         </div>
-        
+
         {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {user?.role == "superadmin" && (<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
             <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4">Monthly Activity</h3>
             <div className="h-80">
@@ -667,7 +643,7 @@ const AdminDashboard: React.FC = () => {
               </ResponsiveContainer>
             </div>
           </div>
-          
+
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
             <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4">Appointment Status</h3>
             <div className="h-80">
@@ -697,7 +673,7 @@ const AdminDashboard: React.FC = () => {
               </ResponsiveContainer>
             </div>
           </div>
-        </div>
+        </div>)}
 
         {/* Recent Activity Tables */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -741,7 +717,7 @@ const AdminDashboard: React.FC = () => {
           )}
 
           {/* Recent Appointments */}
-          <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 ${user?.role === 'superadmin' ? '' : 'lg:col-span-2'}`}>
+          {user?.role == "superadmin" && (<div className={`bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 ${user?.role === 'superadmin' ? '' : 'lg:col-span-2'}`}>
             <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4">Recent Appointments</h3>
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -780,13 +756,12 @@ const AdminDashboard: React.FC = () => {
                         {appointment.date} at {appointment.time}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          appointment.status === 'scheduled'
-                            ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                            : appointment.status === 'completed'
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${appointment.status === 'scheduled'
+                          ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                          : appointment.status === 'completed'
                             ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                             : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                        }`}>
+                          }`}>
                           {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
                         </span>
                       </td>
@@ -795,7 +770,8 @@ const AdminDashboard: React.FC = () => {
                 </tbody>
               </table>
             </div>
-          </div>
+          </div>)}
+
 
           {/* Recent Payments - only show for superadmin */}
           {user?.role === 'superadmin' && (
@@ -841,15 +817,14 @@ const AdminDashboard: React.FC = () => {
                           {payment.date}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            payment.status === 'completed'
-                              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                              : payment.status === 'pending'
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${payment.status === 'completed'
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                            : payment.status === 'pending'
                               ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
                               : payment.status === 'failed'
-                              ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                              : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
-                          }`}>
+                                ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                                : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+                            }`}>
                             {payment.status.charAt(0).toUpperCase() + payment.status.slice(1)}
                           </span>
                         </td>
@@ -875,7 +850,7 @@ const AdminDashboard: React.FC = () => {
                   {allConsultantProfiles.length} Consultants
                 </span>
               </div>
-              
+
               {allConsultantProfilesLoading ? (
                 <div className="flex justify-center p-6">
                   <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
@@ -891,9 +866,8 @@ const AdminDashboard: React.FC = () => {
                       <div className="flex items-center space-x-3 mb-3">
                         <div className="relative h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-800 font-bold text-xl">
                           {profile.fullName.charAt(0)}
-                          <span className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full ${
-                            profile.isActive ? 'bg-green-500' : 'bg-gray-400'
-                          }`}></span>
+                          <span className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full ${profile.isActive ? 'bg-green-500' : 'bg-gray-400'
+                            }`}></span>
                         </div>
                         <div className="flex-1">
                           <h4 className="text-md font-medium text-gray-900 dark:text-white">
@@ -904,7 +878,7 @@ const AdminDashboard: React.FC = () => {
                           </p>
                         </div>
                       </div>
-                      
+
                       <div className="space-y-2 text-sm mb-3">
                         <div className="flex items-center text-gray-500 dark:text-gray-400">
                           <span className="font-medium text-gray-700 dark:text-gray-300 mr-2">Specializations:</span>
@@ -919,16 +893,15 @@ const AdminDashboard: React.FC = () => {
                           <span>{profile.availability.days.join(', ') || 'None'}</span>
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center mt-auto pt-2 border-t border-gray-200 dark:border-gray-700">
-                        <span className={`text-xs px-2 py-1 rounded-full ${
-                          profile.isActive 
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
-                            : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
-                        }`}>
+                        <span className={`text-xs px-2 py-1 rounded-full ${profile.isActive
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                          : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
+                          }`}>
                           {profile.isActive ? 'Active' : 'Inactive'}
                         </span>
-                        <button 
+                        <button
                           className="ml-auto text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 text-sm"
                           onClick={() => navigate(`/admin/consultant/${profile.uid}`)}
                         >
@@ -945,140 +918,329 @@ const AdminDashboard: React.FC = () => {
       </div>
     );
   };
+  var formatAppointmentDate = (timestamp: number) => {
+    const date = new Date(timestamp);
+    return date.toLocaleString();
+  };
+  const renderAppointmentsTab = (
+    handleViewDetails, closeModal, 
+    setSearchTerm, searchTerm, 
+    statusFilter, setStatusFilter
+    ,filteredAppointments
+  ) => (
 
-  const renderAppointmentsTab = () => (
     <div className="space-y-6">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200">Appointment Management</h3>
-          <div className="flex space-x-2">
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-5 w-5 text-gray-400" />
-              </div>
-              <input
-                type="text"
-                placeholder="Search appointments..."
-                className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
-              />
-            </div>
-            <select className="border border-gray-300 dark:border-gray-600 rounded-md py-2 px-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white">
-              <option value="all">All Status</option>
-              <option value="scheduled">Scheduled</option>
-              <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
-          </div>
-        </div>
-        
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-700">
-              <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  User
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Expert
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Specialization
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Date & Time
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Status
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {stats?.recentAppointments.map((appointment) => (
-                <tr key={appointment.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                    {appointment.userName}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                    {appointment.expertName}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                    {appointment.expertSpecialization || 'Not specified'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                    {appointment.date} at {appointment.time}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      appointment.status === 'scheduled'
-                        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                        : appointment.status === 'completed'
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                        : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                    }`}>
-                      {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                    <button onClick={()=>{handleappointment(appointment)}} className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">
-                      View Details
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4">Appointment Trends</h3>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={stats?.monthlyStats || []}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Line type="monotone" dataKey="appointments" name="Appointments" stroke="#82ca9d" />
-              </LineChart>
-            </ResponsiveContainer>
+      {user?.role == "superadmin" && (
+        <>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+            <div className="flex space-x-2">
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Search className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search appointments..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                />
+              </div>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="border border-gray-300 dark:border-gray-600 rounded-md py-2 px-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+              >
+                <option value="all">All Status</option>
+                <option value="scheduled">Scheduled</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+
+
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-gray-700">
+                  <tr>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      User
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      Expert
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      Specialization
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      Date & Time
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  {loading ? (
+                    <tr>
+                      <td colSpan={6} className="text-center py-8 text-gray-500 dark:text-gray-300">
+                        Loading appointments...
+                      </td>
+                    </tr>
+                  ) : filteredAppointments?.length > 0 ? (
+                    filteredAppointments.map((appointment) => (
+                      <tr key={appointment.id}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                          {appointment.userName}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                          {appointment.expertName}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                          {appointment.expertSpecialization || 'Not specified'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                          {appointment.date} at {appointment.time}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${appointment.status === 'scheduled'
+                            ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                            : appointment.status === 'completed'
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                              : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                            }`}>
+                            {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                          <button
+                            onClick={() => handleappointment(appointment)}
+                            className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
+                          >
+                            View Details
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={6} className="text-center py-8 text-gray-500 dark:text-gray-300">
+                        No appointments found.
+                      </td>
+                    </tr>
+                  )}
+
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-        
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4">Appointment Status</h3>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={[
-                    { name: 'Scheduled', value: stats?.appointmentStatus.scheduled || 0 },
-                    { name: 'Completed', value: stats?.appointmentStatus.completed || 0 },
-                    { name: 'Cancelled', value: stats?.appointmentStatus.cancelled || 0 },
-                  ]}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                >
-                  <Cell fill="#FFBB28" />
-                  <Cell fill="#00C49F" />
-                  <Cell fill="#FF8042" />
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+              <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4">Appointment Trends</h3>
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={stats?.monthlyStats || []}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="appointments" name="Appointments" stroke="#82ca9d" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+              <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4">Appointment Status</h3>
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { name: 'Scheduled', value: stats?.appointmentStatus.scheduled || 0 },
+                        { name: 'Completed', value: stats?.appointmentStatus.completed || 0 },
+                        { name: 'Cancelled', value: stats?.appointmentStatus.cancelled || 0 },
+                      ]}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    >
+                      <Cell fill="#FFBB28" />
+                      <Cell fill="#00C49F" />
+                      <Cell fill="#FF8042" />
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        </>
+      )}
+      {/* My Appointments */}
+      {
+        user?.role == 'admin' && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+            <h3 className="text-lg font-medium text-gray-700 dark:text-gray-200 mb-4">My Appointments</h3>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-gray-700">
+                  <tr>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      Client
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      Date & Time
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  {consultantAppointments.length > 0 ? (
+                    consultantAppointments.map((appointment) => (
+                      <>
+                        <tr key={appointment.id}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                            {appointment.userName || 'Client'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            {formatAppointmentDate(appointment?.date)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${appointment.status === 'scheduled'
+                              ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                              : appointment.status === 'completed'
+                                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                              }`}>
+                              {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            <button
+                              className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
+                              onClick={() => handleViewDetails(appointment)}
+                            >
+                              View Details
+                            </button>
+
+                          </td>
+                        </tr>
+                        {isModalOpen && selectedAppointment && (
+                          <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
+                            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-6 w-full max-w-xl relative animate-fadeIn">
+
+                              {/* Close Button */}
+                              <button
+                                onClick={closeModal}
+                                className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 dark:hover:text-white text-xl"
+                                aria-label="Close"
+                              >
+                                ✕
+                              </button>
+
+                              {/* Title */}
+                              <h2 className="text-2xl font-bold mb-4 text-gray-800 dark:text-white text-center">
+                                Appointment Details
+                              </h2>
+
+                              {/* Status Message */}
+                              {selectedAppointment.status === "completed" && (
+                                <div className="mb-4 p-3 rounded-lg bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100 text-sm text-center">
+                                  ✅ This appointment has been marked as <strong>Completed</strong>.
+                                </div>
+                              )}
+
+                              {selectedAppointment.status === "cancelled" && (
+                                <div className="mb-4 p-3 rounded-lg bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100 text-sm text-center">
+                                  ❌ This appointment has been <strong>Cancelled</strong>.
+                                </div>
+                              )}
+
+                              {/* Appointment Info */}
+                              <div className="space-y-3 text-sm text-gray-700 dark:text-gray-300">
+                                <p><strong>Client Name:</strong> {selectedAppointment.userName}</p>
+                                <p><strong>Date:</strong> {formatAppointmentDate(selectedAppointment.date)}</p>
+                                <p><strong>Time:</strong> {selectedAppointment.time}</p>
+                                <p><strong>Status:</strong> <span className="capitalize">{selectedAppointment.status}</span></p>
+                                <p><strong>Notes:</strong> {selectedAppointment.notes || "No notes provided."}</p>
+                                <p><strong>Expert:</strong> {selectedAppointment.expertName} ({selectedAppointment.expertSpecialization})</p>
+                              </div>
+
+                              {/* Action Buttons */}
+                              {selectedAppointment.status === 'scheduled' && (
+                                <div className="mt-6 flex justify-end space-x-3">
+                                  <button
+                                    onClick={async () => {
+                                      try {
+                                        const appointmentRef = doc(db, "appointments", selectedAppointment.id);
+                                        await updateDoc(appointmentRef, { status: "completed" });
+                                        setSelectedAppointment({ ...selectedAppointment, status: "completed" });
+                                        setIsModalOpen(false);
+                                        // Optional: toast.success("Appointment marked as completed!");
+                                      } catch (error) {
+                                        console.error("Error updating appointment:", error);
+                                        // Optional: toast.error("Failed to update appointment.");
+                                      }
+                                    }}
+                                    className="bg-green-600 text-white px-5 py-2 rounded-lg hover:bg-green-700 transition"
+                                  >
+                                    Mark as Completed
+                                  </button>
+
+                                  <button
+                                    onClick={async () => {
+                                      try {
+                                        const appointmentRef = doc(db, "appointments", selectedAppointment.id);
+                                        await updateDoc(appointmentRef, { status: "cancelled" });
+                                        setSelectedAppointment({ ...selectedAppointment, status: "cancelled" });
+                                        setIsModalOpen(false);
+                                        // Optional: toast("Appointment has been cancelled.");
+                                      } catch (error) {
+                                        console.error("Error cancelling appointment:", error);
+                                        // Optional: toast.error("Failed to cancel appointment.");
+                                      }
+                                    }}
+                                    className="bg-red-500 text-white px-5 py-2 rounded-lg hover:bg-red-600 transition"
+                                  >
+                                    Cancel Appointment
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                        )}</>
+
+                    ))
+                  ) : (
+                    <tr>
+                      <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500 dark:text-gray-400" colSpan={4}>
+                        No appointments scheduled yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )
+      }
     </div>
   );
 
@@ -1115,7 +1277,7 @@ const AdminDashboard: React.FC = () => {
           </p>
         </div>
       </div>
-      
+
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
         <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4">Revenue Trends</h3>
         <div className="h-80">
@@ -1200,15 +1362,14 @@ const AdminDashboard: React.FC = () => {
                     {payment.date}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      payment.status === 'completed'
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                        : payment.status === 'pending'
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${payment.status === 'completed'
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                      : payment.status === 'pending'
                         ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
                         : payment.status === 'failed'
-                        ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                        : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
-                    }`}>
+                          ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                          : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+                      }`}>
                       {payment.status.charAt(0).toUpperCase() + payment.status.slice(1)}
                     </span>
                   </td>
@@ -1271,11 +1432,10 @@ const AdminDashboard: React.FC = () => {
               <nav className="flex flex-col">
                 <button
                   onClick={() => setActiveTab('overview')}
-                  className={`flex items-center px-4 py-3 text-sm font-medium ${
-                    activeTab === 'overview'
-                      ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200 border-l-4 border-indigo-500'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-                  }`}
+                  className={`flex items-center px-4 py-3 text-sm font-medium ${activeTab === 'overview'
+                    ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200 border-l-4 border-indigo-500'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                    }`}
                 >
                   <BarChart2 className="mr-3 h-5 w-5" />
                   Overview
@@ -1284,11 +1444,10 @@ const AdminDashboard: React.FC = () => {
                 {user?.role === 'superadmin' && (
                   <button
                     onClick={() => setActiveTab('users')}
-                    className={`w-full flex items-center px-4 py-3 rounded-lg ${
-                      activeTab === 'users'
-                        ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                    }`}
+                    className={`w-full flex items-center px-4 py-3 rounded-lg ${activeTab === 'users'
+                      ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                      }`}
                   >
                     <Users className="h-5 w-5 mr-3" />
                     <span>Users</span>
@@ -1296,11 +1455,10 @@ const AdminDashboard: React.FC = () => {
                 )}
                 <button
                   onClick={() => setActiveTab('appointments')}
-                  className={`flex items-center px-4 py-3 text-sm font-medium ${
-                    activeTab === 'appointments'
-                      ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200 border-l-4 border-indigo-500'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-                  }`}
+                  className={`flex items-center px-4 py-3 text-sm font-medium ${activeTab === 'appointments'
+                    ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200 border-l-4 border-indigo-500'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                    }`}
                 >
                   <Calendar className="mr-3 h-5 w-5" />
                   Appointments
@@ -1308,11 +1466,10 @@ const AdminDashboard: React.FC = () => {
                 {user?.role === 'admin' && (
                   <button
                     onClick={() => setActiveTab('consultations')}
-                    className={`flex items-center px-4 py-3 text-sm font-medium ${
-                      activeTab === 'consultations'
-                        ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200 border-l-4 border-indigo-500'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-                    }`}
+                    className={`flex items-center px-4 py-3 text-sm font-medium ${activeTab === 'consultations'
+                      ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200 border-l-4 border-indigo-500'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                      }`}
                   >
                     <MessageSquare className="mr-3 h-5 w-5" />
                     Consultant Profile
@@ -1321,11 +1478,10 @@ const AdminDashboard: React.FC = () => {
                 {user?.role === 'superadmin' && (
                   <button
                     onClick={() => setActiveTab('revenue')}
-                    className={`flex items-center px-4 py-3 text-sm font-medium ${
-                      activeTab === 'revenue'
-                        ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200 border-l-4 border-indigo-500'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-                    }`}
+                    className={`flex items-center px-4 py-3 text-sm font-medium ${activeTab === 'revenue'
+                      ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200 border-l-4 border-indigo-500'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                      }`}
                   >
                     <CreditCard className="mr-3 h-5 w-5" />
                     Revenue
@@ -1333,11 +1489,10 @@ const AdminDashboard: React.FC = () => {
                 )}
                 <button
                   onClick={() => setActiveTab('settings')}
-                  className={`flex items-center px-4 py-3 text-sm font-medium ${
-                    activeTab === 'settings'
-                      ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200 border-l-4 border-indigo-500'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-                  }`}
+                  className={`flex items-center px-4 py-3 text-sm font-medium ${activeTab === 'settings'
+                    ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200 border-l-4 border-indigo-500'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                    }`}
                 >
                   <Settings className="mr-3 h-5 w-5" />
                   Settings
@@ -1345,12 +1500,17 @@ const AdminDashboard: React.FC = () => {
               </nav>
             </div>
           </div>
-          
+
           {/* Main content */}
           <div className="flex-1">
             {activeTab === 'overview' && renderOverviewTab()}
             {activeTab === 'users' && user?.role === 'superadmin' && renderUsersTab()}
-            {activeTab === 'appointments' && renderAppointmentsTab()}
+            {activeTab === 'appointments' && renderAppointmentsTab(
+               handleViewDetails, closeModal, 
+               setSearchTerm, searchTerm, 
+               statusFilter, setStatusFilter
+               ,filteredAppointments
+            )}
             {activeTab === 'revenue' && user?.role === 'superadmin' && renderRevenueTab()}
             {activeTab === 'settings' && renderSettingsTab()}
             {activeTab === 'consultations' && renderConsultationsTab()}

@@ -33,7 +33,9 @@ const ConsultantDetailsPage: React.FC = () => {
   const { consultantId } = useParams<{ consultantId: string }>();
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
-  
+  useEffect(() => {
+    window.scrollTo(0, 0); // scrolls to the top when this page loads
+  }, []);
   // State for appointment booking
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedTime, setSelectedTime] = useState<string>('');
@@ -123,14 +125,15 @@ const ConsultantDetailsPage: React.FC = () => {
     
     try {
       await dispatch(scheduleAppointment({
-        userId: user.uid,
-        expertId: consultantId,
-        date: selectedDate,
-        time: selectedTime,
-        expertName: consultantProfile.fullName,
-        expertSpecialization: consultantProfile.specializations?.[0] || consultantProfile.title,
-        notes
-      })).unwrap();
+              userId: user.uid,
+              expertId: consultantId,
+              date: selectedDate,
+              time: selectedTime,
+              displayName: user.displayName || 'Anonymous', // Add displayName
+              expertName: consultantProfile.fullName,
+              expertSpecialization: consultantProfile.specializations?.[0] || consultantProfile.title,
+              notes
+            })).unwrap();
       
       setBookingStatus({ success: 'Appointment booked successfully!' });
       setSelectedDate('');
@@ -242,7 +245,7 @@ const ConsultantDetailsPage: React.FC = () => {
                   <Info className="h-4 w-4 mr-2" />
                   Consultant Info
                 </button>
-                <button 
+                {/* <button 
                   onClick={() => setActiveTab('book')}
                   className={`flex items-center justify-center w-1/2 py-4 text-sm font-medium border-b-2 ${
                     activeTab === 'book' 
@@ -252,7 +255,7 @@ const ConsultantDetailsPage: React.FC = () => {
                 >
                   <Calendar className="h-4 w-4 mr-2" />
                   Book Appointment
-                </button>
+                </button> */}
               </div>
               
               {/* Tab content */}
@@ -342,9 +345,9 @@ const ConsultantDetailsPage: React.FC = () => {
                     )}
 
                     {/* Date selection */}
-                    {consultantProfile.isActive && availableDates.length > 0 && (
+                    {/* {consultantProfile.isActive && availableDates.length > 0 && ( */}
                       <>
-                        <div>
+                        {/* <div>
                           <h3 className="text-lg font-medium text-gray-700 dark:text-gray-200 mb-3">Select a date</h3>
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                             {availableDates.map((date) => (
@@ -366,10 +369,10 @@ const ConsultantDetailsPage: React.FC = () => {
                               </button>
                             ))}
                           </div>
-                        </div>
+                        </div> */}
                         
                         {/* Time selection */}
-                        {selectedDate && (
+                        {/* {selectedDate && (
                           <div>
                             <h3 className="text-lg font-medium text-gray-700 dark:text-gray-200 mb-3">Select a time</h3>
                             {availableTimes.length === 0 ? (
@@ -396,10 +399,10 @@ const ConsultantDetailsPage: React.FC = () => {
                               </div>
                             )}
                           </div>
-                        )}
+                        )} */}
                         
                         {/* Notes field */}
-                        {selectedDate && selectedTime && (
+                        {/* {selectedDate && selectedTime && (
                           <div>
                             <h3 className="text-lg font-medium text-gray-700 dark:text-gray-200 mb-3">Additional notes</h3>
                             <textarea
@@ -410,10 +413,10 @@ const ConsultantDetailsPage: React.FC = () => {
                               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white resize-none"
                             ></textarea>
                           </div>
-                        )}
+                        )} */}
                         
                         {/* Book button */}
-                        {selectedDate && selectedTime && (
+                        {/* {selectedDate && selectedTime && (
                           <div className="pt-2">
                             <button
                               onClick={handleBookAppointment}
@@ -423,9 +426,10 @@ const ConsultantDetailsPage: React.FC = () => {
                               Book Appointment
                             </button>
                           </div>
-                        )}
+                        )} */}
                       </>
-                    )}
+                    {/* )} */}
+                    
                   </div>
                 )}
               </div>
@@ -434,11 +438,11 @@ const ConsultantDetailsPage: React.FC = () => {
         </div>
 
         {/* My appointments section */}
-        {myAppointments.length > 0 && (
+        {/* {myAppointments.length > 0 && (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
               <Calendar className="h-5 w-5 mr-2 text-indigo-500" />
-              My Appointments
+               Appointments
             </h2>
             
             <div className="space-y-4 mt-4">
@@ -498,10 +502,10 @@ const ConsultantDetailsPage: React.FC = () => {
               ))}
             </div>
           </div>
-        )}
+        )} */}
         
         {/* What to expect section */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mt-6">
+        {/* <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mt-6">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
             <Info className="h-5 w-5 mr-2 text-indigo-500" />
             What to Expect
@@ -538,7 +542,7 @@ const ConsultantDetailsPage: React.FC = () => {
               </p>
             </div>
           </div>
-        </div>
+        </div> */}
       </div>
     </div>
   );
