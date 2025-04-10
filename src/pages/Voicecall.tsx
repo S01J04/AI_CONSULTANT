@@ -13,10 +13,11 @@ const VoiceCallWithAI = () => {
     const [isMicOn, setIsMicOn] = useState(false);
     const [status, setStatus] = useState('Idle');
     const [aiResponse, setAIResponse] = useState('');
-    const [transcribedText, setTranscribedText] = useState('');  // Added to store transcribed text
+    const [transcribedText, setTranscribedText] = useState('');
 
     const mediaRecorderRef = useRef<any>(null);
     const streamRef = useRef<MediaStream | null>(null);
+    const recognitionRef = useRef<SpeechRecognition | null>(null);  // Use ref to hold recognition instance
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
     const analyserRef = useRef<AnalyserNode | null>(null);
@@ -108,76 +109,66 @@ const VoiceCallWithAI = () => {
         speechSynthesis.speak(utterance);
     };
 
-    const handleMicStop = () => {
-        if (mediaRecorderRef.current?.state === 'recording') {
-            mediaRecorderRef.current.stop();
-            const audioBlob = new Blob(mediaRecorderRef.current?.chunks, { type: 'audio/wav' });
+    const startSpeechRecognition = () => {
+        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+        recognition.lang = 'en-US';
+        recognition.continuous = true;
+        recognition.interimResults = true;
 
-            // Convert audio to text using speech recognition
-            const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-            recognition.lang = 'en-US';
-            recognition.continuous = false;
-            recognition.interimResults = false;
+        recognition.onstart = () => {
+            setStatus('Listening...');
+        };
 
-            recognition.onresult = async (event) => {
-                const transcript = event.results[0][0].transcript;
-                setTranscribedText(transcript);  // Store transcribed text
+        recognition.onresult = async (event) => {
+            const transcript = event.results[event.resultIndex][0].transcript;
+            setTranscribedText(transcript);
 
-                // Send the transcribed text to the AI API
-                const response = await getAIResponse(transcript);
-                setAIResponse(response);
-                speakResponse(response); // AI speaks the response
-            };
+            // Call the API with the transcribed text immediately
+            const response = await getAIResponse(transcript);
+            setAIResponse(response);
+            speakResponse(response);  // AI speaks the response
+        };
 
-            recognition.onerror = (error) => {
-                console.error('Speech recognition error:', error);
-                if (error.error === 'no-speech') {
-                    setAIResponse('No speech detected. Please try again.');
-                } else {
-                    setAIResponse('Error in speech recognition');
-                }
-            };
+        recognition.onerror = (error) => {
+            console.error('Speech recognition error:', error);
+            setStatus('Error in speech recognition');
+        };
 
-            recognition.start();
+        recognitionRef.current = recognition;
+        recognition.start();
+    };
+
+    const stopSpeechRecognition = () => {
+        if (recognitionRef.current) {
+            recognitionRef.current.stop();
+            setStatus('Mic off');
+            setIsMicOn(false);
+            recognitionRef.current = null;
         }
     };
 
-    const toggleMic = async () => {
+    const handleMicToggle = async () => {
         if (isMicOn) {
-            setIsMicOn(false);
-            handleMicStop();
-            streamRef.current?.getTracks().forEach((track) => track.stop());
-            if (animationIdRef.current) cancelAnimationFrame(animationIdRef.current);
-            setStatus('Mic off');
+            stopSpeechRecognition();  // Stop the current recognition session
         } else {
             try {
+                // Start fresh microphone stream
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 streamRef.current = stream;
+
                 const audioCtx = new AudioContext();
                 audioContextRef.current = audioCtx;
                 const analyser = audioCtx.createAnalyser();
                 analyserRef.current = analyser;
                 const source = audioCtx.createMediaStreamSource(stream);
                 source.connect(analyser);
+
                 analyser.fftSize = 64;
                 drawWaveform();
 
-                const mediaRecorder = new MediaRecorder(stream);
-                mediaRecorderRef.current = mediaRecorder;
-                mediaRecorder.start();
-                mediaRecorderRef.current.chunks = [];
-
-                mediaRecorder.ondataavailable = (event) => {
-                    mediaRecorderRef.current.chunks.push(event.data);
-                };
-
                 setIsMicOn(true);
-                setStatus('Mic on');
-
-                setTimeout(() => {
-                    handleMicStop();
-                    setStatus('Idle');
-                }, 4000);
+                setStatus('Listening...');
+                startSpeechRecognition();  // Start speech recognition immediately
             } catch (err) {
                 setStatus('Mic access denied.');
             }
@@ -185,15 +176,12 @@ const VoiceCallWithAI = () => {
     };
 
     const handleClose = () => {
-        setIsMicOn(false);
+        // Close the call session completely
+        stopSpeechRecognition();  // Stop recognition if any
         setStatus('Call ended.');
-        if (mediaRecorderRef.current?.state === 'recording') {
-            mediaRecorderRef.current.stop();
-        }
-        streamRef.current?.getTracks().forEach((track) => track.stop());
-        if (animationIdRef.current) cancelAnimationFrame(animationIdRef.current);
+        setIsMicOn(false);
         remove(callRef);
-        navigate(-1);
+        navigate(-1);  // Navigate back to previous page or home
     };
 
     return (
@@ -210,7 +198,7 @@ const VoiceCallWithAI = () => {
 
                 <div className="flex justify-center space-x-6">
                     <div className="relative group">
-                        <button onClick={toggleMic} className="p-4 bg-gray-100 rounded-full hover:bg-green-200 transition-all shadow-md">
+                        <button onClick={handleMicToggle} className="p-4 bg-gray-100 rounded-full hover:bg-green-200 transition-all shadow-md">
                             {isMicOn ? <Mic className="h-6 w-6 text-green-600" /> : <MicOff className="h-6 w-6 text-red-600" />}
                         </button>
                         <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all bg-black text-white text-xs px-2 py-1 rounded">
