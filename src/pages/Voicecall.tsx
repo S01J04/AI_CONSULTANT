@@ -158,6 +158,15 @@ const VoiceCallWithAI = () => {
     const handleMicToggle = async () => {
         if (isMicOn) {
             stopSpeechRecognition();  // Stop the current recognition session
+            // Properly close media stream and audio context when stopping mic
+            if (streamRef.current) {
+                const tracks = streamRef.current.getTracks();
+                tracks.forEach(track => track.stop());
+            }
+            if (audioContextRef.current) {
+                audioContextRef.current.close();
+            }
+            setStatus('Mic off');
         } else {
             try {
                 // Start fresh microphone stream
@@ -198,7 +207,6 @@ const VoiceCallWithAI = () => {
             <div className="bg-white text-black dark:bg-zinc-900 rounded-xl w-full max-w-2xl p-8 space-y-6 relative">
                 <h2 className="text-3xl font-semibold text-center">🎙️ AI Voice Call</h2>
                 <p className="text-lg text-center">{status}</p>
-                {/* {aiResponse && <p className="text-lg text-center">{aiResponse}</p>} */}
                 {transcribedText && <p className="text-lg text-center">Transcribed: {transcribedText}</p>}
 
                 <div className="flex justify-center">
