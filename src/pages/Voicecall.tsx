@@ -195,7 +195,6 @@ const VoiceCallWithAI = () => {
                 <div className="flex justify-center">
                     <canvas ref={canvasRef} className="w-1/2 h-20" />
                 </div>
-
                 <div className="flex justify-center space-x-6">
                     <div className="relative group">
                         <button onClick={handleMicToggle} className="p-4 bg-gray-100 rounded-full hover:bg-green-200 transition-all shadow-md">
