@@ -84,6 +84,9 @@ const VoiceCallWithAI = () => {
     };
 
     const getAIResponse = async (text: string) => {
+        // Cancel any ongoing speech before making a new API call
+        speechSynthesis.cancel();
+        
         try {
             const aiResponse = await fetch(`${import.meta.env.VITE_openAIKey}/chat/text`, {
                 method: 'POST',
@@ -120,13 +123,18 @@ const VoiceCallWithAI = () => {
         };
 
         recognition.onresult = async (event) => {
-            const transcript = event.results[event.resultIndex][0].transcript;
+            const lastResult = event.results[event.resultIndex];
+            const transcript = lastResult[0].transcript;
+            const isFinal = lastResult.isFinal;
+
             setTranscribedText(transcript);
 
-            // Call the API with the transcribed text immediately
-            const response = await getAIResponse(transcript);
-            setAIResponse(response);
-            speakResponse(response);  // AI speaks the response
+            // Only call the AI API if the result is final (not interim)
+            if (isFinal) {
+                const response = await getAIResponse(transcript);
+                setAIResponse(response);
+                speakResponse(response);  // AI speaks the response
+            }
         };
 
         recognition.onerror = (error) => {
@@ -176,8 +184,9 @@ const VoiceCallWithAI = () => {
     };
 
     const handleClose = () => {
-        // Close the call session completely
-        stopSpeechRecognition();  // Stop recognition if any
+        // Stop recognition and any ongoing AI voice
+        stopSpeechRecognition();
+        speechSynthesis.cancel();
         setStatus('Call ended.');
         setIsMicOn(false);
         remove(callRef);
