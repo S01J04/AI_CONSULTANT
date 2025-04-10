@@ -23,6 +23,7 @@ import ForgotPasswordForm from './pages/forgetPage';
 import AdminDashboard from './pages/AdminDashboard';
 import UserDashboard from './components/dashboard/UserDashboard';
 import ConsultantDetailsPage from './pages/ConsultantDetailsPage';
+import VoiceCallWithAI from './pages/Voicecall';
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -77,6 +78,7 @@ const AppContent: React.FC = () => {
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/appointments" element={<AppointmentsPage />} />
           <Route path="/aboutus" element={<AboutUs />} />
+          <Route path="/voicechat" element={<VoiceCallWithAI />} />
           <Route
             path="/dashboard"
             element={

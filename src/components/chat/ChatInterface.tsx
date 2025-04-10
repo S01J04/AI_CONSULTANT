@@ -8,10 +8,12 @@ import Skeleton from 'react-loading-skeleton'
 import 'react-loading-skeleton/dist/skeleton.css'
 import { useAuth } from '../../hooks/useAuth';
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
+import VoiceCallWithAI from '../../pages/Voicecall';
+import { Navigate, useNavigate } from 'react-router-dom';
 
 const ChatInterface: React.FC = () => {
 
-
+const navigate=useNavigate()
 
   useEffect(() => {
     setTimeout(() => {
@@ -30,6 +32,10 @@ const ChatInterface: React.FC = () => {
   const [isRecording, setIsRecording] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const [isVoicechat, setisVoicechat] = useState(false)
+  const handlevoicecall = () => {
+    setisVoicechat(!isVoicechat)
+  }
   const footerHeight = 10; // Adjust this value based on your footer height
   // Scroll to bottom whenever messages change
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -102,28 +108,8 @@ const ChatInterface: React.FC = () => {
   };
   const startListening = () => SpeechRecognition.startListening({ continuous: true });
 
-  const handleToggleVoice = () => {
-    dispatch(toggleVoice());
-  };
-  // console.log("current messages",currentSession?.messages)
-  const handleToggleRecording = () => {
-    // In a real app, this would use the Web Speech API or a similar service
-    setIsRecording(!isRecording);
 
-    if (!isRecording) {
-      // Start recording
-      console.log('Recording started...');
-      // Simulate recording for demo purposes
-      setTimeout(() => {
 
-        setIsRecording(false);
-        setMessage('This is a simulated voice message that would be transcribed from actual speech in a production environment.');
-      }, 3000);
-    } else {
-      // Stop recording
-      console.log('Recording stopped.');
-    }
-  };
   if (!browserSupportsSpeechRecognition) {
     return <span>Browser doesn't support speech recognition.</span>;
   }
@@ -247,7 +233,7 @@ const ChatInterface: React.FC = () => {
                   startListening(); // ✅ call it
                 } else {
                   SpeechRecognition.stopListening();  // ✅ call it
-                  resetTranscript();   
+                  resetTranscript();
                 }
                 setIsRecording(!isRecording);
               }}
@@ -312,6 +298,7 @@ const ChatInterface: React.FC = () => {
             ) : (
               <button
                 type="button"
+                onClick={() => navigate('/voicechat')}
                 disabled={inputLoading}
                 className="bg-indigo-600 text-white p-2 rounded-full hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -330,6 +317,10 @@ const ChatInterface: React.FC = () => {
           </div>
         )}
       </div>
+      {isVoicechat &&
+        <div className="absolute inset-y-0 inset-x-0 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex justify-center items-center  z-50">
+          <VoiceCallWithAI isVoicechat={isVoicechat} setisVoicechat={setisVoicechat} />
+        </div>}
     </div>
   );
 };

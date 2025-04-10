@@ -25,36 +25,48 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
-const handleappointment = (appointmentdetails) => {
-  console.log(appointmentdetails)
+
+const handleappointment = (appointmentDetails) => {
   const modal = document.createElement('div');
-  modal.className = 'fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50';
+  modal.className =
+    'fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm z-50 transition-opacity duration-300';
 
   const modalContent = document.createElement('div');
-  modalContent.className = 'bg-white rounded-lg shadow-lg p-6 w-96 relative flex flex-col items-center';
+  modalContent.className =
+    'bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-6 w-[90%] max-w-md relative transform scale-100 transition-transform duration-300 ease-out';
 
   const closeButton = document.createElement('button');
-  closeButton.innerText = '×';
-  closeButton.className = 'absolute top-2 right-2 text-gray-500 hover:text-gray-700 focus:outline-none';
+  closeButton.innerHTML = '&times;';
+  closeButton.className =
+    'absolute top-3 right-4 text-2xl text-gray-400 hover:text-red-500 focus:outline-none transition-colors';
   closeButton.onclick = () => {
     document.body.removeChild(modal);
   };
 
   const title = document.createElement('h2');
-  title.className = 'text-xl font-bold text-center mb-4';
-  title.innerText = 'Appointment Details';
+  title.className =
+    'text-2xl font-bold text-center mb-5 text-indigo-600 dark:text-indigo-400';
+  title.innerText = '📅 Appointment Details';
+
+  const detailBlock = (label, value) => `
+    <div class="flex justify-between items-center border-b py-2 text-gray-700 dark:text-gray-300">
+      <span class="font-medium text-sm">${label}</span>
+      <span class="text-right text-sm font-semibold">${value}</span>
+    </div>`;
+
+  const detailsHTML = `
+    ${detailBlock('👤 User', appointmentDetails.userName)}
+    ${detailBlock('🧑‍⚕️ Expert', appointmentDetails.expertName)}
+    ${detailBlock('🔬 Specialization', appointmentDetails.expertSpecialization)}
+    ${detailBlock('📆 Date', appointmentDetails.date)}
+    ${detailBlock('⏰ Time', appointmentDetails.time)}
+    ${detailBlock('📞 Contact', appointmentDetails?.notes?.split(',')[0])}
+    ${detailBlock('📍 Status', formatStatus(appointmentDetails.status))}
+  `;
 
   const details = document.createElement('div');
   details.className = 'space-y-2';
-  details.innerHTML = `
-    <p><strong>User Name:</strong> ${appointmentdetails.userName}</p>
-    <p><strong>Expert Name:</strong> ${appointmentdetails.expertName}</p>
-    <p><strong>Specialization:</strong> ${appointmentdetails.expertSpecialization}</p>
-    <p><strong>Date:</strong> ${appointmentdetails.date}</p>
-    <p><strong>Time:</strong> ${appointmentdetails.time}</p>
-    <p><strong>Contact:</strong> ${appointmentdetails?.notes?.split(',')[0]}</p>
-    <p><strong>Status:</strong> ${appointmentdetails.status}</p>
-  `;
+  details.innerHTML = detailsHTML;
 
   modalContent.appendChild(closeButton);
   modalContent.appendChild(title);
@@ -62,6 +74,17 @@ const handleappointment = (appointmentdetails) => {
   modal.appendChild(modalContent);
   document.body.appendChild(modal);
 };
+
+const formatStatus = (status) => {
+  if (!status) return 'Pending';
+  const lower = status.toLowerCase();
+  if (lower.includes('approved'))
+    return `<span class="text-green-600 dark:text-green-400 flex items-center gap-1"><svg class="w-4 h-4" fill="none" stroke="currentColor"><use href="#check-circle" /></svg> Approved</span>`;
+  if (lower.includes('rejected'))
+    return `<span class="text-red-600 dark:text-red-400 flex items-center gap-1"><svg class="w-4 h-4" fill="none" stroke="currentColor"><use href="#x-circle" /></svg> Rejected</span>`;
+  return `<span class="text-yellow-500 dark:text-yellow-400 flex items-center gap-1"><svg class="w-4 h-4" fill="none" stroke="currentColor"><use href="#clock" /></svg> Pending</span>`;
+};
+
 const ConsultantProfileTab: React.FC = () => {
 
 
