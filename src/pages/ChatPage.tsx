@@ -1,26 +1,85 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import ChatInterface from '../components/chat/ChatInterface';
 import ChatSidebar from '../components/chat/ChatSidebar';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../redux/store';
-import { Link, useLocation } from 'react-router-dom';
-import { fetchUserSessions, setCurrentSession } from '../redux/slices/chatSlice';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { fetchUserSessions, setCurrentSession, setNetworkError } from '../redux/slices/chatSlice';
+import { toast } from 'react-toastify';
+import usePlanAccess from '../hooks/usePlanAccess';
+import { AlertCircle } from 'lucide-react';
 
 const ChatPage: React.FC = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { user } = useSelector((state: RootState) => state.auth);
-  const { sessions,currentSession, loading } = useSelector((state: RootState) => state.chat);
-  const {state}=useLocation(state=>state.state)
+  const { networkError } = useSelector((state: RootState) => state.chat);
+  const { state } = useLocation();
+  const [retrying, setRetrying] = useState(false);
+  const { canAccess, getUpgradeMessage } = usePlanAccess();
 
-  // Always call useEffect, but dispatch fetch only if user exists.
+  // Set current session from navigation state if available
+  useEffect(() => {
+    if (state) {
+      console.log("Setting current session from chat page", state);
+      dispatch(setCurrentSession(state));
+    }
+  }, [state, dispatch]);
 
-  console.log("state id",state)
-  useEffect(() => { 
-    if(state!=null){
-      console.log("setting current session from chat page",state)
-      dispatch(setCurrentSession(state))
-    }} , [state,dispatch])
+  // Fetch sessions when component mounts if user is logged in
+  useEffect(() => {
+    // Only fetch sessions when the component mounts or user changes
+    if (user) {
+      console.log("Fetching user sessions from ChatPage");
+      dispatch(fetchUserSessions() as any);
+    }
+  }, [user, dispatch]);
 
+  // Reset network error when component unmounts
+  useEffect(() => {
+    return () => {
+      if (networkError) {
+        dispatch(setNetworkError(false));
+      }
+    };
+  }, [dispatch, networkError]);
+
+  // Handle retrying when network error occurs
+  useEffect(() => {
+    if (user && retrying) {
+      console.log("Retrying to fetch user sessions from chat page")
+      toast.info("Reconnecting to server...");
+      dispatch(fetchUserSessions() as any);
+      setRetrying(false);
+    }
+  }, [retrying, user, dispatch]);
+
+  // Handle online/offline status
+  useEffect(() => {
+    const handleOnline = () => {
+      if (networkError) {
+        toast.success("You're back online!");
+        dispatch(setNetworkError(false));
+        // Refresh sessions
+        dispatch(fetchUserSessions() as any);
+      }
+    };
+
+    const handleOffline = () => {
+      toast.error("You're offline. Some features may not work properly.");
+      dispatch(setNetworkError(true));
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [dispatch, networkError]);
+
+  // Check if user is logged in
   if (!user) {
     return (
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex flex-col items-center justify-center p-4">
@@ -44,6 +103,38 @@ const ChatPage: React.FC = () => {
             >
               Create account
             </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Check if user has access to chat feature
+  if (!canAccess('canUseChat')) {
+    return (
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex flex-col items-center justify-center p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 max-w-md w-full">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <AlertCircle className="h-6 w-6 text-red-500" />
+            </div>
+            <div className="ml-3">
+              <h3 className="text-lg font-medium text-red-800 dark:text-red-300">
+                Subscription Required
+              </h3>
+              <div className="mt-2 text-sm text-red-700 dark:text-red-200">
+                <p>You need an active subscription to access the chat feature.</p>
+                <p className="mt-1">{getUpgradeMessage('canUseChat')}</p>
+              </div>
+              <div className="mt-4">
+                <Link
+                  to="/pricing"
+                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                >
+                  View Subscription Plans
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       </div>

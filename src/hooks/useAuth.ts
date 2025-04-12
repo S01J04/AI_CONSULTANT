@@ -6,8 +6,6 @@ import { auth, db } from '../firebase/config';
 import { setUser, updateLocalUserRole } from '../redux/slices/authSlice';
 import { RootState, AppDispatch } from '../redux/store';
 import { fetchUserSessions } from '../redux/slices/chatSlice';
-import { fetchUserAppointments } from '../redux/slices/appointmentSlice';
-import { fetchUserPayments } from '../redux/slices/paymentSlice';
 
 interface UserData {
   uid: string;
@@ -16,6 +14,8 @@ interface UserData {
   photoURL: string | null;
   role: 'user' | 'admin' | 'superadmin';
   createdAt: number;
+  emailVerified?: boolean;
+  lastLogin?: number;
 }
 
 export const useAuth = () => {
@@ -33,7 +33,7 @@ export const useAuth = () => {
         if (storedUser) {
           const parsedUser = JSON.parse(storedUser) as UserData;
           dispatch(setUser(parsedUser));
-          
+
           // Set up real-time listener for this user right away
           if (parsedUser && parsedUser.uid) {
             setupUserListener(parsedUser.uid);
@@ -45,37 +45,52 @@ export const useAuth = () => {
 
           if (firebaseUser) {
             try {
-              const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-              
-              if (userDoc.exists()) {
-                const userData = userDoc.data() as UserData;
-                if (mounted) {
-                  dispatch(setUser(userData));
-                  dispatch(fetchUserSessions());
-                  
-                  // Set up real-time listener for this user
-                  setupUserListener(firebaseUser.uid);
+              // Create a basic user object from Firebase Auth data
+              // This ensures we have user data even if Firestore is offline
+              const basicUserData: UserData = {
+                uid: firebaseUser.uid,
+                email: firebaseUser.email,
+                displayName: firebaseUser.displayName,
+                photoURL: firebaseUser.photoURL,
+                role: 'user' as const, // Default role
+                createdAt: Date.now(),
+                emailVerified: firebaseUser.emailVerified,
+              };
+
+              try {
+                // Try to get the user document from Firestore
+                const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+
+                if (userDoc.exists()) {
+                  // If the document exists, use that data
+                  const userData = userDoc.data() as UserData;
+                  if (mounted) {
+                    dispatch(setUser(userData));
+                    dispatch(fetchUserSessions());
+
+                    // Set up real-time listener for this user
+                    setupUserListener(firebaseUser.uid);
+                  }
+                } else {
+                  // If the document doesn't exist, use the basic user data
+                  if (mounted) {
+                    dispatch(setUser(basicUserData));
+                    dispatch(fetchUserSessions());
+
+                    // Set up real-time listener for this user
+                    setupUserListener(firebaseUser.uid);
+                  }
                 }
-              } else {
-                const userData: UserData = {
-                  uid: firebaseUser.uid,
-                  email: firebaseUser.email,
-                  displayName: firebaseUser.displayName,
-                  photoURL: firebaseUser.photoURL,
-                  role: 'user' as const,
-                  createdAt: Date.now(),
-                };
-                
+              } catch (firestoreError) {
+                // If Firestore is offline or there's an error, use the basic user data
+                console.warn('Firestore error, using basic user data:', firestoreError);
                 if (mounted) {
-                  dispatch(setUser(userData));
-                  dispatch(fetchUserSessions());
-                  
-                  // Set up real-time listener for this user
-                  setupUserListener(firebaseUser.uid);
+                  dispatch(setUser(basicUserData));
+                  // Don't try to fetch sessions if Firestore is offline
                 }
               }
             } catch (error) {
-              console.error('Error fetching user data:', error);
+              console.error('Error in authentication process:', error);
               if (mounted) {
                 dispatch(setUser(null));
               }
@@ -83,7 +98,7 @@ export const useAuth = () => {
           } else {
             if (mounted) {
               dispatch(setUser(null));
-              
+
               // Clean up any user listener
               if (userDocUnsubscribe) {
                 userDocUnsubscribe();
@@ -109,24 +124,24 @@ export const useAuth = () => {
         }
       }
     };
-    
+
     // Function to set up real-time listener for user document changes
     const setupUserListener = (uid: string) => {
       // Clean up previous listener if exists
       if (userDocUnsubscribe) {
         userDocUnsubscribe();
       }
-      
+
       // Set up new listener
       userDocUnsubscribe = onSnapshot(doc(db, 'users', uid), (docSnapshot) => {
         if (!mounted) return;
-        
+
         if (docSnapshot.exists()) {
           const userData = docSnapshot.data() as UserData;
-          
+
           // Update role specifically to avoid full user replacement
           dispatch(updateLocalUserRole({ uid, role: userData.role }));
-          
+
           // Optional: Update full user data if needed
           // dispatch(setUser(userData));
         }
@@ -145,11 +160,11 @@ export const useAuth = () => {
     };
   }, [dispatch]);
 
-  return { 
-    user, 
-    authLoading, 
-    loading, 
-    error, 
-    isAuthenticated: !!user 
+  return {
+    user,
+    authLoading,
+    loading,
+    error,
+    isAuthenticated: !!user
   };
 };

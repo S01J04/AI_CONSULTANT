@@ -1,10 +1,14 @@
 import React from 'react';
 import UserDashboard from '../components/dashboard/UserDashboard';
 
-const DashboardPage: React.FC = () => {
+interface DashboardPageProps {
+  initialTab?: string;
+}
+
+const DashboardPage: React.FC<DashboardPageProps> = ({ initialTab }) => {
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
-      <UserDashboard />
+      <UserDashboard initialTab={initialTab} />
     </div>
   );
 };

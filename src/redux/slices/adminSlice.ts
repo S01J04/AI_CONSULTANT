@@ -9,6 +9,10 @@ interface FirestoreUser {
   displayName?: string;
   email?: string;
   plan?: string;
+  createdAt?: {
+    seconds: number;
+    nanoseconds: number;
+  };
 }
 
 interface FirestoreAppointment {
@@ -32,6 +36,10 @@ interface FirestorePayment {
   planId: string;
   amount: number;
   status: 'completed' | 'pending' | 'failed' | 'refunded';
+  createdAt?: {
+    seconds: number;
+    nanoseconds: number;
+  };
 }
 
 export interface AdminStats {
@@ -70,6 +78,12 @@ export interface AdminStats {
   planDistribution: Array<{
     name: string;
     value: number;
+  }>;
+  monthlyStats: Array<{
+    name: string;
+    users: number;
+    appointments: number;
+    revenue: number;
   }>;
 }
 
@@ -149,7 +163,7 @@ export const fetchAdminStats = createAsyncThunk(
         .slice(-5)
         .map(apt => ({
           id: apt.id,
-          userName: apt.displayName || 'Unknown User',
+          displayName: apt.displayName || 'Unknown User',
           notes: apt.notes || 'No notes',
           expertName: apt.expertName || 'Unknown Expert',
           expertSpecialization: apt.expertSpecialization || 'Not specified',
@@ -177,6 +191,45 @@ export const fetchAdminStats = createAsyncThunk(
         .filter(payment => payment.status === 'completed')
         .reduce((sum, payment) => sum + payment.amount, 0);
 
+      // Generate monthly stats for the last 6 months
+      const monthlyStats = [];
+      const today = new Date();
+      for (let i = 5; i >= 0; i--) {
+        const month = new Date(today.getFullYear(), today.getMonth() - i, 1);
+        const monthName = month.toLocaleString('default', { month: 'short' });
+
+        // Filter data for this month
+        const monthStart = new Date(month.getFullYear(), month.getMonth(), 1);
+        const monthEnd = new Date(month.getFullYear(), month.getMonth() + 1, 0);
+
+        // Count users created in this month
+        const monthUsers = users.filter(user => {
+          const createdAt = user.createdAt ? new Date(user.createdAt.seconds * 1000) : null;
+          return createdAt && createdAt >= monthStart && createdAt <= monthEnd;
+        }).length;
+
+        // Count appointments in this month
+        const monthAppointments = appointments.filter(apt => {
+          const aptDate = apt.createdAt ? new Date(apt.createdAt.seconds * 1000) : null;
+          return aptDate && aptDate >= monthStart && aptDate <= monthEnd;
+        }).length;
+
+        // Calculate revenue for this month
+        const monthRevenue = payments
+          .filter(payment => {
+            const paymentDate = payment.createdAt ? new Date(payment.createdAt.seconds * 1000) : null;
+            return paymentDate && paymentDate >= monthStart && paymentDate <= monthEnd && payment.status === 'completed';
+          })
+          .reduce((sum, payment) => sum + payment.amount, 0);
+
+        monthlyStats.push({
+          name: monthName,
+          users: monthUsers,
+          appointments: monthAppointments,
+          revenue: monthRevenue
+        });
+      }
+
       return {
         totalUsers,
         totalAppointments,
@@ -186,6 +239,7 @@ export const fetchAdminStats = createAsyncThunk(
         recentPayments,
         appointmentStatus,
         planDistribution,
+        monthlyStats,
       };
     } catch (error: any) {
       console.error('Error in fetchAdminStats:', error);
@@ -215,4 +269,4 @@ const adminSlice = createSlice({
   },
 });
 
-export default adminSlice.reducer; 
+export default adminSlice.reducer;

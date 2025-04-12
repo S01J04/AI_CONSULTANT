@@ -5,7 +5,127 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Advisor Chatbot with Voice</title>
-   
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .chat-container {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: white;
+            border-radius: 8px;
+        }
+        .input-area {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        input[type="text"] {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .user-message {
+            background-color: #e1f5fe;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            text-align: right;
+        }
+        .bot-message {
+            background-color: #f1f1f1;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            text-align: left;
+        }
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .investigation-info {
+            padding: 10px;
+            background-color: #fff3cd;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            border-left: 4px solid #ffc107;
+        }
+        .voice-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f0f0f0;
+            border-radius: 8px;
+        }
+        .recording {
+            animation: pulse 1.5s infinite;
+            background-color: #ff5252 !important;
+        }
+        .status-indicator {
+            padding: 10px;
+            margin-top: 20px;
+            background-color: #e8f5e9;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            background-color: #ddd;
+            border: none;
+            outline: none;
+            border-radius: 4px 4px 0 0;
+            margin-right: 5px;
+        }
+        .tab.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+            padding: 20px;
+            background-color: white;
+            border-radius: 0 4px 4px 4px;
+            border: 1px solid #ddd;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+    </style>
 </head>
 <body>
     <h1>Advisor Chatbot with Voice</h1>
@@ -469,8 +589,9 @@ function disableVoiceButtons() {
             voiceToVoiceStatus.textContent = 'Connecting...';
             
             try {
-                // Connect to WebSocket
-                socket = new WebSocket(`ws://${API_URL.replace('http://', '')}/ws/voice/${userId}`);
+                // Connect to WebSocket securely using wss
+                socket = new WebSocket(`wss://${API_URL.replace(/^https?:\/\//, '')}/ws/voice/${userId}`);
+
                 
                 socket.onopen = () => {
                     voiceToVoiceStatus.textContent = 'Connected. Ready to start voice chat.';
@@ -753,3 +874,4 @@ function disableVoiceButtons() {
     </script>
 </body>
 </html>
+
