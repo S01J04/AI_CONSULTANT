@@ -6,6 +6,12 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { Mic, MicOff, X } from 'lucide-react';
 
+interface Window {
+    SpeechRecognition?: any;
+    webkitSpeechRecognition?: any;
+    webkitAudioContext?: any;
+}
+
 const VoiceCallWithAI = () => {
     const { user } = useSelector((state: RootState) => state.auth);
     const navigate = useNavigate();
@@ -54,7 +60,7 @@ const VoiceCallWithAI = () => {
     const drawBlackBall = () => {
         const canvas = canvasRef.current;
         const ctx = canvas?.getContext('2d');
-        if (!ctx || !analyserRef.current) return;
+        if (!ctx || !analyserRef.current || !canvas) return;
 
         const analyser = analyserRef.current;
         const bufferLength = analyser.frequencyBinCount;
@@ -102,9 +108,15 @@ const VoiceCallWithAI = () => {
     };
 
     const startSpeechRecognition = () => {
+        // Check for mobile-specific speech recognition
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        const recognition = new SpeechRecognition();
+        if (!SpeechRecognition) {
+            setBrowserSupported(false);
+            toast.error('Speech recognition not supported');
+            return;
+        }
 
+        const recognition = new SpeechRecognition();
         recognition.lang = 'en-US';
         recognition.continuous = true;
         recognition.interimResults = true;
@@ -129,10 +141,29 @@ const VoiceCallWithAI = () => {
             console.error('Recognition error:', err);
             toast.error(`Recognition error: ${err.error}`);
             setStatus('Error');
+            // Restart recognition on mobile if it fails
+            if (isMicOn) {
+                setTimeout(() => {
+                    try {
+                        recognition.start();
+                    } catch (e) {
+                        console.error('Failed to restart recognition:', e);
+                    }
+                }, 1000);
+            }
         };
 
         recognition.onend = () => {
-            if (isMicOn) recognition.start();
+            if (isMicOn) {
+                // Add a small delay before restarting (helps on mobile)
+                setTimeout(() => {
+                    try {
+                        recognition.start();
+                    } catch (e) {
+                        console.error('Failed to restart recognition:', e);
+                    }
+                }, 100);
+            }
         };
 
         recognitionRef.current = recognition;
@@ -179,11 +210,25 @@ const VoiceCallWithAI = () => {
         }
 
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            // Request microphone permission first
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                } 
+            });
             streamRef.current = stream;
 
-            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            // Create audio context after user interaction (required for mobile)
+            const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+            const audioCtx = new AudioContext();
             audioContextRef.current = audioCtx;
+
+            // Resume audio context (required for iOS)
+            if (audioCtx.state === 'suspended') {
+                await audioCtx.resume();
+            }
 
             const analyser = audioCtx.createAnalyser();
             analyserRef.current = analyser;
@@ -192,7 +237,6 @@ const VoiceCallWithAI = () => {
             source.connect(analyser);
             analyser.fftSize = 64;
 
-            await audioCtx.resume();
             drawBlackBall();
 
             setIsMicOn(true);
