@@ -223,7 +223,7 @@ const PricingPlans: React.FC = () => {
             console.log('User plan updated successfully');
 
             // Show a success toast notification with reset information
-            toast.success(`Payment successful! You are now subscribed to the ${plan.name} plan. Your appointments used count has been reset to 0 and any unused appointments have been added to your total.`, {
+            toast.success(`Payment successful! `, {
               position: "top-center",
               autoClose: 5000,
               hideProgressBar: false,

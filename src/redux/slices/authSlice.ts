@@ -803,9 +803,7 @@ export const resetPremiumAppointments = createAsyncThunk(
 );
 
 // Update appointment counts when an appointment is completed by an admin
-export const updateAppointmentCounts = createAsyncThunk(
-  'auth/updateAppointmentCounts',
-  async (userId: string, { rejectWithValue }) => {
+export const updateAppointmentCounts = createAsyncThunk( 'auth/updateAppointmentCounts',  async (payload: { userId: string; isAdminContext?: boolean } | string, { rejectWithValue }) => {   // Handle both string and object parameters for backward compatibility\r\n    const userId = typeof payload === 'string' ? payload : payload.userId;\r\n    const isAdminContext = typeof payload === 'object' ? payload.isAdminContext : false;
     try {
       if (!userId) return rejectWithValue('User ID is required');
 
@@ -899,7 +897,7 @@ export const updateAppointmentCounts = createAsyncThunk(
       console.log(`- Additional appointments: ${currentAdditionalAppointments} -> ${updatedUserData.additionalAppointments || 0}`);
 
       // Update the user in localStorage to ensure UI reflects the changes
-      if (updatedUserData) {
+      if (updatedUserData && !isAdminContext) {
         localStorage.setItem('user', JSON.stringify(updatedUserData));
 
         // Show a toast notification to inform the user
@@ -1486,3 +1484,5 @@ const authSlice = createSlice({
 
 export const { setUser, clearError, updateLocalUserRole } = authSlice.actions;
 export default authSlice.reducer;
+
+

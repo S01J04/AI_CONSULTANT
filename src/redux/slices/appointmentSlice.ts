@@ -384,17 +384,14 @@ export const completeAppointment = createAsyncThunk(
       // This will increment appointmentsUsed to track completed appointments
       try {
         // Use the imported updateAppointmentCounts action
-        const result = await dispatch(updateAppointmentCounts(appointmentData.userId));
+        const result = await dispatch(updateAppointmentCounts({userId: appointmentData.userId, isAdminContext: true}));
 
         if (updateAppointmentCounts.fulfilled.match(result)) {
           console.log(`Successfully updated appointments used count for user ${appointmentData.userId}`);
 
-          // Force refresh the page after a short delay to ensure UI is updated
-          setTimeout(() => {
-            // This is a hack to force the UI to refresh with the updated appointment counts
-            // In a production app, you would use a more elegant solution
-            window.location.reload();
-          }, 1500); // Give time for the toast to be visible
+          // No need to force refresh the page
+          // Instead, we'll let Redux handle the UI update
+          console.log('Appointment completed and user data updated successfully');
         } else {
           console.error('Failed to update appointments used count:', result.error);
         }

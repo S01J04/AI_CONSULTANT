@@ -15,6 +15,7 @@ import {
 import {
   Appointment,
   fetchConsultantAppointments,
+  fetchUserAppointments,
   cancelAppointment,
   completeAppointment
 } from '../redux/slices/appointmentSlice';
@@ -110,7 +111,7 @@ const ConsultantProfileTab: React.FC = () => {
     isActive: true,
   });
   const { consultantProfile, consultantProfileLoading } = useSelector((state: RootState) => state.auth);
-  const { consultantAppointments } = useSelector((state: RootState) => state.appointment);
+  const { consultantAppointments, userAppointments } = useSelector((state: RootState) => state.appointment);
 
   useEffect(() => {
     if (user?.uid) {
@@ -542,7 +543,7 @@ const AdminDashboard: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { user } = useSelector((state: RootState) => state.auth);
   const { stats, loading, error } = useSelector((state: RootState) => state.admin);
-  const { consultantAppointments } = useSelector((state: RootState) => state.appointment);
+  const { consultantAppointments, userAppointments } = useSelector((state: RootState) => state.appointment);
   const [activeTab, setActiveTab] = useState('overview');
   const navigate = useNavigate();
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
@@ -550,13 +551,21 @@ const AdminDashboard: React.FC = () => {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancellationReason, setCancellationReason] = useState('');
 
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+
+  // Admin appointments pagination
+  const [adminCurrentPage, setAdminCurrentPage] = useState(1);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [apointmentloading, setapointmentLoading] = useState(false);
+  // Filter appointments based on search term and status
   const filteredAppointments = useMemo(() => {
     return stats?.recentAppointments.filter((appointment) => {
       const matchesSearch =
-        (appointment.userName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (appointment.displayName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         appointment.expertName.toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchesStatus =
@@ -565,7 +574,34 @@ const AdminDashboard: React.FC = () => {
       return matchesSearch && matchesStatus;
     });
   }, [searchTerm, statusFilter, stats]);
-  console.log(filteredAppointments)
+
+  // Get current appointments for pagination
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentAppointments = filteredAppointments?.slice(indexOfFirstItem, indexOfLastItem);
+
+  // Change page
+  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
+
+  // Get filtered admin appointments
+  const filteredAdminAppointments = useMemo(() => {
+    const appointments = user?.role === 'superadmin' ? userAppointments : consultantAppointments;
+    return appointments?.filter(appointment => {
+      const matchesSearch = !searchTerm ||
+        (appointment.displayName && appointment.displayName.toLowerCase().includes(searchTerm.toLowerCase()));
+      const matchesStatus = statusFilter === 'all' || appointment.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [searchTerm, statusFilter, userAppointments, consultantAppointments, user?.role]);
+
+  // Get current admin appointments for pagination
+  const indexOfLastAdminItem = adminCurrentPage * itemsPerPage;
+  const indexOfFirstAdminItem = indexOfLastAdminItem - itemsPerPage;
+  const currentAdminAppointments = filteredAdminAppointments?.slice(indexOfFirstAdminItem, indexOfLastAdminItem);
+
+  // Change admin page
+  const paginateAdmin = (pageNumber: number) => setAdminCurrentPage(pageNumber);
+  
   const handleViewDetails = (appointment: Appointment) => {
     setSelectedAppointment(appointment);
     setIsModalOpen(true);
@@ -611,8 +647,14 @@ const AdminDashboard: React.FC = () => {
 
   useEffect(() => {
     dispatch(fetchAdminStats());
-    if (user?.uid && (user.role === 'admin' || user.role === 'superadmin')) {
-      dispatch(fetchConsultantAppointments(user.uid));
+    if (user?.uid) {
+      if (user.role === 'superadmin') {
+        // For superadmin, fetch all appointments
+        dispatch(fetchUserAppointments({ userRole: 'superadmin' }));
+      } else if (user.role === 'admin') {
+        // For regular admin, fetch only their appointments as consultant
+        dispatch(fetchConsultantAppointments(user.uid));
+      }
     }
   }, [dispatch, user]);
 
@@ -1017,8 +1059,8 @@ const AdminDashboard: React.FC = () => {
                         Loading appointments...
                       </td>
                     </tr>
-                  ) : filteredAppointments?.length > 0 ? (
-                    filteredAppointments.map((appointment) => (
+                  ) : currentAppointments?.length > 0 ? (
+                    currentAppointments.map((appointment) => (
                       <tr key={appointment.id}>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                           {appointment.displayName || 'Unknown Client'}
@@ -1060,6 +1102,52 @@ const AdminDashboard: React.FC = () => {
                     </tr>
                   )}
 
+                  {/* Pagination */}
+                  {filteredAppointments && filteredAppointments.length > itemsPerPage && (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-4">
+                        <div className="flex justify-center mt-4">
+                          <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                            <button
+                              onClick={() => paginate(currentPage > 1 ? currentPage - 1 : 1)}
+                              disabled={currentPage === 1}
+                              className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-600 text-sm font-medium text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <span className="sr-only">Previous</span>
+                              <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            </button>
+
+                            {Array.from({ length: Math.ceil(filteredAppointments.length / itemsPerPage) }).map((_, index) => (
+                              <button
+                                key={index}
+                                onClick={() => paginate(index + 1)}
+                                className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                                  currentPage === index + 1
+                                    ? 'z-10 bg-indigo-50 dark:bg-indigo-900 border-indigo-500 dark:border-indigo-500 text-indigo-600 dark:text-indigo-200'
+                                    : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                                }`}
+                              >
+                                {index + 1}
+                              </button>
+                            ))}
+
+                            <button
+                              onClick={() => paginate(currentPage < Math.ceil(filteredAppointments.length / itemsPerPage) ? currentPage + 1 : currentPage)}
+                              disabled={currentPage === Math.ceil(filteredAppointments.length / itemsPerPage)}
+                              className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-600 text-sm font-medium text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <span className="sr-only">Next</span>
+                              <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                              </svg>
+                            </button>
+                          </nav>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -1184,20 +1272,9 @@ const AdminDashboard: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                    {/* Filter appointments based on search term and status */}
-                    {consultantAppointments.length > 0 ? (
-                      consultantAppointments
-                        .filter(appointment => {
-                          // Filter by search term
-                          const matchesSearch = !searchTerm ||
-                            (appointment.userName && appointment.userName.toLowerCase().includes(searchTerm.toLowerCase()));
-
-                          // Filter by status
-                          const matchesStatus = statusFilter === 'all' || appointment.status === statusFilter;
-
-                          return matchesSearch && matchesStatus;
-                        })
-                        .map((appointment) => (
+                    {/* Display paginated appointments */}
+                    {filteredAdminAppointments?.length > 0 ? (
+                      currentAdminAppointments?.map((appointment) => (
                           <React.Fragment key={appointment.id}>
                             <tr>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
@@ -1281,21 +1358,59 @@ const AdminDashboard: React.FC = () => {
                     )}
 
                     {/* No results message */}
-                    {consultantAppointments.length > 0 &&
-                     consultantAppointments.filter(appointment => {
-                       const matchesSearch = !searchTerm ||
-                         (appointment.userName && appointment.userName.toLowerCase().includes(searchTerm.toLowerCase()));
-                       const matchesStatus = statusFilter === 'all' || appointment.status === statusFilter;
-                       return matchesSearch && matchesStatus;
-                     }).length === 0 && (
+                    {filteredAdminAppointments?.length === 0 && (
                       <tr>
                         <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500 dark:text-gray-400" colSpan={4}>
                           No appointments match your search criteria.
                         </td>
                       </tr>
                     )}
+
                   </tbody>
                 </table>
+
+                {/* Pagination for admin appointments */}
+                {filteredAdminAppointments && filteredAdminAppointments.length > itemsPerPage && (
+                  <div className="flex justify-center mt-4">
+                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                      <button
+                        onClick={() => paginateAdmin(adminCurrentPage > 1 ? adminCurrentPage - 1 : 1)}
+                        disabled={adminCurrentPage === 1}
+                        className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-600 text-sm font-medium text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <span className="sr-only">Previous</span>
+                        <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                          <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </button>
+
+                      {Array.from({ length: Math.ceil(filteredAdminAppointments.length / itemsPerPage) }).map((_, index) => (
+                        <button
+                          key={index}
+                          onClick={() => paginateAdmin(index + 1)}
+                          className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                            adminCurrentPage === index + 1
+                              ? 'z-10 bg-indigo-50 dark:bg-indigo-900 border-indigo-500 dark:border-indigo-500 text-indigo-600 dark:text-indigo-200'
+                              : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                          }`}
+                        >
+                          {index + 1}
+                        </button>
+                      ))}
+
+                      <button
+                        onClick={() => paginateAdmin(adminCurrentPage < Math.ceil(filteredAdminAppointments.length / itemsPerPage) ? adminCurrentPage + 1 : adminCurrentPage)}
+                        disabled={adminCurrentPage === Math.ceil(filteredAdminAppointments.length / itemsPerPage)}
+                        className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-600 text-sm font-medium text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <span className="sr-only">Next</span>
+                        <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                          <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </button>
+                    </nav>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1332,7 +1447,7 @@ const AdminDashboard: React.FC = () => {
 
                   {/* Appointment Info */}
                   <div className="space-y-3 text-sm text-gray-700 dark:text-gray-300">
-                    <p><strong>Client Name:</strong> {selectedAppointment.userName || 'Unknown Client'}</p>
+                    <p><strong>Client Name:</strong> {selectedAppointment?.userName || 'Unknown Client'}</p>
                     <p><strong>Date:</strong> {selectedAppointment.date}</p>
                     <p><strong>Time:</strong> {selectedAppointment.time}</p>
                     <p><strong>Status:</strong> <span className="capitalize">{selectedAppointment.status}</span></p>

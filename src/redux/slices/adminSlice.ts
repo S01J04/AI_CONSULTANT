@@ -160,7 +160,7 @@ export const fetchAdminStats = createAsyncThunk(
 
       // Get recent appointments (last 5)
       const recentAppointments = appointments
-        .slice(-5)
+        // .slice(-5)
         .map(apt => ({
           id: apt.id,
           displayName: apt.displayName || 'Unknown User',
