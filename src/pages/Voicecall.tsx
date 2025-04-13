@@ -101,73 +101,169 @@ const VoiceCallWithAI = () => {
         }
     };
 
-    const speakResponse = (text: string) => {
-        const clean = text.replace(/[*#@&^%$!()_+={}\[\]|\\:;"'<>,.?/~`]/g, '');
-        const utter = new SpeechSynthesisUtterance(clean);
-        speechSynthesis.speak(utter);
+    const speakResponse = async (text: string) => {
+        return new Promise<void>((resolve) => {
+            try {
+                // Clean the text
+                const clean = text.replace(/[*#@&^%$!()_+={}\[\]|\\:;"'<>,.?/~`]/g, '');
+                
+                // Create utterance
+                const utterance = new SpeechSynthesisUtterance(clean);
+                
+                // Configure speech settings
+                utterance.rate = 1.0;
+                utterance.pitch = 1.0;
+                utterance.volume = 1.0;
+                utterance.lang = 'en-US';
+
+                // Handle speech events
+                utterance.onend = () => {
+                    resolve();
+                };
+
+                utterance.onerror = (event) => {
+                    console.error('Speech synthesis error:', event);
+                    resolve();
+                };
+
+                // Cancel any ongoing speech
+                window.speechSynthesis.cancel();
+                
+                // Start speaking
+                window.speechSynthesis.speak(utterance);
+            } catch (err) {
+                console.error('Error in speech synthesis:', err);
+                resolve();
+            }
+        });
     };
 
     const startSpeechRecognition = () => {
-        // Check for mobile-specific speech recognition
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) {
+        try {
+            // Get the SpeechRecognition API
+            const SpeechRecognition = (window as any).SpeechRecognition || 
+                                    (window as any).webkitSpeechRecognition || 
+                                    (window as any).mozSpeechRecognition || 
+                                    (window as any).msSpeechRecognition;
+
+            if (!SpeechRecognition) {
+                setBrowserSupported(false);
+                toast.error('Speech recognition not supported in this browser');
+                return;
+            }
+
+            // Create new recognition instance
+            const recognition = new SpeechRecognition();
+            
+            // Configure recognition settings
+            recognition.lang = 'en-US';
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.maxAlternatives = 1;
+
+            // Handle recognition events
+            recognition.onstart = () => {
+                setStatus('Listening...');
+                console.log('Speech recognition started');
+            };
+
+            recognition.onresult = async (event: any) => {
+                try {
+                    const results = event.results;
+                    const lastResult = results[results.length - 1];
+                    const transcript = lastResult[0].transcript.trim();
+                    const isFinal = lastResult.isFinal;
+
+                    // Clean the transcript
+                    const filtered = transcript.replace(/[*#@&^%$!()_+={}\[\]|\\:;"'<>,.?/~`]/g, '');
+                    
+                    // Update UI with transcript
+                    setTranscribedText(filtered);
+
+                    // Process final results
+                    if (isFinal && filtered.length > 0) {
+                        try {
+                            const response = await getAIResponse(filtered);
+                            setAIResponse(response);
+                            await speakResponse(response);
+                        } catch (err) {
+                            console.error('Error processing AI response:', err);
+                            toast.error('Error processing response');
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error processing speech result:', err);
+                }
+            };
+
+            recognition.onerror = (event: any) => {
+                console.error('Recognition error:', event);
+                
+                // Handle specific error types
+                switch (event.error) {
+                    case 'no-speech':
+                        toast.error('No speech detected');
+                        break;
+                    case 'aborted':
+                        toast.error('Speech recognition aborted');
+                        break;
+                    case 'audio-capture':
+                        toast.error('No microphone found');
+                        break;
+                    case 'network':
+                        toast.error('Network error occurred');
+                        break;
+                    case 'not-allowed':
+                        toast.error('Microphone access denied');
+                        break;
+                    case 'service-not-allowed':
+                        toast.error('Speech recognition service not allowed');
+                        break;
+                    case 'bad-grammar':
+                        toast.error('Bad grammar in speech');
+                        break;
+                    case 'language-not-supported':
+                        toast.error('Language not supported');
+                        break;
+                    default:
+                        toast.error(`Recognition error: ${event.error}`);
+                }
+
+                setStatus('Error');
+                
+                // Attempt to restart if still active
+                if (isMicOn) {
+                    setTimeout(() => {
+                        try {
+                            recognition.start();
+                        } catch (e) {
+                            console.error('Failed to restart recognition:', e);
+                        }
+                    }, 1000);
+                }
+            };
+
+            recognition.onend = () => {
+                // Only restart if still active
+                if (isMicOn) {
+                    setTimeout(() => {
+                        try {
+                            recognition.start();
+                        } catch (e) {
+                            console.error('Failed to restart recognition:', e);
+                        }
+                    }, 100);
+                }
+            };
+
+            // Store and start recognition
+            recognitionRef.current = recognition;
+            recognition.start();
+        } catch (err) {
+            console.error('Error initializing speech recognition:', err);
+            toast.error('Failed to initialize speech recognition');
             setBrowserSupported(false);
-            toast.error('Speech recognition not supported');
-            return;
         }
-
-        const recognition = new SpeechRecognition();
-        recognition.lang = 'en-US';
-        recognition.continuous = true;
-        recognition.interimResults = true;
-
-        recognition.onstart = () => setStatus('Listening...');
-        recognition.onresult = async (event: any) => {
-            const lastResult = event.results[event.results.length - 1];
-            const transcript = lastResult[0].transcript.trim();
-            const isFinal = lastResult.isFinal;
-            const filtered = transcript.replace(/[*#@&^%$!()_+={}\[\]|\\:;"'<>,.?/~`]/g, '');
-
-            setTranscribedText(filtered);
-
-            if (isFinal && filtered.length > 0) {
-                const response = await getAIResponse(filtered);
-                setAIResponse(response);
-                speakResponse(response);
-            }
-        };
-
-        recognition.onerror = (err: any) => {
-            console.error('Recognition error:', err);
-            toast.error(`Recognition error: ${err.error}`);
-            setStatus('Error');
-            // Restart recognition on mobile if it fails
-            if (isMicOn) {
-                setTimeout(() => {
-                    try {
-                        recognition.start();
-                    } catch (e) {
-                        console.error('Failed to restart recognition:', e);
-                    }
-                }, 1000);
-            }
-        };
-
-        recognition.onend = () => {
-            if (isMicOn) {
-                // Add a small delay before restarting (helps on mobile)
-                setTimeout(() => {
-                    try {
-                        recognition.start();
-                    } catch (e) {
-                        console.error('Failed to restart recognition:', e);
-                    }
-                }, 100);
-            }
-        };
-
-        recognitionRef.current = recognition;
-        recognition.start();
     };
 
     const stopSpeechRecognition = () => {
@@ -215,14 +311,18 @@ const VoiceCallWithAI = () => {
                 audio: {
                     echoCancellation: true,
                     noiseSuppression: true,
-                    autoGainControl: true
+                    autoGainControl: true,
+                    sampleRate: 44100
                 } 
             });
             streamRef.current = stream;
 
             // Create audio context after user interaction (required for mobile)
             const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-            const audioCtx = new AudioContext();
+            const audioCtx = new AudioContext({
+                sampleRate: 44100,
+                latencyHint: 'interactive'
+            });
             audioContextRef.current = audioCtx;
 
             // Resume audio context (required for iOS)
@@ -240,8 +340,12 @@ const VoiceCallWithAI = () => {
             drawBlackBall();
 
             setIsMicOn(true);
-            setStatus('Listening...');
-            startSpeechRecognition();
+            setStatus('Initializing...');
+            
+            // Add a small delay before starting recognition
+            setTimeout(() => {
+                startSpeechRecognition();
+            }, 500);
         } catch (err) {
             console.error('Mic access error:', err);
             toast.error('Mic access denied or failed');
