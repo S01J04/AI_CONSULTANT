@@ -254,13 +254,13 @@ export const sendMessage = createAsyncThunk<
         dispatch(setAiLoading({ sessionId, loading: false }));
 
         // Create AI message
-        const aiMessageId = Date.now().toString();
-        const initialAiMessage: Message = {
-          id: aiMessageId,
-          sender: "ai",
-          text: "",
-          timeStamp: Date.now()
-        };
+      const aiMessageId = Date.now().toString();
+      const initialAiMessage: Message = {
+        id: aiMessageId,
+        sender: "ai",
+        text: "",
+        timeStamp: Date.now()
+      };
         dispatch(addMessage({ sessionId, message: initialAiMessage }));
 
         // Ensure response is defined before splitting
@@ -276,9 +276,9 @@ export const sendMessage = createAsyncThunk<
           // Handle case where response is undefined
           fullText = "I'm sorry, I couldn't generate a response. Please try again.";
           dispatch(updateMessage({ sessionId, messageId: aiMessageId, text: fullText }));
-        }
-        setinputLoading(false);
-        setMessage("");
+      }
+      setinputLoading(false);
+      setMessage("");
       } catch (error: any) {
         console.error("Error generating AI response:", error);
         dispatch(setAiLoading({ sessionId, loading: false }));
@@ -329,30 +329,30 @@ export const sendMessage = createAsyncThunk<
 
       // Update Firestore
       try {
-        const chatRef = doc(db, "chatSessions", sessionId);
+      const chatRef = doc(db, "chatSessions", sessionId);
         const aiMessage = {
           id: Date.now().toString(),
-          sender: "ai",
-          text: fullText,
-          timeStamp: Date.now()
+            sender: "ai",
+            text: fullText,
+            timeStamp: Date.now()
         };
 
         await updateDoc(chatRef, {
           messages: arrayUnion(newMessage, aiMessage),
-          updatedAt: serverTimestamp()
-        });
+        updatedAt: serverTimestamp()
+      });
 
         // Update title if this is one of the first messages
-        const updatedDoc = await getDoc(chatRef);
+      const updatedDoc = await getDoc(chatRef);
         const updatedData = updatedDoc.data();
         const updatedMessages = mapFirestoreMessages(updatedData?.messages || []);
 
-        if (updatedMessages.length > 0 && updatedMessages.length < 4) {
+      if (updatedMessages.length > 0 && updatedMessages.length < 4) {
           const updatedTitle = updatedMessages[0].text.slice(0, 50) + (updatedMessages[0].text.length > 50 ? '...' : '');
-          await updateDoc(chatRef, {
-            title: updatedTitle,
-            updatedAt: serverTimestamp()
-          });
+        await updateDoc(chatRef, {
+          title: updatedTitle,
+          updatedAt: serverTimestamp()
+        });
 
           // Refresh sessions to get the updated title
           dispatch(fetchUserSessions());
@@ -639,7 +639,7 @@ const chatSlice = createSlice({
 
             state.sessions[sessionIndex].title = truncatedTitle;
             state.sessions[sessionIndex].updatedAt = new Date();
-
+            
             // Update current session if it matches
             if (state.currentSession && state.currentSession.id === sessionId) {
               state.currentSession.title = truncatedTitle;

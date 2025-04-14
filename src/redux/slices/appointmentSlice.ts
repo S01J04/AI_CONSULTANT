@@ -379,7 +379,7 @@ export const completeAppointment = createAsyncThunk(
       };
 
       await updateDoc(appointmentRef, completionData);
-
+      console.log("appointment data",appointmentData)
       // Update the user's appointments used count when an appointment is completed
       // This will increment appointmentsUsed to track completed appointments
       try {

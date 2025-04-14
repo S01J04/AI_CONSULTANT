@@ -12,6 +12,7 @@ import {
 import { doc, setDoc, getDoc, updateDoc, collection, getDocs, addDoc } from 'firebase/firestore';
 import { auth, db } from '../../firebase/config';
 import { toast } from 'react-toastify';
+import { TESTING_MODE, TEST_EXPIRY_MINUTES } from '../../utils/planAccess';
 
 export interface UserData {
   uid: string;
@@ -626,7 +627,7 @@ export const resetSubscriptionExpiryDate = createAsyncThunk(
       }
 
       const now = Date.now();
-      const newExpiryDate = now + (2 * 60 * 1000); // 2 minutes from now
+      const newExpiryDate = now + (TEST_EXPIRY_MINUTES * 60 * 1000); // Use TEST_EXPIRY_MINUTES from planAccess
       const newResetDate = now + (30 * 24 * 60 * 60 * 1000); // 30 days from now
 
       // Update the user document with the new expiry date and reset date
@@ -635,7 +636,7 @@ export const resetSubscriptionExpiryDate = createAsyncThunk(
         appointmentsResetDate: newResetDate
       });
 
-      console.log(`Reset subscription expiry date to ${new Date(newExpiryDate).toLocaleString()} (2 minutes from now)`);
+      console.log(`Reset subscription expiry date to ${new Date(newExpiryDate).toLocaleString()} (${TEST_EXPIRY_MINUTES} minutes from now)`);
       console.log(`Reset appointments reset date to ${new Date(newResetDate).toLocaleString()} (30 days from now)`);
 
       // Get the updated user data
@@ -651,7 +652,7 @@ export const resetSubscriptionExpiryDate = createAsyncThunk(
         localStorage.setItem('user', JSON.stringify(updatedUserData));
 
         // Show a toast notification to inform the user
-        toast.success('Subscription expiry date reset to 2 minutes from now', {
+        toast.success(`Subscription expiry date reset to ${TEST_EXPIRY_MINUTES} minutes from now`, {
           position: "top-center",
           autoClose: 3000,
         });
@@ -803,7 +804,10 @@ export const resetPremiumAppointments = createAsyncThunk(
 );
 
 // Update appointment counts when an appointment is completed by an admin
-export const updateAppointmentCounts = createAsyncThunk( 'auth/updateAppointmentCounts',  async (payload: { userId: string; isAdminContext?: boolean } | string, { rejectWithValue }) => {   // Handle both string and object parameters for backward compatibility\r\n    const userId = typeof payload === 'string' ? payload : payload.userId;\r\n    const isAdminContext = typeof payload === 'object' ? payload.isAdminContext : false;
+export const updateAppointmentCounts = createAsyncThunk(
+  'auth/updateAppointmentCounts',
+  async (payload: { userId: string; isAdminContext?: boolean }, { rejectWithValue }) => {
+    const { userId, isAdminContext } = payload;
     try {
       if (!userId) return rejectWithValue('User ID is required');
 
@@ -819,8 +823,8 @@ export const updateAppointmentCounts = createAsyncThunk( 'auth/updateAppointment
 
       // Get the current values
       const currentAppointmentsUsed = userData.appointmentsUsed || 0;
-      const currentAdditionalAppointments = userData.additionalAppointments || 0;
-      const baseAppointments = userData.plan === 'premium' ? 2 : (userData.plan === 'pay-per-call' ? 1 : 0);
+      let currentAdditionalAppointments = userData.additionalAppointments || 0;
+      const currentAppointmentsTotal = userData.appointmentsTotal || 0;
 
       // Check if we need to reset appointments based on reset date
       const now = Date.now();
@@ -829,72 +833,42 @@ export const updateAppointmentCounts = createAsyncThunk( 'auth/updateAppointment
       // If we've passed the reset date and the user has a premium plan, reset the counts
       if (now > resetDate && userData.plan === 'premium') {
         // Reset appointments for premium users
-        // Keep additionalAppointments as is
+        const baseAppointments = 2; // Premium plan includes 2 appointments
+        const newAppointmentsTotal = baseAppointments + currentAdditionalAppointments;
+
         await updateDoc(userRef, {
-          appointmentsUsed: 0, // Reset to 0
-          appointmentsTotal: baseAppointments + currentAdditionalAppointments, // Base + additional
+          appointmentsUsed: 0,
+          appointmentsTotal: newAppointmentsTotal,
           appointmentsResetDate: now + (30 * 24 * 60 * 60 * 1000) // Next reset in 30 days
         });
 
         console.log(`Reset appointments for premium user ${userId} due to reset date passing`);
         console.log(`Keeping additionalAppointments at ${currentAdditionalAppointments}`);
-
-        // Now handle the current appointment completion
-        if (currentAdditionalAppointments > 0) {
-          // If user has additional appointments, decrement one
-          const newAdditionalAppointments = currentAdditionalAppointments - 1;
-          await updateDoc(userRef, {
-            additionalAppointments: newAdditionalAppointments,
-            appointmentsUsed: 1 // Set to 1 for this completion
-          });
-          console.log(`Decremented additionalAppointments from ${currentAdditionalAppointments} to ${newAdditionalAppointments}`);
-        } else {
-          // No additional appointments, just increment used
-          await updateDoc(userRef, {
-            appointmentsUsed: 1 // Set to 1 for this completion
-          });
-          console.log(`Set appointmentsUsed to 1 for the current completion`);
-        }
-      } else {
-        // Normal case (no reset needed)
-        if (currentAdditionalAppointments > 0) {
-          // If user has additional appointments, decrement one
-          const newAdditionalAppointments = currentAdditionalAppointments - 1;
-          await updateDoc(userRef, {
-            additionalAppointments: newAdditionalAppointments
-          });
-          console.log(`Decremented additionalAppointments from ${currentAdditionalAppointments} to ${newAdditionalAppointments}`);
-        } else {
-          // No additional appointments, increment the used count
-          const newAppointmentsUsed = currentAppointmentsUsed + 1;
-          await updateDoc(userRef, {
-            appointmentsUsed: newAppointmentsUsed
-          });
-          console.log(`Incremented appointmentsUsed to ${newAppointmentsUsed}`);
-        }
-
-        // For premium plans, ensure the total is correct
-        if (userData.plan === 'premium') {
-          const correctTotal = baseAppointments + currentAdditionalAppointments;
-          const currentTotal = userData.appointmentsTotal || 0;
-
-          if (currentTotal !== correctTotal) {
-            // Fix the total if it's incorrect
-            await updateDoc(userRef, {
-              appointmentsTotal: correctTotal
-            });
-            console.log(`Fixed appointmentsTotal for premium user ${userId} (set to ${correctTotal})`);
-          }
-        }
       }
+
+      // Increment the used count
+      const newAppointmentsUsed = currentAppointmentsUsed + 1;
+
+      // Update the user document with the new used count
+      await updateDoc(userRef, {
+        appointmentsUsed: newAppointmentsUsed
+      });
+
+      if (currentAdditionalAppointments > 0) {
+        currentAdditionalAppointments -= 1
+        await updateDoc(userRef, {
+          additionalAppointments: currentAdditionalAppointments
+        });
+      }
+
+      console.log(`Updated appointments for user ${userId}:`);
+      console.log(`- Appointments used: ${currentAppointmentsUsed} -> ${newAppointmentsUsed}`);
+      console.log(`- Additional appointments: ${currentAdditionalAppointments}`);
+      console.log(`- Appointments total: ${currentAppointmentsTotal}`);
 
       // Get the updated user data
       const updatedUserDoc = await getDoc(userRef);
       const updatedUserData = updatedUserDoc.data() as UserData;
-
-      console.log(`Updated appointments for user ${userId}:`);
-      console.log(`- Appointments used: ${currentAppointmentsUsed} -> ${updatedUserData.appointmentsUsed || 0}`);
-      console.log(`- Additional appointments: ${currentAdditionalAppointments} -> ${updatedUserData.additionalAppointments || 0}`);
 
       // Update the user in localStorage to ensure UI reflects the changes
       if (updatedUserData && !isAdminContext) {
@@ -907,7 +881,7 @@ export const updateAppointmentCounts = createAsyncThunk( 'auth/updateAppointment
         });
       }
 
-      return updatedUserData;
+      return isAdminContext ? null : updatedUserData;
     } catch (error: any) {
       console.error('Error updating appointments used count:', error);
       return rejectWithValue(getAuthErrorMessage(error.code) || error.message);
@@ -940,19 +914,11 @@ export const addAdditionalAppointments = createAsyncThunk(
       // Increment the additional appointments count
       const newAdditionalAppointments = currentAdditionalAppointments + count;
 
-      // Calculate the base appointments based on the user's plan
-      let baseAppointments = 0;
-      if (userData.plan === 'premium') {
-        baseAppointments = 2; // Premium plan includes 2 appointments
-      } else if (userData.plan === 'pay-per-call') {
-        baseAppointments = 1; // Pay-per-call includes 1 appointment
-      }
-
-      // Calculate the new total appointments
-      const newAppointmentsTotal = baseAppointments + newAdditionalAppointments;
+      // Calculate the new total appointments by adding to current total
+      const newAppointmentsTotal = currentAppointmentsTotal + count;
 
       console.log(`Adding ${count} additional appointment(s) for user ${userId}:`);
-      console.log(`- Current state: baseAppointments=${baseAppointments}, additionalAppointments=${currentAdditionalAppointments}, appointmentsUsed=${currentAppointmentsUsed}`);
+      console.log(`- Current state: appointmentsTotal=${currentAppointmentsTotal}, additionalAppointments=${currentAdditionalAppointments}, appointmentsUsed=${currentAppointmentsUsed}`);
       console.log(`- New state: additionalAppointments=${newAdditionalAppointments}, appointmentsTotal=${newAppointmentsTotal}`);
 
       // Prepare the update data
@@ -1067,10 +1033,6 @@ export const updateUserPlan = createAsyncThunk(
 
       // We'll use the current additional appointments later in the function
 
-      // Import the testing mode configuration from planAccess.ts
-      const TESTING_MODE = true; // Match the setting in planAccess.ts
-      const TEST_EXPIRY_MINUTES = 2; // Match the setting in planAccess.ts
-
       // Calculate plan duration and expiry date
       let planDuration = 30; // Default to 30 days
       if (planId === 'basic' || planId === 'premium') {
@@ -1083,7 +1045,7 @@ export const updateUserPlan = createAsyncThunk(
 
       // Use test expiry time if in testing mode
       const expiryDate = TESTING_MODE
-        ? now + (TEST_EXPIRY_MINUTES * 60 * 1000) // 2 minutes for testing
+        ? now + (TEST_EXPIRY_MINUTES * 60 * 1000) // Use TEST_EXPIRY_MINUTES from planAccess
         : now + (planDuration * 24 * 60 * 60 * 1000); // Real duration
 
       // Check if this is a renewal (same plan)
@@ -1094,7 +1056,7 @@ export const updateUserPlan = createAsyncThunk(
       if (isRenewal && currentUserData.planExpiryDate && currentUserData.planExpiryDate > now) {
         // Add the appropriate duration based on testing mode
         const extensionTime = TESTING_MODE
-          ? TEST_EXPIRY_MINUTES * 60 * 1000 // 2 minutes for testing
+          ? TEST_EXPIRY_MINUTES * 60 * 1000 // Use TEST_EXPIRY_MINUTES from planAccess
           : planDuration * 24 * 60 * 60 * 1000; // Real duration
 
         finalExpiryDate = currentUserData.planExpiryDate + extensionTime;
@@ -1405,7 +1367,8 @@ const authSlice = createSlice({
       })
       .addCase(updateAppointmentCounts.fulfilled, (state, action) => {
         state.loading = false;
-        state.user = action.payload;
+        if (action.payload)
+          state.user = action.payload;
         // Update localStorage with the updated user data
         if (action.payload) {
           localStorage.setItem("user", JSON.stringify(action.payload));

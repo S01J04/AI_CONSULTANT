@@ -294,11 +294,11 @@ const AppointmentScheduler: React.FC = () => {
             <h3 className="flex items-center text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">
               <Calendar className="h-4 w-4 mr-1 text-indigo-500" />
               Select Date
-            </h3>
+          </h3>
 
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
               {availableDates.map((date) => (
-                <button
+              <button
                   key={date.day}
                   onClick={() => handleDateChange(date.day)}
                   className={`px-2 py-1.5 text-xs rounded-md transition-colors ${
@@ -311,8 +311,8 @@ const AppointmentScheduler: React.FC = () => {
                   disabled={!date.hasSlots}
                 >
                   {new Date(date.day).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                </button>
-              ))}
+              </button>
+            ))}
             </div>
           </div>
 
@@ -344,26 +344,26 @@ const AppointmentScheduler: React.FC = () => {
         </div>
 
         {/* Contact Info and Booking Column */}
-        <div>
+                <div>
           {/* Mobile number input - only show if date and time are selected */}
           {selectedDate && selectedTime && (
             <div className="mb-3">
               <label htmlFor="mobileNumber" className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">
                 Your Contact Number
-              </label>
-              <input
-                type="tel"
+                  </label>
+                    <input
+                      type="tel"
                 id="mobileNumber"
-                value={mobileNumber}
+                      value={mobileNumber}
                 onChange={handleMobileNumberChange}
                 placeholder="Enter your phone number"
                 className="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-                required
-              />
+                      required
+                    />
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                 We'll use this number to send appointment reminders
               </p>
-            </div>
+                  </div>
           )}
 
           {/* Booking details summary - only show if all fields are selected */}
@@ -384,8 +384,8 @@ const AppointmentScheduler: React.FC = () => {
             <div className="mb-3 p-2 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-xs rounded-md flex items-start">
               <AlertTriangle className="h-4 w-4 mr-1 flex-shrink-0 mt-0.5" />
               <span>{error}</span>
-            </div>
-          )}
+          </div>
+        )}
 
           {/* Book button */}
           <button

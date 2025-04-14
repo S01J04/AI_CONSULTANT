@@ -2,8 +2,8 @@ import { UserData } from '../redux/slices/authSlice';
 import { PaymentPlan } from '../redux/slices/paymentSlice';
 
 // TESTING MODE CONFIGURATION
-const TESTING_MODE = true; // Set to false to use actual expiration dates
-const TEST_EXPIRY_MINUTES = 30; // 30 minutes for subscription expiry
+export const TESTING_MODE = true; // Set to false to use actual expiration dates
+export const TEST_EXPIRY_MINUTES = 30; // 30 minutes for subscription expiry
 
 // Get subscription expiry date
 export const getSubscriptionExpiryDate = (user: UserData | null): Date | null => {
@@ -200,9 +200,6 @@ export const getUserPlanFeatures = (user: UserData | null, currentPlan: PaymentP
   // console.log('No valid plan found, returning no access features');
   return PLAN_FEATURES.none;
 };
-
-
-
 
 // Check if user can access a specific feature
 export const canAccessFeature = (
