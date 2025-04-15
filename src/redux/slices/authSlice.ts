@@ -185,8 +185,7 @@ export const registerUser = createAsyncThunk(
   async ({ email, password, displayName }: { email: string; password: string; displayName: string }, { rejectWithValue }) => {
     try {
       // Validate password strength
-      const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-      if (!passwordRegex.test(password)) {
+      const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>])[A-Za-z\d!@#$%^&*(),.?":{}|<>]{8,}$/;     if (!passwordRegex.test(password)) {
         return rejectWithValue('Password must be at least 8 characters and include uppercase, lowercase, number and special character');
       }
 
@@ -199,6 +198,10 @@ export const registerUser = createAsyncThunk(
 
       // Send email verification
       await sendEmailVerification(user);
+      toast.info('Please check your email and verify your account for full access.', {
+        position: "top-center",
+        autoClose: 5000,
+      });
 
       // Create user document in Firestore with secure defaults
       const userData: UserData = {
