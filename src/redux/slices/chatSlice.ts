@@ -53,7 +53,7 @@ export interface ChatState {
 // -----------------------
 // Mock AI Response Function
 // -----------------------
-const handleAiResponse = async (message: string, userId: string): Promise<string> => {
+const handleAiResponse = async (message: string, sessionId: string): Promise<string> => {
   try {
     // Limit message length to prevent context length exceeded errors
     const MAX_MESSAGE_LENGTH = 1000; // Adjust based on your needs
@@ -77,7 +77,7 @@ const handleAiResponse = async (message: string, userId: string): Promise<string
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        user_id: userId,
+        user_id: sessionId,
         message: trimmedMessage
       }),
       signal: controller.signal
@@ -249,7 +249,7 @@ export const sendMessage = createAsyncThunk<
       try {
 
 
-        const response = await handleAiResponse(message, userId);
+        const response = await handleAiResponse(message, sessionId);
         // Turn off AI loading immediately after getting the response
         dispatch(setAiLoading({ sessionId, loading: false }));
 

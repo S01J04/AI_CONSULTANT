@@ -108,7 +108,7 @@ export const isSubscriptionExpired = (user: UserData | null): boolean => {
 export const PLAN_FEATURES = {
   // No plan / Free - No access to any features
   none: {
-    canUseChat: false, // No chat access without a plan
+    canUseChat: true, // No chat access without a plan
     canUseVoice: false,
     canBookAppointments: false,
     maxAppointments: 0,
@@ -116,7 +116,7 @@ export const PLAN_FEATURES = {
   },
   // New user trial - No access (removed free trial)
   trial: {
-    canUseChat: false,
+    canUseChat: true,
     canUseVoice: false,
     canBookAppointments: false,
     maxAppointments: 0,
@@ -140,7 +140,7 @@ export const PLAN_FEATURES = {
   },
   // Pay per call - 1 appointment
   'pay-per-call': {
-    canUseChat: false,
+    canUseChat: true,
     canUseVoice: false,
     canBookAppointments: true,
     maxAppointments: 1,

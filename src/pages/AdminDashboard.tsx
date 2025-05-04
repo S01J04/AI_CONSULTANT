@@ -881,7 +881,7 @@ const AdminDashboard: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {stats?.recentAppointments.map((appointment) => (
+                {stats?.recentAppointments.slice(0,5).map((appointment) => (
                   <tr key={appointment.id}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                         {appointment.displayName || 'Unknown User'}

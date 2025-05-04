@@ -106,9 +106,9 @@ const SubscriptionProtectedRoute: React.FC<{
 const App: React.FC = () => {
   return (
 
-      <Router>
-        <AppContent />
-      </Router>
+    <Router>
+      <AppContent />
+    </Router>
 
   );
 };
@@ -131,16 +131,16 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-screen">
-     {
-       location.pathname !== "/admin" && <Navbar />
+      {
+        location.pathname !== "/admin" && <Navbar />
       }
 
 
       <main className="flex-grow">
         <Routes>
           <Route path="/" element={<HomePage />} />
-          <Route path="/chat" element={<SubscriptionProtectedRoute feature="canUseChat"><ChatPage /></SubscriptionProtectedRoute>} />
-          <Route path="/forgot-password" element={<ForgotPasswordForm />} />
+          {/* <Route path="/chat" element={<SubscriptionProtectedRoute feature="canUseChat"><ChatPage /></SubscriptionProtectedRoute>} /> */}
+          <Route path="/chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />          <Route path="/forgot-password" element={<ForgotPasswordForm />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admin/consultant/:consultantId" element={<ConsultantDetailsPage />} />
           <Route path="/settings" element={<UserDashboard />} />
@@ -148,7 +148,7 @@ const AppContent: React.FC = () => {
           <Route path="/appointments" element={<SubscriptionProtectedRoute feature="canBookAppointments"><AppointmentsPage /></SubscriptionProtectedRoute>} />
           <Route path="/aboutus" element={<AboutUs />} />
           <Route path="/voicechat" element={<SubscriptionProtectedRoute feature="canUseVoice"><VoiceCallWithAI /></SubscriptionProtectedRoute>} />
-          <Route path="/payment/success" element={<ProtectedRoute><PaymentSuccess /></ProtectedRoute>} />
+          <Route path="/payment/success" element={<PaymentSuccess />} />
           <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
           <Route path="/dashboard/notifications" element={<ProtectedRoute><DashboardPage initialTab="notifications" /></ProtectedRoute>} />
           <Route path="/dashboard/appointments" element={<ProtectedRoute><DashboardPage initialTab="appointments" /></ProtectedRoute>} />
@@ -159,7 +159,7 @@ const AppContent: React.FC = () => {
           <Route path="/dashboard/settings" element={<ProtectedRoute><DashboardPage initialTab="settings" /></ProtectedRoute>} />
           <Route path="/login" element={user ? <Navigate to="/" /> : <LoginPage />} />
           <Route path="/signup" element={user ? <Navigate to="/" /> : <SignupPage />} />
-          <Route path="*" element={<Navigate to="/" />} />
+          {/* <Route path="*" element={<Navigate to="/" />} /> */}
         </Routes>
       </main>
       {/* Conditionally render footer, hide on /chat page */}

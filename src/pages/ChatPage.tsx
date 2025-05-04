@@ -110,36 +110,36 @@ const ChatPage: React.FC = () => {
   }
 
   // Check if user has access to chat feature
-  if (!canAccess('canUseChat')) {
-    return (
-      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex flex-col items-center justify-center p-4">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 max-w-md w-full">
-          <div className="flex items-start">
-            <div className="flex-shrink-0">
-              <AlertCircle className="h-6 w-6 text-red-500" />
-            </div>
-            <div className="ml-3">
-              <h3 className="text-lg font-medium text-red-800 dark:text-red-300">
-                Subscription Required
-              </h3>
-              <div className="mt-2 text-sm text-red-700 dark:text-red-200">
-                <p>You need an active subscription to access the chat feature.</p>
-                <p className="mt-1">{getUpgradeMessage('canUseChat')}</p>
-              </div>
-              <div className="mt-4">
-                <Link
-                  to="/pricing"
-                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                >
-                  View Subscription Plans
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // if (!canAccess('canUseChat')) {
+  //   return (
+  //     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex flex-col items-center justify-center p-4">
+  //       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 max-w-md w-full">
+  //         <div className="flex items-start">
+  //           <div className="flex-shrink-0">
+  //             <AlertCircle className="h-6 w-6 text-red-500" />
+  //           </div>
+  //           <div className="ml-3">
+  //             <h3 className="text-lg font-medium text-red-800 dark:text-red-300">
+  //               Subscription Required
+  //             </h3>
+  //             <div className="mt-2 text-sm text-red-700 dark:text-red-200">
+  //               <p>You need an active subscription to access the chat feature.</p>
+  //               <p className="mt-1">{getUpgradeMessage('canUseChat')}</p>
+  //             </div>
+  //             <div className="mt-4">
+  //               <Link
+  //                 to="/pricing"
+  //                 className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+  //               >
+  //                 View Subscription Plans
+  //               </Link>
+  //             </div>
+  //           </div>
+  //         </div>
+  //       </div>
+  //     </div>
+  //   );
+  // }
 
   return (
     <div className="h-[90svh] border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-900 flex flex-col">

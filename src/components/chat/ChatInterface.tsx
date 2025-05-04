@@ -55,19 +55,48 @@ const ChatInterface: React.FC = () => {
       inputfocus.current.style.height = `${inputfocus.current.scrollHeight}px`;
     }
   }, [message, transcript, isRecording]);
+console.log(inputLoading,aiLoading,loading)
+  // First useEffect - only scroll on user input and initial loading
+  useEffect(() => {
+    // Only scroll when:
+    // 1. User sends a new message (inputLoading changes to true)
+    // 2. Initial loading of messages completes
+    if (inputLoading || loading) {
+      if (messagesContainerRef.current) {
+        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+      }
+    }
+  }, [inputLoading, loading]);
+
+  // Second useEffect - scroll to show AI message when it starts generating
+  useEffect(() => {
+    // Scroll when an empty AI message is first added
+    const hasEmptyAiMessage = currentSession?.messages?.some(msg => 
+      msg.sender === "ai" && msg.text === ""
+    );
+    
+    if (hasEmptyAiMessage && messagesContainerRef.current) {
+      // Find the last message element
+      const messagesContainer = messagesContainerRef.current;
+      const lastMessageElement = messagesContainer.lastElementChild?.previousElementSibling;
+      
+      if (lastMessageElement) {
+        // Scroll to position the last message slightly above the bottom
+        const scrollOffset = 100; // Adjust this value as needed
+        messagesContainer.scrollTop = lastMessageElement.offsetTop - scrollOffset;
+      } else {
+        // Fallback to scrolling to bottom if we can't find the element
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      }
+    }
+  }, []);
 
   useEffect(() => {
-    if (messagesContainerRef.current) {
-      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
-    }
-  }, [currentSession?.messages, loading]);
-
-  // useEffect(() => {
-  //   if (user) {
-  //    console.log("fetching user sessions from chat page")
-  //   dispatch(fetchUserSessions() as any);
-  //   }
-  // }, []);
+    if (user) {
+     console.log("fetching user sessions from chat page")
+     dispatch(fetchUserSessions() as any);
+     }
+  }, []);
   useEffect(() => {
     inputfocus.current?.focus()
   }, [currentSession]);
@@ -104,12 +133,12 @@ const ChatInterface: React.FC = () => {
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Check if user has access to chat feature
-    if (!canAccess('canUseChat')) {
-      toast.error(getUpgradeMessage('canUseChat'));
-      navigate('/pricing');
-      return;
-    }
+    // // Check if user has access to chat feature
+    // if (!canAccess('canUseChat')) {
+    //   toast.error(getUpgradeMessage('canUseChat'));
+    //   navigate('/pricing');
+    //   return;
+    // }
 
     // Validate and sanitize the message
     const sanitizedMessage = validateAndSanitizeChatMessage(message, MAX_MESSAGE_LENGTH);
@@ -183,7 +212,7 @@ const ChatInterface: React.FC = () => {
     return <span>Browser doesn't support speech recognition.</span>;
   }
   return (
-    <div className="flex relative  flex-col h-[90%] bg-gray-50 dark:bg-gray-900 bg-transparent overflow-hidden">
+    <div className="flex relative  flex-col h-[85%] bg-gray-50 dark:bg-gray-900 bg-transparent overflow-hidden">
       {/* Chat header */}
       <div className="bg-white dark:bg-gray-800 px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
         <div className="flex items-center">
@@ -454,3 +483,7 @@ const ChatInterface: React.FC = () => {
 };
 
 export default ChatInterface;
+
+
+
+

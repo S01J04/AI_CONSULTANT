@@ -6,6 +6,7 @@ import { setCurrentPlan, processPayment } from '../../redux/slices/paymentSlice'
 import { updateUserPlan } from '../../redux/slices/authSlice';
 import { Check, X } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { stripe_call } from './cloudefunctions/stripefunction';
 
 const PricingPlans: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -55,17 +56,11 @@ const PricingPlans: React.FC = () => {
           } catch (updateError) {
             console.error('Error updating user plan:', updateError);
             // Continue anyway - the payment was successful
-
-            // Still show a success toast for the payment
-            toast.success(`Payment successful! You are now subscribed to the ${plan.name} plan.`, {
-              position: "top-center",
-              autoClose: 5000,
-            });
           }
         }
 
         // Navigate to dashboard after successful payment
-        navigate('/dashboard');
+        // navigate('/dashboard');
       } else {
         // Payment failed
         console.error('Payment failed:', resultAction.payload);
@@ -190,84 +185,101 @@ const PricingPlans: React.FC = () => {
 
     // Set the processing state to show loading UI
     setProcessingPayment(planId);
-
     dispatch(setCurrentPlan(planId));
     toast.info(`Processing payment for ${plan.name} plan...`, {
       position: "top-center",
       autoClose: 2000,
     });
-
     try {
-      // In a real app, this would open the Razorpay payment flow
-      // For now, we'll simulate a successful payment
-      const resultAction = await dispatch(processPayment({
+      // Import the stripe_call function
+      const { stripe_call } = await import('./cloudefunctions/stripefunction.tsx');
+      
+      // Call the function with plan details
+      const result = await stripe_call({
         userId: user.uid,
         planId: plan.id,
-        amount: plan.price,
-        currency: plan.currency,
-        paymentMethod: 'card',
-      }));
-
-      // Check if the payment was successful
-      if (processPayment.fulfilled.match(resultAction)) {
-        console.log('Payment successful:', resultAction.payload);
-
-        // Update the user's plan in Firestore
-        if (user) {
-          try {
-            await dispatch(updateUserPlan({
-              userId: user.uid,
-              planId: plan.id,
-              planName: plan.name
-            }));
-            console.log('User plan updated successfully');
-
-            // Show a success toast notification with reset information
-            toast.success(`Payment successful! `, {
-              position: "top-center",
-              autoClose: 5000,
-              hideProgressBar: false,
-              closeOnClick: true,
-              pauseOnHover: true,
-              draggable: true,
-            });
-          } catch (updateError) {
-            console.error('Error updating user plan:', updateError);
-            // Continue anyway - the payment was successful
-
-            // Still show a success toast for the payment with reset information
-            toast.success(`Payment successful! You are now subscribed to the ${plan.name} plan. Your appointments used count has been reset to 0 and any unused appointments have been added to your total.`, {
-              position: "top-center",
-              autoClose: 5000,
-            });
-          }
-        } else {
-          // Show a success toast even if we couldn't update the user plan
-          toast.success(`Payment successful! You are now subscribed to the ${plan.name} plan. Your appointments used count has been reset to 0 and any unused appointments have been added to your total.`, {
-            position: "top-center",
-            autoClose: 5000,
-          });
-        }
-
-        // Navigate to the payment success page with the plan name
-        navigate(`/payment/success?plan=${encodeURIComponent(plan.name)}`);
-      } else {
-        // If the payment failed, show an error message
-        console.error('Payment failed:', resultAction);
-        const errorPayload = resultAction.payload;
-        let errorMessage = 'Unknown error';
-
-        // Try to extract the error message
-        if (typeof errorPayload === 'string') {
-          errorMessage = errorPayload;
-        } else if (errorPayload && typeof errorPayload === 'object') {
-          errorMessage = (errorPayload as any).message || 'Payment processing error';
-        }
-
-        toast.error(`Payment failed: ${errorMessage}`);
-        // Reset processing state
-        setProcessingPayment(null);
+        planName: plan.name,
+        price: plan.price,
+        currency: plan.currency || 'inr'
+      });
+      
+      // Redirect to Stripe Checkout
+      const redirectResult = await result.redirect();
+      
+      if (redirectResult.error) {
+        throw new Error(redirectResult.error);
       }
+      // console.log("stripe done")
+      // // In a real app, this would open the Razorpay payment flow
+      // // For now, we'll simulate a successful payment
+      // const resultAction = await dispatch(processPayment({
+      //   userId: user.uid,
+      //   planId: plan.id,
+      //   amount: plan.price,
+      //   currency: plan.currency,
+      //   paymentMethod: 'card',
+      // }));
+
+      // // Check if the payment was successful
+      // if (processPayment.fulfilled.match(resultAction)) {
+      //   console.log('Payment successful:', resultAction.payload);
+        
+      //   // Update the user's plan in Firestore
+      //   if (user) {
+      //     try {
+      //       await dispatch(updateUserPlan({
+      //         userId: user.uid,
+      //         planId: plan.id,
+      //         planName: plan.name
+      //       }));
+      //       console.log('User plan updated successfully');
+
+      //       // Show a success toast notification with reset information
+      //       toast.success(`Payment successful! `, {
+      //         position: "top-center",
+      //         autoClose: 5000,
+      //         hideProgressBar: false,
+      //         closeOnClick: true,
+      //         pauseOnHover: true,
+      //         draggable: true,
+      //       });
+      //     } catch (updateError) {
+      //       console.error('Error updating user plan:', updateError);
+      //       // Continue anyway - the payment was successful
+
+      //       // Still show a success toast for the payment with reset information
+      //       toast.success(`Payment successful! You are now subscribed to the ${plan.name} plan. Your appointments used count has been reset to 0 and any unused appointments have been added to your total.`, {
+      //         position: "top-center",
+      //         autoClose: 5000,
+      //       });
+      //     }
+      //   } else {
+      //     // Show a success toast even if we couldn't update the user plan
+      //     toast.success(`Payment successful! You are now subscribed to the ${plan.name} plan. Your appointments used count has been reset to 0 and any unused appointments have been added to your total.`, {
+      //       position: "top-center",
+      //       autoClose: 5000,
+      //     });
+      //   }
+
+      //   // Navigate to the payment success page with the plan name
+      //   navigate(`/payment/success?plan=${encodeURIComponent(plan.name)}`);
+      // } else {
+      //   // If the payment failed, show an error message
+      //   console.error('Payment failed:', resultAction);
+      //   const errorPayload = resultAction.payload;
+      //   let errorMessage = 'Unknown error';
+
+      //   // Try to extract the error message
+      //   if (typeof errorPayload === 'string') {
+      //     errorMessage = errorPayload;
+      //   } else if (errorPayload && typeof errorPayload === 'object') {
+      //     errorMessage = (errorPayload as any).message || 'Payment processing error';
+      //   }
+
+      //   toast.error(`Payment failed: ${errorMessage}`);
+      //   // Reset processing state
+      //   setProcessingPayment(null);
+      // }
     } catch (error: any) {
       console.error('Payment processing failed:', error);
 
