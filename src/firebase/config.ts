@@ -21,13 +21,13 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 // Initialize App Check in production
-if (import.meta.env.PROD) {
-  // In production, use the real reCAPTCHA provider
-  initializeAppCheck(app, {
-    provider: new ReCaptchaV3Provider(import.meta.env.VITE_recaptchaSiteKey || 'dummy-key'),
-    isTokenAutoRefreshEnabled: true
-  });
-}
+// if (import.meta.env.PROD) {
+//   // In production, use the real reCAPTCHA provider
+//   initializeAppCheck(app, {
+//     provider: new ReCaptchaV3Provider(import.meta.env.VITE_recaptchaSiteKey || 'dummy-key'),
+//     isTokenAutoRefreshEnabled: true
+//   });
+// }
 
 // Initialize Firebase services
 const auth = getAuth(app);
