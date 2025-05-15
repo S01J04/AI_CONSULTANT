@@ -7,26 +7,42 @@ import paymentReducer from './slices/paymentSlice';
 import appointmentReducer from './slices/appointmentSlice';
 import uiReducer from './slices/uiSlice';
 import adminReducer from './slices/adminSlice';
+import notificationReducer from './slices/notificationSlice';
 
-// 🔥 Configuring Redux Persist
+// 🔥 Configuring Redux Persist with enhanced security
 const persistConfig = {
   key: 'root',
   storage,
-  whitelist: ['auth','chat','appointment','payment'], // Only persist 'auth' and 'chat', remove others if needed
+  whitelist: ['ui'], // Only persist UI preferences, not sensitive data
+};
+
+// Separate configs for different slices with specific fields to persist
+const authPersistConfig = {
+  key: 'auth',
+  storage,
+  whitelist: ['isAuthenticated'], // Only persist authentication state, not user data
+};
+
+const chatPersistConfig = {
+  key: 'chat',
+  storage,
+  whitelist: ['sessionId'], // Only persist session ID, not message content
 };
 
 // 🔥 Wrapping the reducers with persistReducer
-const persistedAuthReducer = persistReducer(persistConfig, authReducer);
-const persistedChatReducer = persistReducer(persistConfig, chatReducer);
+const persistedAuthReducer = persistReducer(authPersistConfig, authReducer);
+const persistedChatReducer = persistReducer(chatPersistConfig, chatReducer);
+const persistedUiReducer = persistReducer(persistConfig, uiReducer);
 
 export const store = configureStore({
   reducer: {
-    auth: persistedAuthReducer, // Persisted auth reducer
-    chat: persistedChatReducer, // Persist chat if needed
-    payment: paymentReducer, // Not persisted
-    appointment: appointmentReducer, // Not persisted
-    ui: uiReducer, // Not persisted
-    admin: adminReducer, // Not persisted
+    auth: persistedAuthReducer, // Persisted auth reducer (only authentication state)
+    chat: persistedChatReducer, // Persisted chat reducer (only session ID)
+    payment: paymentReducer, // Not persisted for security
+    appointment: appointmentReducer, // Not persisted for security
+    ui: persistedUiReducer, // Persisted UI preferences
+    admin: adminReducer, // Not persisted for security
+    notification: notificationReducer, // Not persisted - we want fresh notifications on reload
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

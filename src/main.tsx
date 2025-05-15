@@ -5,14 +5,18 @@ import './index.css';
 import { PersistGate } from 'redux-persist/integration/react';
 import { Provider } from 'react-redux';
 import { store, persistor } from './redux/store';
+import { StripeProvider } from './redux/StripeContext.tsx';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <Provider store={store}>
-    <PersistGate loading={null} persistor={persistor}>
-    <App />
-      </PersistGate>
 
-    </Provider>
+    <StripeProvider>
+      <Provider store={store}>
+        <PersistGate loading={null} persistor={persistor}>
+          <App />
+        </PersistGate>
+
+      </Provider>
+    </StripeProvider>
   </StrictMode>
 );
