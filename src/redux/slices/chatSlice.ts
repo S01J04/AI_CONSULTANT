@@ -18,7 +18,10 @@ import { auth, db } from "../../firebase/config";
 import { v4 as uuidv4 } from 'uuid';
 import { AppDispatch, RootState } from "../store";
 import { toast } from 'react-toastify';
+<<<<<<< HEAD
 import { updateChatCount } from "./authSlice";
+=======
+>>>>>>> c8020a2bf23ef9f2677a173b9371359164bc1b36
 
 // -----------------------
 // Interfaces
@@ -55,6 +58,7 @@ export interface ChatState {
 // Mock AI Response Function
 // -----------------------
 const handleAiResponse = async (message: string, sessionId: string): Promise<string> => {
+<<<<<<< HEAD
   // try {
   //   // Limit message length to prevent context length exceeded errors
   //   const MAX_MESSAGE_LENGTH = 1000; // Adjust based on your needs
@@ -154,7 +158,92 @@ const handleAiResponse = async (message: string, sessionId: string): Promise<str
   ]
   // Return a random response from the array
   return dummy_AI[Math.floor(Math.random() * dummy_AI.length)]
+=======
+  try {
+    // Limit message length to prevent context length exceeded errors
+    const MAX_MESSAGE_LENGTH = 1000; // Adjust based on your needs
+    let trimmedMessage = message;
 
+    if (message.length > MAX_MESSAGE_LENGTH) {
+      console.log(`Message too long (${message.length} chars), trimming to ${MAX_MESSAGE_LENGTH} chars`);
+      trimmedMessage = message.substring(0, MAX_MESSAGE_LENGTH) + "... (message truncated due to length)";
+    }
+
+    console.log('Sending request to:', `${import.meta.env.VITE_openAIKey}/chat/text`);
+    console.log('Request payload length:', trimmedMessage.length);
+
+    // Add timeout to the fetch request
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+
+    const response = await fetch(`${import.meta.env.VITE_openAIKey}/chat/text`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        user_id: sessionId,
+        message: trimmedMessage
+      }),
+      signal: controller.signal
+    }).finally(() => clearTimeout(timeoutId));
+>>>>>>> c8020a2bf23ef9f2677a173b9371359164bc1b36
+
+    console.log('Response status:', response.status);
+
+    if (!response.ok) {
+      // Try to get more detailed error information
+      let errorText = '';
+      try {
+        errorText = await response.text();
+        console.log('Error response:', errorText);
+      } catch (e) {
+        console.error('Could not read error response:', e);
+      }
+
+      if (response.status === 500) {
+        throw new Error('Internal server error. The server is experiencing issues.');
+      } else if (response.status === 503) {
+        throw new Error('Service unavailable. The server is temporarily unavailable.');
+      } else if (response.status === 429) {
+        throw new Error('Too many requests. Please try again later.');
+      } else {
+        throw new Error(`Server responded with status: ${response.status}${errorText ? ` - ${errorText}` : ''}`);
+      }
+    }
+
+    // Parse the response data
+    const data = await response.json();
+    console.log('Response data:', data);
+
+    // Check for context length exceeded error in the response
+    if (data.detail && typeof data.detail === 'string' &&
+        (data.detail.includes('context_length_exceeded') ||
+         data.detail.includes('maximum context length'))) {
+      throw new Error('Message too long for AI to process. Please send a shorter message.');
+    }
+
+    // Check for valid response format
+    if (!data || !data.message) {
+      throw new Error('Invalid response from server: missing message field');
+    }
+
+    return data.message;
+  } catch (error: any) {
+    console.error('AI response error:', error);
+
+    // Handle different types of network errors
+    if (error.name === 'AbortError') {
+      throw new Error('Network error: Request timed out. Please try again.');
+    } else if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error('Network error. Please check your internet connection.');
+    } else if (error.message.includes('context_length_exceeded') ||
+               error.message.includes('maximum context length')) {
+      throw new Error('Message too long for AI to process. Please send a shorter message.');
+    }
+
+    throw error;
+  }
 };
 
 // Utility function to convert Firestore timestamps
@@ -346,19 +435,41 @@ export const sendMessage = createAsyncThunk<
 
       // Update Firestore
       try {
+<<<<<<< HEAD
         const chatRef = doc(db, "chatSessions", sessionId);
         const aiMessage = {
           id: Date.now().toString(),
           sender: "ai",
           text: fullText,
           timeStamp: Date.now()
+=======
+      const chatRef = doc(db, "chatSessions", sessionId);
+        const aiMessage = {
+          id: Date.now().toString(),
+            sender: "ai",
+            text: fullText,
+            timeStamp: Date.now()
+>>>>>>> c8020a2bf23ef9f2677a173b9371359164bc1b36
         };
 
         await updateDoc(chatRef, {
           messages: arrayUnion(newMessage, aiMessage),
+        updatedAt: serverTimestamp()
+      });
+
+        // Update title if this is one of the first messages
+      const updatedDoc = await getDoc(chatRef);
+        const updatedData = updatedDoc.data();
+        const updatedMessages = mapFirestoreMessages(updatedData?.messages || []);
+
+      if (updatedMessages.length > 0 && updatedMessages.length < 4) {
+          const updatedTitle = updatedMessages[0].text.slice(0, 50) + (updatedMessages[0].text.length > 50 ? '...' : '');
+        await updateDoc(chatRef, {
+          title: updatedTitle,
           updatedAt: serverTimestamp()
         });
 
+<<<<<<< HEAD
         // Get user data to check plan and update chat count
         const userRef = doc(db, "users", userId);
         const userDoc = await getDoc(userRef);
@@ -397,6 +508,8 @@ export const sendMessage = createAsyncThunk<
           updatedAt: serverTimestamp()
         });
 
+=======
+>>>>>>> c8020a2bf23ef9f2677a173b9371359164bc1b36
           // Refresh sessions to get the updated title
           dispatch(fetchUserSessions());
 

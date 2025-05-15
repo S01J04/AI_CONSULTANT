@@ -71,15 +71,26 @@ console.log(inputLoading,aiLoading,loading)
   // Second useEffect - scroll to show AI message when it starts generating
   useEffect(() => {
     // Scroll when an empty AI message is first added
+<<<<<<< HEAD
     const hasEmptyAiMessage = currentSession?.messages?.some(msg =>
       msg.sender === "ai" && msg.text === ""
     );
 
+=======
+    const hasEmptyAiMessage = currentSession?.messages?.some(msg => 
+      msg.sender === "ai" && msg.text === ""
+    );
+    
+>>>>>>> c8020a2bf23ef9f2677a173b9371359164bc1b36
     if (hasEmptyAiMessage && messagesContainerRef.current) {
       // Find the last message element
       const messagesContainer = messagesContainerRef.current;
       const lastMessageElement = messagesContainer.lastElementChild?.previousElementSibling;
+<<<<<<< HEAD
 
+=======
+      
+>>>>>>> c8020a2bf23ef9f2677a173b9371359164bc1b36
       if (lastMessageElement) {
         // Scroll to position the last message slightly above the bottom
         const scrollOffset = 100; // Adjust this value as needed
@@ -112,6 +123,7 @@ console.log(inputLoading,aiLoading,loading)
   }, [retrying, user, dispatch]);
 
   // Show toast when network error occurs
+<<<<<<< HEAD
   // useEffect(() => {
   //   if (networkError) {
   //     toast.error("Network error. Please check your internet connection.", {
@@ -124,6 +136,20 @@ console.log(inputLoading,aiLoading,loading)
   //     });
   //   }
   // }, [networkError]);
+=======
+  useEffect(() => {
+    if (networkError) {
+      toast.error("Network error. Please check your internet connection.", {
+        position: "top-right",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+    }
+  }, [networkError]);
+>>>>>>> c8020a2bf23ef9f2677a173b9371359164bc1b36
 
   const handleRetry = () => {
     setRetrying(true);
@@ -167,6 +193,7 @@ console.log(inputLoading,aiLoading,loading)
       setinputLoading(false);
       return;
     }
+<<<<<<< HEAD
 
     // Check if user has a premium plan
     const hasPremiumPlan = user.plan === 'premium' || user.plan === 'basic';
@@ -185,6 +212,8 @@ console.log(inputLoading,aiLoading,loading)
     // Log the current chat count for debugging
     console.log(`Current chat count: ${user.chatCount}`);
 
+=======
+>>>>>>> c8020a2bf23ef9f2677a173b9371359164bc1b36
 
     try {
       // Use the sanitized message
@@ -365,6 +394,7 @@ console.log(inputLoading,aiLoading,loading)
 
       {/* Chat Input */}
       <div className="bg-white fixed w-screen md:w-[40%] bottom-0 md:bottom-3 rounded-2xl border left-1/2 transform -translate-x-1/2 dark:bg-gray-800 px-4 py-3 border-gray-300 dark:border-gray-700 shadow-lg">
+<<<<<<< HEAD
         {/* Message count indicator for non-premium users */}
         {user && !user.plan && (
           <div className="mb-2 text-xs text-center">
@@ -381,6 +411,8 @@ console.log(inputLoading,aiLoading,loading)
           </div>
         )}
 
+=======
+>>>>>>> c8020a2bf23ef9f2677a173b9371359164bc1b36
         {authLoading ? (
           <Skeleton className="w-full h-12 rounded-md" />
         ) : (

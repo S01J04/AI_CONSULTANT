@@ -33,7 +33,10 @@ export interface UserData {
   additionalAppointments?: number; // Track additional appointments purchased via pay-per-service
   appointmentsResetDate?: number; // Track when appointments should reset (for subscription plans)
   hadSubscriptionBefore?: boolean; // Flag to track if user ever had a subscription that was removed
+<<<<<<< HEAD
   chatCount?: number; // Track how many chat messages the user has left (for free users)
+=======
+>>>>>>> c8020a2bf23ef9f2677a173b9371359164bc1b36
 }
 
 // Helper function to get user-friendly auth error messages
@@ -214,7 +217,10 @@ export const registerUser = createAsyncThunk(
         createdAt: Date.now(),
         emailVerified: false,
         lastLogin: Date.now(),
+<<<<<<< HEAD
         chatCount: 10, // Initialize chat count to 10 for new users
+=======
+>>>>>>> c8020a2bf23ef9f2677a173b9371359164bc1b36
       };
 
       await setDoc(doc(db, 'users', user.uid), userData);
@@ -289,6 +295,7 @@ export const loginUser = createAsyncThunk(
         await setDoc(doc(db, 'users', user.uid), userData);
       }
 
+<<<<<<< HEAD
       // Update last login time and ensure chatCount exists
       const updateData: any = {
         lastLogin: Date.now(),
@@ -302,6 +309,13 @@ export const loginUser = createAsyncThunk(
       }
 
       await updateDoc(doc(db, 'users', user.uid), updateData);
+=======
+      // Update last login time
+      await updateDoc(doc(db, 'users', user.uid), {
+        lastLogin: Date.now(),
+        emailVerified: user.emailVerified, // Update email verification status
+      });
+>>>>>>> c8020a2bf23ef9f2677a173b9371359164bc1b36
 
       // If email is not verified, remind the user
       if (!user.emailVerified) {
@@ -376,12 +390,16 @@ export const googleLogin = createAsyncThunk(
           createdAt: Date.now(),
           lastLogin: Date.now(),
           emailVerified: user.emailVerified,
+<<<<<<< HEAD
           chatCount: 10, // Initialize chat count to 10 for new users
+=======
+>>>>>>> c8020a2bf23ef9f2677a173b9371359164bc1b36
         };
 
         await setDoc(doc(db, 'users', user.uid), userData);
       }
 
+<<<<<<< HEAD
       // Update last login time and ensure chatCount exists
       const updateData: any = {
         lastLogin: Date.now(),
@@ -395,6 +413,13 @@ export const googleLogin = createAsyncThunk(
       }
 
       await updateDoc(doc(db, 'users', user.uid), updateData);
+=======
+      // Update last login time
+      await updateDoc(doc(db, 'users', user.uid), {
+        lastLogin: Date.now(),
+        emailVerified: user.emailVerified, // Update email verification status
+      });
+>>>>>>> c8020a2bf23ef9f2677a173b9371359164bc1b36
 
       // Don't store sensitive user data in localStorage
       // Instead, only store minimal information needed for UI
@@ -1480,7 +1505,11 @@ const authSlice = createSlice({
   },
 });
 
+<<<<<<< HEAD
 export const { setUser, clearError, updateLocalUserRole, updateChatCount } = authSlice.actions;
+=======
+export const { setUser, clearError, updateLocalUserRole } = authSlice.actions;
+>>>>>>> c8020a2bf23ef9f2677a173b9371359164bc1b36
 export default authSlice.reducer;
 
 
