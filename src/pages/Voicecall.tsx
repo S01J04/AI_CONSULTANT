@@ -6,6 +6,12 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { Mic, MicOff, X } from 'lucide-react';
 
+interface Window {
+    SpeechRecognition?: any;
+    webkitSpeechRecognition?: any;
+    webkitAudioContext?: any;
+}
+
 const VoiceCallWithAI = () => {
     const { user } = useSelector((state: RootState) => state.auth);
     const navigate = useNavigate();
@@ -14,10 +20,11 @@ const VoiceCallWithAI = () => {
     const [status, setStatus] = useState('Idle');
     const [aiResponse, setAIResponse] = useState('');
     const [transcribedText, setTranscribedText] = useState('');
+    const [browserSupported, setBrowserSupported] = useState(true);
 
     const mediaRecorderRef = useRef<any>(null);
     const streamRef = useRef<MediaStream | null>(null);
-    const recognitionRef = useRef<SpeechRecognition | null>(null);  // Use ref to hold recognition instance
+    const recognitionRef = useRef<any>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
     const analyserRef = useRef<AnalyserNode | null>(null);
@@ -34,204 +41,374 @@ const VoiceCallWithAI = () => {
     }, [userId, navigate]);
 
     useEffect(() => {
-        navigator.permissions.query({ name: 'microphone' as PermissionName }).then((res) => {
-            if (res.state === 'denied') setStatus('Microphone access denied.');
-            res.onchange = () => {
-                if (res.state === 'denied') setStatus('Microphone access denied.');
-            };
-        }).catch((error) => {
-            console.error('Error checking microphone permissions:', error);
-            setStatus('Error checking microphone permissions');
-        });
+        if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+            setBrowserSupported(false);
+            setStatus('Speech Recognition not supported');
+        }
+
+        // Try asking for mic permission on mount
+        navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(stream => {
+                stream.getTracks().forEach(track => track.stop());
+                console.log("Mic permission granted on load");
+            })
+            .catch(() => {
+                console.warn("Mic permission denied on load");
+            });
     }, []);
 
-    const drawWaveform = () => {
-        if (!canvasRef.current || !analyserRef.current) return;
-
+    const drawBlackBall = () => {
         const canvas = canvasRef.current;
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas?.getContext('2d');
+        if (!ctx || !analyserRef.current || !canvas) return;
+
         const analyser = analyserRef.current;
-
-        if (!ctx || !analyser) return;
-
         const bufferLength = analyser.frequencyBinCount;
         const dataArray = new Uint8Array(bufferLength);
 
         const draw = () => {
             animationIdRef.current = requestAnimationFrame(draw);
             analyser.getByteFrequencyData(dataArray);
+            const volume = dataArray.reduce((acc, val) => acc + val, 0) / bufferLength;
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const radius = 30 + volume / 5;
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
 
-            const barWidth = 8; // Width of each bar
-            const gap = 2; // Space between bars
-            const totalBarWidth = barWidth + gap;
-            const visibleBars = Math.floor(canvas.width / totalBarWidth);
-
-            for (let i = 0; i < visibleBars; i++) {
-                const value = dataArray[i];
-                const barHeight = (value / 255) * canvas.height;
-                const x = i * totalBarWidth;
-                const y = canvas.height - barHeight;
-
-                const hue = (i / visibleBars) * 360;
-                ctx.fillStyle = `hsl(${hue}, 80%, 60%)`;
-                ctx.fillRect(x, y, barWidth, barHeight);
-            }
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+            ctx.fillStyle = 'black';
+            ctx.fill();
         };
 
         draw();
     };
 
     const getAIResponse = async (text: string) => {
-        // Cancel any ongoing speech before making a new API call
         speechSynthesis.cancel();
-        
         try {
-            const aiResponse = await fetch(`${import.meta.env.VITE_openAIKey}/chat/text`, {
+            const res = await fetch(`${import.meta.env.VITE_openAIKey}/chat/text`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    user_id: userId,
-                    message: text,
-                }),
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId, message: text }),
             });
-
-            const aiData = await aiResponse.json();
-            return aiData.message; // Assuming the response has a 'message' field
-        } catch (error) {
-            console.error("Error in getting AI response:", error);
-            return 'Error fetching AI response';
+            const data = await res.json();
+            return data.message;
+        } catch (err) {
+            console.error('AI fetch error:', err);
+            return 'Error getting response';
         }
     };
 
-    const speakResponse = (responseText: string) => {
-        const utterance = new SpeechSynthesisUtterance(responseText);
-        speechSynthesis.speak(utterance);
+    const speakResponse = async (text: string) => {
+        return new Promise<void>((resolve) => {
+            try {
+                // Clean the text
+                const clean = text.replace(/[*#@&^%$!()_+={}\[\]|\\:;"'<>,.?/~`]/g, '');
+                
+                // Create utterance
+                const utterance = new SpeechSynthesisUtterance(clean);
+                
+                // Configure speech settings
+                utterance.rate = 1.0;
+                utterance.pitch = 1.0;
+                utterance.volume = 1.0;
+                utterance.lang = 'en-US';
+
+                // Handle speech events
+                utterance.onend = () => {
+                    resolve();
+                };
+
+                utterance.onerror = (event) => {
+                    console.error('Speech synthesis error:', event);
+                    resolve();
+                };
+
+                // Cancel any ongoing speech
+                window.speechSynthesis.cancel();
+                
+                // Start speaking
+                window.speechSynthesis.speak(utterance);
+            } catch (err) {
+                console.error('Error in speech synthesis:', err);
+                resolve();
+            }
+        });
     };
 
     const startSpeechRecognition = () => {
-        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-        recognition.lang = 'en-US';
-        recognition.continuous = true;
-        recognition.interimResults = true;
+        try {
+            // Get the SpeechRecognition API
+            const SpeechRecognition = (window as any).SpeechRecognition || 
+                                    (window as any).webkitSpeechRecognition || 
+                                    (window as any).mozSpeechRecognition || 
+                                    (window as any).msSpeechRecognition;
 
-        recognition.onstart = () => {
-            setStatus('Listening...');
-        };
-
-        recognition.onresult = async (event) => {
-            const lastResult = event.results[event.resultIndex];
-            const transcript = lastResult[0].transcript;
-            const isFinal = lastResult.isFinal;
-
-            setTranscribedText(transcript);
-
-            // Only call the AI API if the result is final (not interim)
-            if (isFinal) {
-                const response = await getAIResponse(transcript);
-                setAIResponse(response);
-                speakResponse(response);  // AI speaks the response
+            if (!SpeechRecognition) {
+                setBrowserSupported(false);
+                toast.error('Speech recognition not supported in this browser');
+                return;
             }
-        };
 
-        recognition.onerror = (error) => {
-            console.error('Speech recognition error:', error);
-            setStatus('Error in speech recognition');
-        };
+            // Create new recognition instance
+            const recognition = new SpeechRecognition();
+            
+            // Configure recognition settings
+            recognition.lang = 'en-US';
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.maxAlternatives = 1;
 
-        recognitionRef.current = recognition;
-        recognition.start();
+            // Handle recognition events
+            recognition.onstart = () => {
+                setStatus('Listening...');
+                console.log('Speech recognition started');
+            };
+
+            recognition.onresult = async (event: any) => {
+                try {
+                    const results = event.results;
+                    const lastResult = results[results.length - 1];
+                    const transcript = lastResult[0].transcript.trim();
+                    const isFinal = lastResult.isFinal;
+
+                    // Clean the transcript
+                    const filtered = transcript.replace(/[*#@&^%$!()_+={}\[\]|\\:;"'<>,.?/~`]/g, '');
+                    
+                    // Update UI with transcript
+                    setTranscribedText(filtered);
+
+                    // Process final results
+                    if (isFinal && filtered.length > 0) {
+                        try {
+                            const response = await getAIResponse(filtered);
+                            setAIResponse(response);
+                            await speakResponse(response);
+                        } catch (err) {
+                            console.error('Error processing AI response:', err);
+                            toast.error('Error processing response');
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error processing speech result:', err);
+                }
+            };
+
+            recognition.onerror = (event: any) => {
+                console.error('Recognition error:', event);
+                
+                // Handle specific error types
+                switch (event.error) {
+                    case 'no-speech':
+                        toast.error('No speech detected');
+                        break;
+                    case 'aborted':
+                        toast.error('Speech recognition aborted');
+                        break;
+                    case 'audio-capture':
+                        toast.error('No microphone found');
+                        break;
+                    case 'network':
+                        toast.error('Network error occurred');
+                        break;
+                    case 'not-allowed':
+                        toast.error('Microphone access denied');
+                        break;
+                    case 'service-not-allowed':
+                        toast.error('Speech recognition service not allowed');
+                        break;
+                    case 'bad-grammar':
+                        toast.error('Bad grammar in speech');
+                        break;
+                    case 'language-not-supported':
+                        toast.error('Language not supported');
+                        break;
+                    default:
+                        toast.error(`Recognition error: ${event.error}`);
+                }
+
+                setStatus('Error');
+                
+                // Attempt to restart if still active
+                if (isMicOn) {
+                    setTimeout(() => {
+                        try {
+                            recognition.start();
+                        } catch (e) {
+                            console.error('Failed to restart recognition:', e);
+                        }
+                    }, 1000);
+                }
+            };
+
+            recognition.onend = () => {
+                // Only restart if still active
+                if (isMicOn) {
+                    setTimeout(() => {
+                        try {
+                            recognition.start();
+                        } catch (e) {
+                            console.error('Failed to restart recognition:', e);
+                        }
+                    }, 100);
+                }
+            };
+
+            // Store and start recognition
+            recognitionRef.current = recognition;
+            recognition.start();
+        } catch (err) {
+            console.error('Error initializing speech recognition:', err);
+            toast.error('Failed to initialize speech recognition');
+            setBrowserSupported(false);
+        }
     };
 
     const stopSpeechRecognition = () => {
         if (recognitionRef.current) {
             recognitionRef.current.stop();
+            recognitionRef.current = null;
             setStatus('Mic off');
             setIsMicOn(false);
-            recognitionRef.current = null;
         }
     };
 
     const handleMicToggle = async () => {
+        if (!browserSupported) {
+            toast.error('Speech recognition not supported');
+            return;
+        }
+
         if (isMicOn) {
-            stopSpeechRecognition();  // Stop the current recognition session
-            // Properly close media stream and audio context when stopping mic
+            stopSpeechRecognition();
+            window.speechSynthesis.cancel();
+
             if (streamRef.current) {
-                const tracks = streamRef.current.getTracks();
-                tracks.forEach(track => track.stop());
+                streamRef.current.getTracks().forEach(track => track.stop());
+                streamRef.current = null;
             }
+
             if (audioContextRef.current) {
-                audioContextRef.current.close();
+                await audioContextRef.current.close().catch(console.error);
+                audioContextRef.current = null;
             }
+
+            if (animationIdRef.current) {
+                cancelAnimationFrame(animationIdRef.current);
+                animationIdRef.current = null;
+            }
+
+            setIsMicOn(false);
             setStatus('Mic off');
-        } else {
-            try {
-                // Start fresh microphone stream
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                streamRef.current = stream;
+            return;
+        }
 
-                const audioCtx = new AudioContext();
-                audioContextRef.current = audioCtx;
-                const analyser = audioCtx.createAnalyser();
-                analyserRef.current = analyser;
-                const source = audioCtx.createMediaStreamSource(stream);
-                source.connect(analyser);
+        try {
+            // Request microphone permission first
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true,
+                    sampleRate: 44100
+                } 
+            });
+            streamRef.current = stream;
 
-                analyser.fftSize = 64;
-                drawWaveform();
+            // Create audio context after user interaction (required for mobile)
+            const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+            const audioCtx = new AudioContext({
+                sampleRate: 44100,
+                latencyHint: 'interactive'
+            });
+            audioContextRef.current = audioCtx;
 
-                setIsMicOn(true);
-                setStatus('Listening...');
-                startSpeechRecognition();  // Start speech recognition immediately
-            } catch (err) {
-                setStatus('Mic access denied.');
+            // Resume audio context (required for iOS)
+            if (audioCtx.state === 'suspended') {
+                await audioCtx.resume();
             }
+
+            const analyser = audioCtx.createAnalyser();
+            analyserRef.current = analyser;
+
+            const source = audioCtx.createMediaStreamSource(stream);
+            source.connect(analyser);
+            analyser.fftSize = 64;
+
+            drawBlackBall();
+
+            setIsMicOn(true);
+            setStatus('Initializing...');
+            
+            // Add a small delay before starting recognition
+            setTimeout(() => {
+                startSpeechRecognition();
+            }, 500);
+        } catch (err) {
+            console.error('Mic access error:', err);
+            toast.error('Mic access denied or failed');
+            setStatus('Mic access error');
         }
     };
 
-    const handleClose = () => {
-        // Stop recognition and any ongoing AI voice
+    const handleClose = async () => {
         stopSpeechRecognition();
-        speechSynthesis.cancel();
+        window.speechSynthesis.cancel();
+
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+        }
+
+        if (audioContextRef.current) {
+            await audioContextRef.current.close().catch(console.error);
+            audioContextRef.current = null;
+        }
+
+        if (animationIdRef.current) {
+            cancelAnimationFrame(animationIdRef.current);
+            animationIdRef.current = null;
+        }
+
         setStatus('Call ended.');
         setIsMicOn(false);
         remove(callRef);
-        navigate(-1);  // Navigate back to previous page or home
+        navigate(-1);
     };
 
-    return (
-        <div className="w-full h-screen bg-gradient-to-r flex justify-center items-center relative">
-            <div className="bg-white text-black dark:bg-zinc-900 rounded-xl w-full max-w-2xl p-8 space-y-6 relative">
-                <h2 className="text-3xl font-semibold text-center">🎙️ AI Voice Call</h2>
-                <p className="text-lg text-center">{status}</p>
-                {transcribedText && <p className="text-lg text-center">Transcribed: {transcribedText}</p>}
+     return (
+         <div className="w-full h-screen bg-gradient-to-r flex justify-center items-center relative">
+             <div className="bg-white text-black dark:bg-zinc-900 rounded-xl w-full max-w-2xl p-8 space-y-6 relative">
+                 <h2 className="text-3xl font-semibold text-center">🎙️ AI Voice Call</h2>
+                 <p className="text-lg text-center">{status}</p>
+                 {/* {aiResponse && <p className="text-lg text-center">{aiResponse}</p>} */}
+                 {transcribedText && <p className="text-lg text-center">Transcribed: {transcribedText}</p>}
 
-                <div className="flex justify-center">
-                    <canvas ref={canvasRef} className="w-1/2 h-20" />
-                </div>
-                <div className="flex justify-center space-x-6">
-                    <div className="relative group">
-                        <button onClick={handleMicToggle} className="p-4 bg-gray-100 rounded-full hover:bg-green-200 transition-all shadow-md">
-                            {isMicOn ? <Mic className="h-6 w-6 text-green-600" /> : <MicOff className="h-6 w-6 text-red-600" />}
-                        </button>
-                        <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all bg-black text-white text-xs px-2 py-1 rounded">
-                            {isMicOn ? "Turn Off Mic" : "Turn On Mic"}
-                        </div>
-                    </div>
+                 <div className="flex justify-center">
+                 <canvas ref={canvasRef} width={200} height={200} className="rounded-full bg-transparent" />
+                 </div>
+                 <div className="flex justify-center space-x-6">
+                     <div className="relative group">
+                         <button onClick={handleMicToggle} className="p-4 bg-gray-100 rounded-full hover:bg-green-200 transition-all shadow-md">
+                             {isMicOn ? <Mic className="h-6 w-6 text-green-600" /> : <MicOff className="h-6 w-6 text-red-600" />}
+                         </button>
+                         <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all bg-black text-white text-xs px-2 py-1 rounded">
+                             {isMicOn ? "Turn Off Mic" : "Turn On Mic"}
+                         </div>
+                     </div>
 
-                    <button onClick={handleClose} className="p-5 bg-gray-100 rounded-full hover:bg-green-200 transition-all shadow-md" aria-label="End Call">
-                        <X className="h-5 w-5 text-black" />
-                    </button>
-                </div>
-            </div>
-            <div className="absolute bottom-0 w-full text-center">
-                <p className="text-sm">Powered by AI Voice Tech</p>
-            </div>
-        </div>
-    );
-};
-
-export default VoiceCallWithAI;
+                     <button onClick={handleClose} className="p-5 bg-gray-100 rounded-full hover:bg-green-200 transition-all shadow-md" aria-label="End Call">
+                         <X className="h-5 w-5 text-black" />
+                     </button>
+                 </div>
+             </div>
+             <div className="absolute bottom-0 w-full text-center">
+                 <p className="text-sm">Powered by AI Voice Tech</p>
+             </div>
+         </div>
+     );
+ };
+ 
+ export default VoiceCallWithAI;

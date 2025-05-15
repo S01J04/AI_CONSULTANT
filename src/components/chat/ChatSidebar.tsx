@@ -120,7 +120,7 @@ const ChatSidebar: React.FC = () => {
 
       {/* Sidebar */}
       <div
-  className={`fixed top-[60px] sidebar-container left-0 h-[calc(100vh-60px)] bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col w-[70%] max-w-sm transform transition-transform ease-in-out duration-300 z-40
+  className={`fixed top-[60px] sidebar-container left-0 h-[70vh] bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col w-[70%] max-w-sm transform transition-transform ease-in-out duration-300 z-40
     ${isOpen ? 'translate-x-0' : '-translate-x-full'}
     md:translate-x-0 md:w-64 md:max-w-none md:static
   `}

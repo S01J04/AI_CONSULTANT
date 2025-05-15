@@ -1,0 +1,67 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    function isSuperAdmin() {
+      return isAuthenticated() && 
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'superadmin';
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Validate file size and type
+    function isValidFile() {
+      // Max file size: 5MB
+      return request.resource.size <= 5 * 1024 * 1024
+          && (
+            // Only allow certain file types
+            request.resource.contentType.matches('image/.*') ||
+            request.resource.contentType.matches('application/pdf') ||
+            request.resource.contentType.matches('audio/.*')
+          );
+    }
+    
+    // User profile images
+    match /users/{userId}/profile/{fileName} {
+      // Users can read and write their own profile images
+      // Admins can read all profile images
+      allow read: if isOwner(userId) || isAdmin() || isSuperAdmin();
+      allow write: if isOwner(userId) && isValidFile();
+    }
+    
+    // Consultant profile images
+    match /consultants/{consultantId}/profile/{fileName} {
+      // Anyone can read consultant profile images
+      // Only the consultant can write their own profile images
+      allow read: if true;
+      allow write: if isOwner(consultantId) && isValidFile();
+    }
+    
+    // Chat attachments
+    match /chats/{chatId}/attachments/{fileName} {
+      // Only chat participants can read and write attachments
+      allow read, write: if isAuthenticated() && 
+        (
+          firestore.get(/databases/(default)/documents/chats/$(chatId)).data.userId == request.auth.uid ||
+          firestore.get(/databases/(default)/documents/chats/$(chatId)).data.expertId == request.auth.uid ||
+          isAdmin() || isSuperAdmin()
+        ) && isValidFile();
+    }
+    
+    // Default deny
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

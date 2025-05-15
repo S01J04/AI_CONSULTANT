@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../../redux/store';
 import { fetchUsers, updateUserRole } from '../../redux/slices/authSlice';
+import { toast } from 'react-toastify';
 
 const UserManagement: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -20,13 +21,44 @@ const UserManagement: React.FC = () => {
       // Only allow promoting to admin or demoting to user roles
       // SuperAdmin must be set directly in Firebase
       await dispatch(updateUserRole({ uid, role: newRole }));
-    } catch (error) {
+
+      // Show success toast based on the action performed
+      if (newRole === 'admin') {
+        toast.success("User has been promoted to Admin successfully", {
+          position: "top-right",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
+      } else {
+        toast.success("Admin privileges have been removed successfully", {
+          position: "top-right",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
+      }
+    } catch (error: any) {
       console.error('Failed to update user role:', error);
+
+      // Show error toast
+      toast.error(`Failed to update user role: ${error.message || 'Unknown error'}`, {
+        position: "top-right",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
     }
   };
 
-  const filteredUsers = users.filter(u => 
-    u.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+  const filteredUsers = users.filter(u =>
+    u.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     u.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -36,7 +68,7 @@ const UserManagement: React.FC = () => {
         <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
           User Management
         </h2>
-        
+
         {/* Search */}
         <div className="mb-6">
           <div className="relative">
@@ -64,7 +96,7 @@ const UserManagement: React.FC = () => {
             </div>
           </div>
         </div>
-        
+
         {/* Users table */}
         {usersLoading ? (
           <div className="flex justify-center">
@@ -148,9 +180,9 @@ const UserManagement: React.FC = () => {
                           ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
                           : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                       }`}>
-                        {userItem.role === 'superadmin' 
-                          ? 'Super Admin' 
-                          : userItem.role === 'admin' 
+                        {userItem.role === 'superadmin'
+                          ? 'Super Admin'
+                          : userItem.role === 'admin'
                           ? 'Admin'
                           : 'User'}
                       </span>
@@ -190,4 +222,4 @@ const UserManagement: React.FC = () => {
   );
 };
 
-export default UserManagement; 
+export default UserManagement;

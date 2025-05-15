@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>README.md</title>
+    <meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+    
+<style>
+/* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+body {
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+	padding: 0 26px;
+	line-height: var(--vscode-markdown-line-height, 22px);
+	word-wrap: break-word;
+}
+
+html,footer,header{
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+}
+
+#code-csp-warning {
+	position: fixed;
+	top: 0;
+	right: 0;
+	color: white;
+	margin: 16px;
+	text-align: center;
+	font-size: 12px;
+	font-family: sans-serif;
+	background-color:#444444;
+	cursor: pointer;
+	padding: 6px;
+	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
+}
+
+#code-csp-warning:hover {
+	text-decoration: none;
+	background-color:#007acc;
+	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
+}
+
+body.scrollBeyondLastLine {
+	margin-bottom: calc(100vh - 22px);
+}
+
+body.showEditorSelection .code-line {
+	position: relative;
+}
+
+body.showEditorSelection .code-active-line:before,
+body.showEditorSelection .code-line:hover:before {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 0;
+	left: -12px;
+	height: 100%;
+}
+
+body.showEditorSelection li.code-active-line:before,
+body.showEditorSelection li.code-line:hover:before {
+	left: -30px;
+}
+
+.vscode-light.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
+
+.vscode-light.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.40);
+}
+
+.vscode-light.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-dark.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.vscode-dark.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.60);
+}
+
+.vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-high-contrast.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 160, 0, 0.7);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 160, 0, 1);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 1px solid -webkit-focus-ring-color;
+	outline-offset: -1px;
+}
+
+hr {
+	border: 0;
+	height: 2px;
+	border-bottom: 2px solid;
+}
+
+h1 {
+	padding-bottom: 0.3em;
+	line-height: 1.2;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+}
+
+h1, h2, h3 {
+	font-weight: normal;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table > thead > tr > th {
+	text-align: left;
+	border-bottom: 1px solid;
+}
+
+table > thead > tr > th,
+table > thead > tr > td,
+table > tbody > tr > th,
+table > tbody > tr > td {
+	padding: 5px 10px;
+}
+
+table > tbody > tr + tr > td {
+	border-top: 1px solid;
+}
+
+blockquote {
+	margin: 0 7px 0 5px;
+	padding: 0 16px 0 10px;
+	border-left-width: 5px;
+	border-left-style: solid;
+}
+
+code {
+	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+	font-size: 1em;
+	line-height: 1.357em;
+}
+
+body.wordWrap pre {
+	white-space: pre-wrap;
+}
+
+pre:not(.hljs),
+pre.hljs code > div {
+	padding: 16px;
+	border-radius: 3px;
+	overflow: auto;
+}
+
+pre code {
+	color: var(--vscode-editor-foreground);
+	tab-size: 4;
+}
+
+/** Theming */
+
+.vscode-light pre {
+	background-color: rgba(220, 220, 220, 0.4);
+}
+
+.vscode-dark pre {
+	background-color: rgba(10, 10, 10, 0.4);
+}
+
+.vscode-high-contrast pre {
+	background-color: rgb(0, 0, 0);
+}
+
+.vscode-high-contrast h1 {
+	border-color: rgb(0, 0, 0);
+}
+
+.vscode-light table > thead > tr > th {
+	border-color: rgba(0, 0, 0, 0.69);
+}
+
+.vscode-dark table > thead > tr > th {
+	border-color: rgba(255, 255, 255, 0.69);
+}
+
+.vscode-light h1,
+.vscode-light hr,
+.vscode-light table > tbody > tr + tr > td {
+	border-color: rgba(0, 0, 0, 0.18);
+}
+
+.vscode-dark h1,
+.vscode-dark hr,
+.vscode-dark table > tbody > tr + tr > td {
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+</style>
+
+<style>
+/* Tomorrow Theme */
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+/* Tomorrow Comment */
+.hljs-comment,
+.hljs-quote {
+	color: #8e908c;
+}
+
+/* Tomorrow Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+	color: #c82829;
+}
+
+/* Tomorrow Orange */
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+	color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.hljs-attribute {
+	color: #eab700;
+}
+
+/* Tomorrow Green */
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+	color: #718c00;
+}
+
+/* Tomorrow Blue */
+.hljs-title,
+.hljs-section {
+	color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.hljs-keyword,
+.hljs-selector-tag {
+	color: #8959a8;
+}
+
+.hljs {
+	display: block;
+	overflow-x: auto;
+	color: #4d4d4c;
+	padding: 0.5em;
+}
+
+.hljs-emphasis {
+	font-style: italic;
+}
+
+.hljs-strong {
+	font-weight: bold;
+}
+</style>
+
+<style>
+/*
+ * Custom MD PDF CSS
+ */
+html,footer,header{
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+
+ }
+body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+	padding: 0 12px;
+}
+
+pre {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+pre:not(.hljs) {
+	padding: 23px;
+	line-height: 19px;
+}
+
+blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.emoji {
+	height: 1.4em;
+}
+
+code {
+	font-size: 14px;
+	line-height: 19px;
+}
+
+/* for inline code */
+:not(pre):not(.hljs) > code {
+	color: #C9AE75; /* Change the old color so it seems less like an error */
+	font-size: inherit;
+}
+
+/* Page Break : use <div class="page"/> to insert page break
+-------------------------------------------------------- */
+.page {
+	page-break-after: always;
+}
+
+</style>
+<link rel="stylesheet" href="file:///r%3A/2.Travail/1.Enseignement/Cours/_1.Outils/2.Developpement/1.SCSS/main.css" type="text/css"><link rel="stylesheet" href="file:///d%3A/rdaros/Cours/_1.Outils/2.Developpement/1.SCSS/main.css" type="text/css">
+</head>
+
+<body>
+    <h1 id="react-chat-application-code-optimizations">React Chat Application Code Optimizations</h1>
+<p>This document outlines the key issues identified in the codebase and how they were optimized for better performance, type safety, and maintainability.</p>
+<h2 id="table-of-contents">Table of Contents</h2>
+<ol>
+<li><a href="#type-safety-improvements">Type Safety Improvements</a></li>
+<li><a href="#performance-optimizations">Performance Optimizations</a></li>
+<li><a href="#error-handling">Error Handling</a></li>
+<li><a href="#state-management">State Management</a></li>
+<li><a href="#code-organization">Code Organization</a></li>
+</ol>
+<h2 id="type-safety-improvements">Type Safety Improvements</h2>
+<h3 id="issue-poor-typescript-type-definitions">Issue: Poor TypeScript Type Definitions</h3>
+<p>The original code had inconsistent type definitions and used <code>any</code> type assertions in several places.</p>
+<p><strong>Before:</strong></p>
+<pre class="hljs"><code><div><span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> fetchUserSessions = createAsyncThunk(
+  <span class="hljs-string">"chat/fetchUserSessions"</span>,
+  <span class="hljs-keyword">async</span> (_, thunkAPI) =&gt; {
+    <span class="hljs-comment">// ...</span>
+    <span class="hljs-keyword">const</span> sessions: ChatSession[] = getChats.docs.map(<span class="hljs-function">(<span class="hljs-params">chat</span>) =&gt;</span> {
+      <span class="hljs-keyword">const</span> item = chat.data();
+      <span class="hljs-keyword">return</span> {
+        id: chat.id,
+        messages: item.messages.map(<span class="hljs-function">(<span class="hljs-params">msg: <span class="hljs-built_in">any</span></span>) =&gt;</span> ({
+          id: msg.id,
+          sender: msg.sender,
+          text: msg.text,
+          timeStamp:
+            msg.timestamp?.toMillis ? msg.timestamp.toMillis() : msg.timestamp || <span class="hljs-built_in">Date</span>.now()
+        })),
+        <span class="hljs-comment">// ...</span>
+      };
+    });
+    <span class="hljs-comment">// ...</span>
+  }
+);
+</div></code></pre>
+<p><strong>After:</strong></p>
+<pre class="hljs"><code><div><span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> fetchUserSessions = createAsyncThunk&lt;
+  ChatSession[],
+  <span class="hljs-built_in">void</span>,
+  { state: RootState; rejectValue: <span class="hljs-built_in">string</span> }
+&gt;(
+  <span class="hljs-string">"chat/fetchUserSessions"</span>,
+  <span class="hljs-keyword">async</span> (_, { rejectWithValue }) =&gt; {
+    <span class="hljs-comment">// ...</span>
+    <span class="hljs-keyword">const</span> sessions: ChatSession[] = getChats.docs.map(<span class="hljs-function">(<span class="hljs-params">chat</span>) =&gt;</span> {
+      <span class="hljs-keyword">const</span> item = chat.data();
+      <span class="hljs-keyword">return</span> {
+        id: chat.id,
+        messages: mapFirestoreMessages(item.messages || []),
+        title: item.title || <span class="hljs-string">"New Conversation"</span>,
+        updatedAt: convertTimestamp(item.updatedAt),
+        createdAt: convertTimestamp(item.createdAt),
+      };
+    });
+    <span class="hljs-comment">// ...</span>
+  }
+);
+
+<span class="hljs-comment">// Helper function to map Firestore messages</span>
+<span class="hljs-keyword">const</span> mapFirestoreMessages = (messages: <span class="hljs-built_in">any</span>[]): Message[] =&gt; {
+  <span class="hljs-keyword">if</span> (!messages || !<span class="hljs-built_in">Array</span>.isArray(messages)) <span class="hljs-keyword">return</span> [];
+  <span class="hljs-keyword">return</span> messages.map(<span class="hljs-function"><span class="hljs-params">msg</span> =&gt;</span> ({
+    id: msg.id,
+    sender: msg.sender,
+    text: msg.text,
+    timeStamp: msg.timeStamp || msg.timestamp || <span class="hljs-built_in">Date</span>.now()
+  }));
+};
+</div></code></pre>
+<h3 id="issue-appdispatch-not-properly-typed">Issue: AppDispatch Not Properly Typed</h3>
+<p><strong>Before:</strong></p>
+<pre class="hljs"><code><div><span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> useAuth = <span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> {
+  <span class="hljs-keyword">const</span> dispatch = useDispatch();
+  <span class="hljs-comment">// ...</span>
+  dispatch(setUser(userData <span class="hljs-keyword">as</span> <span class="hljs-built_in">any</span>));
+  dispatch(fetchUserSessions() <span class="hljs-keyword">as</span> <span class="hljs-built_in">any</span>);
+  <span class="hljs-comment">// ...</span>
+};
+</div></code></pre>
+<p><strong>After:</strong></p>
+<pre class="hljs"><code><div><span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> useAuth = <span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> {
+  <span class="hljs-keyword">const</span> dispatch = useDispatch&lt;AppDispatch&gt;();
+  <span class="hljs-comment">// ...</span>
+  dispatch(setUser(userData));
+  dispatch(fetchUserSessions());
+  <span class="hljs-comment">// ...</span>
+};
+</div></code></pre>
+<h2 id="performance-optimizations">Performance Optimizations</h2>
+<h3 id="issue-no-response-caching">Issue: No Response Caching</h3>
+<p><strong>Before:</strong></p>
+<pre class="hljs"><code><div><span class="hljs-keyword">const</span> handleAiResponse = (message: <span class="hljs-built_in">string</span>): <span class="hljs-built_in">Promise</span>&lt;<span class="hljs-built_in">string</span>&gt; =&gt; {
+  <span class="hljs-keyword">const</span> dummyResponses = [ <span class="hljs-comment">/* ... */</span> ];
+  <span class="hljs-keyword">return</span> <span class="hljs-keyword">new</span> <span class="hljs-built_in">Promise</span>(<span class="hljs-function">(<span class="hljs-params">resolve</span>) =&gt;</span> {
+    setTimeout(<span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> {
+      <span class="hljs-keyword">const</span> response = dummyResponses[<span class="hljs-built_in">Math</span>.floor(<span class="hljs-built_in">Math</span>.random() * dummyResponses.length)];
+      resolve(response);
+    }, <span class="hljs-number">2000</span>);
+  });
+};
+</div></code></pre>
+<p><strong>After:</strong></p>
+<pre class="hljs"><code><div><span class="hljs-comment">// Create a response cache for performance</span>
+<span class="hljs-keyword">const</span> responseCache = <span class="hljs-keyword">new</span> Map&lt;<span class="hljs-built_in">string</span>, <span class="hljs-built_in">string</span>&gt;();
+
+<span class="hljs-keyword">const</span> handleAiResponse = (message: <span class="hljs-built_in">string</span>): <span class="hljs-built_in">Promise</span>&lt;<span class="hljs-built_in">string</span>&gt; =&gt; {
+  <span class="hljs-comment">// Check cache first for better performance</span>
+  <span class="hljs-keyword">if</span> (responseCache.has(message)) {
+    <span class="hljs-keyword">return</span> <span class="hljs-built_in">Promise</span>.resolve(responseCache.get(message)!);
+  }
+
+  <span class="hljs-keyword">const</span> dummyResponses = [ <span class="hljs-comment">/* ... */</span> ];
+  <span class="hljs-keyword">return</span> <span class="hljs-keyword">new</span> <span class="hljs-built_in">Promise</span>(<span class="hljs-function">(<span class="hljs-params">resolve</span>) =&gt;</span> {
+    setTimeout(<span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> {
+      <span class="hljs-keyword">const</span> response = dummyResponses[<span class="hljs-built_in">Math</span>.floor(<span class="hljs-built_in">Math</span>.random() * dummyResponses.length)];
+      responseCache.set(message, response); <span class="hljs-comment">// Cache the response</span>
+      resolve(response);
+    }, <span class="hljs-number">2000</span>);
+  });
+};
+</div></code></pre>
+<h3 id="issue-inefficient-firestore-operations">Issue: Inefficient Firestore Operations</h3>
+<p><strong>Before:</strong></p>
+<pre class="hljs"><code><div><span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> clearChat = createAsyncThunk(
+  <span class="hljs-string">"chat/clearChats"</span>,
+  <span class="hljs-keyword">async</span> (_, thunkAPI) =&gt; {
+    <span class="hljs-comment">// ...</span>
+    <span class="hljs-keyword">const</span> deletePromises = chatDocs.docs.map(<span class="hljs-function">(<span class="hljs-params">chat</span>) =&gt;</span>
+      deleteDoc(doc(db, <span class="hljs-string">"chatSessions"</span>, chat.id))
+    );
+    <span class="hljs-keyword">await</span> <span class="hljs-built_in">Promise</span>.all(deletePromises);
+    <span class="hljs-comment">// ...</span>
+  }
+);
+</div></code></pre>
+<p><strong>After:</strong></p>
+<pre class="hljs"><code><div><span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> clearChat = createAsyncThunk(
+  <span class="hljs-string">"chat/clearChats"</span>,
+  <span class="hljs-keyword">async</span> (_, { dispatch, rejectWithValue }) =&gt; {
+    <span class="hljs-comment">// ...</span>
+    <span class="hljs-comment">// Use batch for better performance with multiple documents</span>
+    <span class="hljs-keyword">const</span> batch = writeBatch(db);
+    chatDocs.docs.forEach(<span class="hljs-function">(<span class="hljs-params">chatDoc</span>) =&gt;</span> {
+      batch.delete(doc(db, <span class="hljs-string">"chatSessions"</span>, chatDoc.id));
+    });
+    
+    <span class="hljs-keyword">await</span> batch.commit();
+    <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;
+    <span class="hljs-comment">// ...</span>
+  }
+);
+</div></code></pre>
+<h3 id="issue-redundant-timestamp-conversions">Issue: Redundant Timestamp Conversions</h3>
+<p><strong>Before:</strong></p>
+<pre class="hljs"><code><div><span class="hljs-keyword">return</span> {
+  id: chat.id,
+  messages: item.messages.map(<span class="hljs-function">(<span class="hljs-params">msg: <span class="hljs-built_in">any</span></span>) =&gt;</span> ({
+    id: msg.id,
+    sender: msg.sender,
+    text: msg.text,
+    timeStamp:
+      msg.timestamp?.toMillis ? msg.timestamp.toMillis() : msg.timestamp || <span class="hljs-built_in">Date</span>.now()
+  })),
+  title: item.title,
+  updatedAt: item.updatedAt?.toMillis ? <span class="hljs-keyword">new</span> <span class="hljs-built_in">Date</span>(item.updatedAt.toMillis()) : <span class="hljs-keyword">new</span> <span class="hljs-built_in">Date</span>(),
+  createdAt: item.createdAt?.toMillis ? <span class="hljs-keyword">new</span> <span class="hljs-built_in">Date</span>(item.createdAt.toMillis()) : <span class="hljs-keyword">new</span> <span class="hljs-built_in">Date</span>(),
+};
+</div></code></pre>
+<p><strong>After:</strong></p>
+<pre class="hljs"><code><div><span class="hljs-comment">// Utility function to convert Firestore timestamps</span>
+<span class="hljs-keyword">const</span> convertTimestamp = (timestamp: <span class="hljs-built_in">any</span>): <span class="hljs-function"><span class="hljs-params">Date</span> =&gt;</span> {
+  <span class="hljs-keyword">if</span> (timestamp?.toMillis) {
+    <span class="hljs-keyword">return</span> <span class="hljs-keyword">new</span> <span class="hljs-built_in">Date</span>(timestamp.toMillis());
+  }
+  <span class="hljs-keyword">if</span> (timestamp?.seconds) {
+    <span class="hljs-keyword">return</span> <span class="hljs-keyword">new</span> <span class="hljs-built_in">Date</span>(timestamp.seconds * <span class="hljs-number">1000</span>);
+  }
+  <span class="hljs-keyword">return</span> <span class="hljs-keyword">new</span> <span class="hljs-built_in">Date</span>();
+};
+
+<span class="hljs-comment">// Later in code</span>
+<span class="hljs-keyword">return</span> {
+  id: chat.id,
+  messages: mapFirestoreMessages(item.messages || []),
+  title: item.title || <span class="hljs-string">"New Conversation"</span>,
+  updatedAt: convertTimestamp(item.updatedAt),
+  createdAt: convertTimestamp(item.createdAt),
+};
+</div></code></pre>
+<h2 id="error-handling">Error Handling</h2>
+<h3 id="issue-inconsistent-error-handling">Issue: Inconsistent Error Handling</h3>
+<p><strong>Before:</strong></p>
+<pre class="hljs"><code><div><span class="hljs-keyword">try</span> {
+  <span class="hljs-comment">// ...</span>
+} <span class="hljs-keyword">catch</span> (error: <span class="hljs-built_in">any</span>) {
+  <span class="hljs-built_in">console</span>.error(<span class="hljs-string">"Error creating new chat session:"</span>, error.message);
+  <span class="hljs-keyword">return</span> rejectWithValue(error.message);
+}
+</div></code></pre>
+<p><strong>After:</strong></p>
+<pre class="hljs"><code><div><span class="hljs-keyword">try</span> {
+  <span class="hljs-comment">// ...</span>
+} <span class="hljs-keyword">catch</span> (error: <span class="hljs-built_in">any</span>) {
+  <span class="hljs-built_in">console</span>.error(<span class="hljs-string">"Error creating new chat session:"</span>, error);
+  <span class="hljs-keyword">return</span> rejectWithValue(error.message || <span class="hljs-string">"Failed to create new session"</span>);
+}
+</div></code></pre>
+<h3 id="issue-unhandled-ai-response-errors">Issue: Unhandled AI Response Errors</h3>
+<p><strong>Before:</strong></p>
+<pre class="hljs"><code><div><span class="hljs-comment">// Generate AI Response</span>
+<span class="hljs-keyword">const</span> response = <span class="hljs-keyword">await</span> handleAiResponse(message);
+thunkAPI.dispatch(setAiLoading({ sessionId, loading: <span class="hljs-literal">false</span> }));
+
+<span class="hljs-comment">// Create an empty AI message...</span>
+</div></code></pre>
+<p><strong>After:</strong></p>
+<pre class="hljs"><code><div><span class="hljs-comment">// Generate AI response</span>
+<span class="hljs-keyword">let</span> fullText = <span class="hljs-string">""</span>;
+<span class="hljs-keyword">try</span> {
+  <span class="hljs-keyword">const</span> response = <span class="hljs-keyword">await</span> handleAiResponse(message);
+  dispatch(setAiLoading({ sessionId, loading: <span class="hljs-literal">false</span> }));
+  
+  <span class="hljs-comment">// Create AI message</span>
+  <span class="hljs-comment">// ...</span>
+} <span class="hljs-keyword">catch</span> (error) {
+  <span class="hljs-built_in">console</span>.error(<span class="hljs-string">"Error generating AI response:"</span>, error);
+  dispatch(setAiLoading({ sessionId, loading: <span class="hljs-literal">false</span> }));
+  <span class="hljs-comment">// Continue with saving the user message even if AI response fails</span>
+}
+</div></code></pre>
+<h2 id="state-management">State Management</h2>
+<h3 id="issue-session-cache-not-implemented">Issue: Session Cache Not Implemented</h3>
+<p><strong>Before:</strong></p>
+<pre class="hljs"><code><div><span class="hljs-keyword">interface</span> ChatState {
+  sessions: ChatSession[];
+  currentSession: ChatSession | <span class="hljs-literal">null</span>;
+  loading: <span class="hljs-built_in">boolean</span>;
+  aiLoading: <span class="hljs-built_in">boolean</span>;
+  error: <span class="hljs-built_in">string</span> | <span class="hljs-literal">null</span>;
+}
+</div></code></pre>
+<p><strong>After:</strong></p>
+<pre class="hljs"><code><div><span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> ChatState {
+  sessions: ChatSession[];
+  currentSession: ChatSession | <span class="hljs-literal">null</span>;
+  loading: <span class="hljs-built_in">boolean</span>;
+  aiLoading: <span class="hljs-built_in">boolean</span>;
+  error: <span class="hljs-built_in">string</span> | <span class="hljs-literal">null</span>;
+  sessionCache: Record&lt;<span class="hljs-built_in">string</span>, ChatSession&gt;;
+}
+
+<span class="hljs-comment">// Initial state</span>
+initialState: {
+  sessions: [],
+  currentSession: <span class="hljs-literal">null</span>,
+  loading: <span class="hljs-literal">false</span>,
+  aiLoading: <span class="hljs-literal">false</span>,
+  error: <span class="hljs-literal">null</span>,
+  sessionCache: {}
+} <span class="hljs-keyword">as</span> ChatState
+
+<span class="hljs-comment">// Update cache in reducers</span>
+.addCase(fetchUserSessions.fulfilled, <span class="hljs-function">(<span class="hljs-params">state, action</span>) =&gt;</span> {
+  state.loading = <span class="hljs-literal">false</span>;
+  state.sessions = action.payload;
+  
+  <span class="hljs-comment">// Update session cache</span>
+  action.payload.forEach(<span class="hljs-function"><span class="hljs-params">session</span> =&gt;</span> {
+    <span class="hljs-keyword">if</span> (session.id) {
+      state.sessionCache[session.id] = session;
+    }
+  });
+})
+</div></code></pre>
+<h3 id="issue-loading-state-management">Issue: Loading State Management</h3>
+<p><strong>Before:</strong></p>
+<pre class="hljs"><code><div><span class="hljs-comment">// Send Message &amp; Generate AI Response</span>
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> sendMessage = createAsyncThunk(
+  <span class="hljs-string">"chat/sendMessage"</span>,
+  <span class="hljs-keyword">async</span> ({ setinputLoading, setMessage, message, sessionId }, thunkAPI) =&gt; {
+    <span class="hljs-keyword">try</span> {
+      <span class="hljs-comment">// ...</span>
+      thunkAPI.dispatch(setAiLoading({ sessionId, loading: <span class="hljs-literal">true</span> }));
+      <span class="hljs-keyword">const</span> response = <span class="hljs-keyword">await</span> handleAiResponse(message);
+      thunkAPI.dispatch(setAiLoading({ sessionId, loading: <span class="hljs-literal">false</span> }));
+      <span class="hljs-comment">// Typing effect begins...</span>
+    }
+  }
+);
+</div></code></pre>
+<p><strong>After:</strong></p>
+<pre class="hljs"><code><div><span class="hljs-comment">// Send Message &amp; Generate AI Response</span>
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> sendMessage = createAsyncThunk(
+  <span class="hljs-string">"chat/sendMessage"</span>,
+  <span class="hljs-keyword">async</span> ({ setinputLoading, setMessage, message, sessionId }, { dispatch, rejectWithValue }) =&gt; {
+    <span class="hljs-keyword">try</span> {
+      <span class="hljs-comment">// ...</span>
+      dispatch(setAiLoading({ sessionId, loading: <span class="hljs-literal">true</span> }));
+      <span class="hljs-keyword">try</span> {
+        <span class="hljs-keyword">const</span> response = <span class="hljs-keyword">await</span> handleAiResponse(message);
+        <span class="hljs-comment">// Turn off AI loading immediately after getting the response</span>
+        dispatch(setAiLoading({ sessionId, loading: <span class="hljs-literal">false</span> }));
+        
+        <span class="hljs-comment">// Create AI message and typing effect begins after loading is complete</span>
+        <span class="hljs-comment">// ...</span>
+      } <span class="hljs-keyword">catch</span> (error) {
+        dispatch(setAiLoading({ sessionId, loading: <span class="hljs-literal">false</span> }));
+        <span class="hljs-comment">// ...</span>
+      }
+    }
+  }
+);
+</div></code></pre>
+<h2 id="code-organization">Code Organization</h2>
+<h3 id="issue-inconsistent-code-structure">Issue: Inconsistent Code Structure</h3>
+<p><strong>Before:</strong></p>
+<pre class="hljs"><code><div><span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> { addMessage, setMessages, setAiLoading, setCurrentSession, clearChats, updateMessage } =
+  chatSlice.actions;
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> chatSlice.reducer;
+</div></code></pre>
+<p><strong>After:</strong></p>
+<pre class="hljs"><code><div><span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> { 
+  addMessage, 
+  setMessages, 
+  setAiLoading, 
+  setCurrentSession, 
+  clearChats, 
+  updateMessage 
+} = chatSlice.actions;
+
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> chatSlice.reducer;
+</div></code></pre>
+<h3 id="issue-debug-console-logs">Issue: Debug Console Logs</h3>
+<p><strong>Before:</strong></p>
+<pre class="hljs"><code><div><span class="hljs-built_in">console</span>.log(<span class="hljs-string">"Fetching user sessions..."</span>);
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">"Dispatching addMessage for user:"</span>, newMessage);
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">"sendMessage called with:"</span>, { message, sessionId });
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">"Messages updated in Firestore"</span>);
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">"Updating session title to:"</span>, text);
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">"Updating current session title"</span>);
+</div></code></pre>
+<p><strong>After:</strong></p>
+<pre class="hljs"><code><div><span class="hljs-comment">// Removed console.logs in production code or replaced with meaningful error handling</span>
+</div></code></pre>
+<h2 id="summary-of-improvements">Summary of Improvements</h2>
+<ol>
+<li>
+<p><strong>Type Safety</strong>:</p>
+<ul>
+<li>Added proper TypeScript generics to async thunks</li>
+<li>Created helper functions with correct return types</li>
+<li>Removed any <code>as any</code> assertions</li>
+</ul>
+</li>
+<li>
+<p><strong>Performance</strong>:</p>
+<ul>
+<li>Implemented response and session caching</li>
+<li>Used Firestore batch operations</li>
+<li>Created reusable utility functions</li>
+</ul>
+</li>
+<li>
+<p><strong>Error Handling</strong>:</p>
+<ul>
+<li>Added try/catch blocks in critical sections</li>
+<li>Provided fallback error messages</li>
+<li>Added state cleanup in error cases</li>
+</ul>
+</li>
+<li>
+<p><strong>State Management</strong>:</p>
+<ul>
+<li>Added session caching mechanism</li>
+<li>Improved loading state management</li>
+<li>Better handling of async operations</li>
+</ul>
+</li>
+<li>
+<p><strong>Code Organization</strong>:</p>
+<ul>
+<li>Removed unnecessary console logs</li>
+<li>Better code formatting</li>
+<li>Extracted utility functions</li>
+</ul>
+</li>
+</ol>
+<p>These improvements make the codebase more maintainable, performant, and resilient against errors.</p>
+
+</body>
+
+</html>

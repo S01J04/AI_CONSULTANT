@@ -1,0 +1,171 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Enhanced helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'superadmin';
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidUserData(userId) {
+      let allowedFields = ['displayName', 'email', 'photoURL', 'createdAt', 'lastLogin', 'role', 'uid'];
+      return request.resource.data.keys().hasAll(['email', 'displayName', 'createdAt']) &&
+             (request.resource.data.keys().hasOnly(allowedFields) ||
+              (request.resource.data.keys().hasAny(['role']) && (isAdmin() || isSuperAdmin())));
+    }
+
+    function notRateLimited(collection) {
+      // Simple rate limiting check - in production, implement with Cloud Functions
+      return true;
+    }
+
+    function isValidAppointment() {
+      let requiredFields = ['userId', 'expertId', 'date', 'time', 'status'];
+      return request.resource.data.keys().hasAll(requiredFields) &&
+        request.resource.data.status in ['scheduled', 'completed', 'cancelled'];
+    }
+
+    // Users collection
+    match /users/{userId} {
+      // Anyone can read their own user document
+      // Only admins can read other user documents
+      allow read: if isOwner(userId) || isAdmin() || isSuperAdmin();
+
+      // Users can create their own document
+      allow create: if isOwner(userId) && isValidUserData(userId);
+
+      // Users can update their own document, but not change their role
+      // Only admins can update role
+      allow update: if (isOwner(userId) &&
+                     (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']))) ||
+                     isAdmin() || isSuperAdmin();
+
+      // Only superadmins can delete user documents
+      allow delete: if isSuperAdmin();
+    }
+
+    // Appointments collection
+    match /appointments/{appointmentId} {
+      // Users can read their own appointments
+      // Experts can read appointments where they are the expert
+      // Admins can read all appointments
+      allow read: if isAuthenticated() &&
+                   (resource.data.userId == request.auth.uid ||
+                    resource.data.expertId == request.auth.uid ||
+                    isAdmin() || isSuperAdmin());
+
+      // Users can create appointments for themselves
+      allow create: if isAuthenticated() &&
+                     request.resource.data.userId == request.auth.uid &&
+                     isValidAppointment() &&
+                     notRateLimited('appointments');
+
+      // Users can update their own appointments (but only to cancel)
+      // Experts can update appointments where they are the expert
+      // Admins can update any appointment
+      allow update: if isAuthenticated() &&
+                     ((resource.data.userId == request.auth.uid &&
+                       request.resource.data.status == 'cancelled') ||
+                      resource.data.expertId == request.auth.uid ||
+                      isAdmin() || isSuperAdmin());
+
+      // Only admins can delete appointments
+      allow delete: if isAdmin() || isSuperAdmin();
+    }
+
+    // Notifications collection
+    match /notifications/{notificationId} {
+      // Users can only read their own notifications
+      allow read: if isAuthenticated() &&
+                   resource.data.userId == request.auth.uid;
+
+      // Only admins can create notifications
+      // Users can mark their own notifications as read
+      allow create: if isAdmin() || isSuperAdmin();
+
+      // Users can update their own notifications (but only to mark as read)
+      allow update: if isAuthenticated() &&
+                     resource.data.userId == request.auth.uid &&
+                     request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+
+      // Users can delete their own notifications
+      // Admins can delete any notification
+      allow delete: if isAuthenticated() &&
+                     (resource.data.userId == request.auth.uid ||
+                      isAdmin() || isSuperAdmin());
+    }
+
+    // Chat sessions collection
+    match /chatSessions/{sessionId} {
+      // Users can read their own chat sessions
+      allow read: if isAuthenticated() &&
+                   resource.data.userId == request.auth.uid;
+
+      // Users can create chat sessions for themselves
+      allow create: if isAuthenticated() &&
+                     request.resource.data.userId == request.auth.uid;
+
+      // Users can update their own chat sessions
+      allow update: if isAuthenticated() &&
+                     resource.data.userId == request.auth.uid;
+
+      // Users can delete their own chat sessions
+      allow delete: if isAuthenticated() &&
+                     resource.data.userId == request.auth.uid;
+    }
+
+    // Consultant profiles collection
+    match /consultantProfiles/{profileId} {
+      // Anyone can read active consultant profiles
+      // Admins can read all consultant profiles
+      allow read: if resource.data.isActive || isAdmin() || isSuperAdmin();
+
+      // Only admins can create consultant profiles
+      allow create: if isAdmin() || isSuperAdmin();
+
+      // Consultants can update their own profile
+      // Admins can update any consultant profile
+      allow update: if isAuthenticated() &&
+                     (resource.data.uid == request.auth.uid ||
+                      isAdmin() || isSuperAdmin());
+
+      // Only superadmins can delete consultant profiles
+      allow delete: if isSuperAdmin();
+    }
+
+    // Payments collection
+    match /payments/{paymentId} {
+      // Users can read their own payments
+      // Admins can read all payments
+      allow read: if isAuthenticated() &&
+                   (resource.data.userId == request.auth.uid ||
+                    isAdmin() || isSuperAdmin());
+
+      // Allow users to create their own payments
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+
+      // Only admins can update payment status
+      allow update: if isAdmin() || isSuperAdmin();
+
+      // No one can delete payments (for audit purposes)
+      allow delete: if false;
+    }
+  }
+}
