@@ -5,15 +5,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Advisor Chatbot with Voice</title>
-   
+    <style>
+        /* ... (keep existing styles) ... */
+    </style>
 </head>
 <body>
     <h1>Advisor Chatbot with Voice</h1>
     
     <div class="tabs">
-        <button class="tab active" onclick="openTab(event, 'text-chat')">Text Chat</button>
-        <button class="tab" onclick="openTab(event, 'voice-to-text')">Voice to Text</button>
-        <button class="tab" onclick="openTab(event, 'voice-to-voice')">Voice to Voice</button>
+        <button class="tab active" onclick="openTab(event, 'voice-to-voice')">Voice to Voice</button>
     </div>
     
     <div class="controls">
@@ -21,28 +21,11 @@
             <label for="user-id">User ID:</label>
             <input type="text" id="user-id" value="user123">
         </div>
-        <button id="clear-history">Clear Chat History</button>
     </div>
     
     <div class="chat-container" id="chat-container"></div>
     
-    <div id="text-chat" class="tab-content active">
-        <div class="input-area">
-            <input type="text" id="message-input" placeholder="Type your message here...">
-            <button id="send-button">Send</button>
-        </div>
-    </div>
-    
-    <div id="voice-to-text" class="tab-content">
-        <div class="voice-controls">
-            <button id="start-voice-to-text">Start Recording</button>
-            <button id="stop-voice-to-text" disabled>Stop Recording</button>
-        </div>
-        <div class="status-indicator" id="voice-to-text-status">Ready for voice input</div>
-        <div id="transcription-preview"></div>
-    </div>
-    
-    <div id="voice-to-voice" class="tab-content">
+    <div id="voice-to-voice" class="tab-content active">
         <div class="voice-controls">
             <button id="start-voice-to-voice">Start Voice Chat</button>
             <button id="stop-voice-to-voice" disabled>Stop Voice Chat</button>
@@ -51,44 +34,22 @@
     </div>
 
     <script>
-        // Configuration
-        const API_URL = 'https://consultant-bot-791977318929.us-central1.run.app'; // Update this to match your API server
+        const API_URL = 'https://consultant-bot-791977318929.us-central1.run.app';
         let audioChunks = [];
         let mediaRecorder = null;
         let socket = null;
         let isRecording = false;
-        let voiceToTextTranscript = '';
         let audioContext = null;
-        let savedAudioData = []; // For storing audio data to be sent to database
         
-        // DOM Elements
         const chatContainer = document.getElementById('chat-container');
-        const messageInput = document.getElementById('message-input');
-        const sendButton = document.getElementById('send-button');
         const userIdInput = document.getElementById('user-id');
-        const clearHistoryButton = document.getElementById('clear-history');
-        const startVoiceToTextBtn = document.getElementById('start-voice-to-text');
-        const stopVoiceToTextBtn = document.getElementById('stop-voice-to-text');
-        const voiceToTextStatus = document.getElementById('voice-to-text-status');
-        const transcriptionPreview = document.getElementById('transcription-preview');
         const startVoiceToVoiceBtn = document.getElementById('start-voice-to-voice');
         const stopVoiceToVoiceBtn = document.getElementById('stop-voice-to-voice');
         const voiceToVoiceStatus = document.getElementById('voice-to-voice-status');
         
-        // Event Listeners
-        sendButton.addEventListener('click', sendMessage);
-        messageInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                sendMessage();
-            }
-        });
-        clearHistoryButton.addEventListener('click', clearChatHistory);
-        startVoiceToTextBtn.addEventListener('click', startVoiceToTextRecording);
-        stopVoiceToTextBtn.addEventListener('click', stopVoiceToTextRecording);
         startVoiceToVoiceBtn.addEventListener('click', startVoiceToVoiceChat);
         stopVoiceToVoiceBtn.addEventListener('click', stopVoiceToVoiceChat);
         
-        // Check if browser supports required features
         function checkBrowserSupport() {
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 alert("Your browser doesn't support audio recording. Please use Chrome, Firefox, or Edge.");
@@ -106,76 +67,8 @@
         }
         
         function disableVoiceButtons() {
-            startVoiceToTextBtn.disabled = true;
             startVoiceToVoiceBtn.disabled = true;
-            voiceToTextStatus.textContent = "Voice features not supported by your browser";
             voiceToVoiceStatus.textContent = "Voice features not supported by your browser";
-        }
-        
-        // Tab Navigation
-        function openTab(evt, tabName) {
-            const tabContents = document.getElementsByClassName("tab-content");
-            for (let i = 0; i < tabContents.length; i++) {
-                tabContents[i].className = tabContents[i].className.replace(" active", "");
-            }
-            
-            const tabs = document.getElementsByClassName("tab");
-            for (let i = 0; i < tabs.length; i++) {
-                tabs[i].className = tabs[i].className.replace(" active", "");
-            }
-            
-            document.getElementById(tabName).className += " active";
-            evt.currentTarget.className += " active";
-        }
-        
-        // Text Chat Functions
-        async function sendMessage() {
-            const message = messageInput.value.trim();
-            const userId = userIdInput.value.trim();
-            
-            if (!message || !userId) return;
-            
-            // Add user message to chat
-            addMessageToChat('user', message);
-            messageInput.value = '';
-            
-            try {
-                // Send message to API
-                const response = await fetch(`${API_URL}/chat/text`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        user_id: userId,
-                        message: message
-                    })
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`API responded with status: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                
-                // Display investigation state if present
-                if (data.is_investigation && data.investigation_state) {
-                    const investigationInfo = document.createElement('div');
-                    investigationInfo.className = 'investigation-info';
-                    investigationInfo.textContent = `Investigation State: ${JSON.stringify(data.investigation_state)}`;
-                    chatContainer.appendChild(investigationInfo);
-                }
-                
-                // Add bot response to chat
-                addMessageToChat('bot', data.message);
-                
-            } catch (error) {
-                console.error('Error sending message:', error);
-                addMessageToChat('bot', `Error: ${error.message}`);
-            }
-            
-            // Scroll to bottom of chat
-            chatContainer.scrollTop = chatContainer.scrollHeight;
         }
         
         function addMessageToChat(sender, message) {
@@ -186,277 +79,6 @@
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
         
-        async function clearChatHistory() {
-            const userId = userIdInput.value.trim();
-            
-            if (!userId) {
-                alert('Please enter a User ID');
-                return;
-            }
-            
-            try {
-                const response = await fetch(`${API_URL}/chat/clear`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        user_id: userId
-                    })
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`API responded with status: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                alert(data.message);
-                
-                // Clear chat container
-                chatContainer.innerHTML = '';
-                
-            } catch (error) {
-                console.error('Error clearing chat history:', error);
-                alert(`Error clearing chat history: ${error.message}`);
-            }
-        }
-        // Voice to Text Functions
-async function startVoiceToTextRecording() {
-    if (!checkBrowserSupport()) return;
-    
-    const userId = userIdInput.value.trim();
-    if (!userId) {
-        voiceToTextStatus.textContent = 'Please enter a User ID';
-        return;
-    }
-    
-    audioChunks = [];
-    
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        
-        mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-        
-        mediaRecorder.ondataavailable = (event) => {
-            if (event.data.size > 0) {
-                audioChunks.push(event.data);
-            }
-        };
-        
-        mediaRecorder.onstart = () => {
-            isRecording = true;
-            startVoiceToTextBtn.classList.add('recording');
-            startVoiceToTextBtn.disabled = true;
-            stopVoiceToTextBtn.disabled = false;
-            voiceToTextStatus.textContent = 'Recording...';
-            transcriptionPreview.textContent = '';
-        };
-        
-        mediaRecorder.onstop = async () => {
-            isRecording = false;
-            startVoiceToTextBtn.classList.remove('recording');
-            startVoiceToTextBtn.disabled = false;
-            stopVoiceToTextBtn.disabled = true;
-            voiceToTextStatus.textContent = 'Processing audio...';
-            
-            // Create blob from audio chunks
-            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-            
-            // Store audio data for potential database storage
-            const reader = new FileReader();
-            reader.readAsDataURL(audioBlob);
-            reader.onloadend = function() {
-                const base64Audio = reader.result;
-                savedAudioData.push({
-                    timestamp: new Date().toISOString(),
-                    userId: userIdInput.value,
-                    audioData: base64Audio
-                });
-                console.log("Audio saved for future database storage. Total saved:", savedAudioData.length);
-            };
-            
-            // Process the audio using WebSocket
-            await processVoiceToText(audioBlob);
-            
-            // Close stream tracks
-            stream.getTracks().forEach(track => track.stop());
-        };
-        
-        // Start recording
-        mediaRecorder.start(100); // Collect 100ms chunks for better real-time experience
-        
-    } catch (error) {
-        console.error('Error starting recording:', error);
-        voiceToTextStatus.textContent = `Error: ${error.message}`;
-    }
-}
-
-function stopVoiceToTextRecording() {
-    if (mediaRecorder && isRecording) {
-        mediaRecorder.stop();
-    }
-}
-
-async function processVoiceToText(audioBlob) {
-    const userId = userIdInput.value.trim();
-    
-    if (!userId) {
-        voiceToTextStatus.textContent = 'Please enter a User ID';
-        return;
-    }
-    
-    try {
-        // Establish WebSocket connection
-        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsHost = API_URL.replace('http://', '').replace('https://', '');
-        const wsUrl = `${wsProtocol}//${wsHost}/ws/voice-to-text`;
-        
-        const socket = new WebSocket(wsUrl);
-        
-        socket.onopen = async () => {
-            voiceToTextStatus.textContent = 'Connected, sending audio...';
-            
-            // First send user ID
-            socket.send(`user_id:${userId}`);
-            
-            // Then send audio data
-            if (audioBlob.size > 1048576) { // 1MB
-                // For large files, slice and send in chunks
-                const chunkSize = 65536; // 64KB
-                let offset = 0;
-                
-                while (offset < audioBlob.size) {
-                    const chunk = audioBlob.slice(offset, offset + chunkSize);
-                    // Wait for the chunk to be sent before sending the next one
-                    await new Promise(resolve => {
-                        socket.send(chunk);
-                        setTimeout(resolve, 10); // Small delay to not overwhelm the connection
-                    });
-                    offset += chunkSize;
-                    
-                    // Update progress
-                    const progress = Math.min(100, Math.round((offset / audioBlob.size) * 100));
-                    voiceToTextStatus.textContent = `Uploading audio: ${progress}%`;
-                }
-            } else {
-                // For smaller files, send all at once
-                socket.send(audioBlob);
-            }
-            
-            // Signal end of transmission
-            socket.send("end");
-            voiceToTextStatus.textContent = 'Audio sent, waiting for transcription...';
-        };
-        
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-
-socket.onmessage = async (event) => {
-    try {
-        if (typeof event.data === 'string') {
-            const data = JSON.parse(event.data);
-
-            if (data.type === "transcription") {
-                // Show transcription in chat and input field
-                const transcriptionText = data.text;
-                voiceToTextTranscript = transcriptionText;
-                
-                addMessageToChat('user', transcriptionText);
-                transcriptionPreview.textContent = transcriptionText;
-                messageInput.value = transcriptionText;
-                voiceToTextStatus.textContent = 'Transcription received, waiting for response...';
-
-            } else if (data.type === "response") {
-                addMessageToChat('bot', data.text);
-                voiceToTextStatus.textContent = 'Ready for voice input';
-
-                // Optionally: close the socket after everything is done
-                // socket.close();
-
-            } else if (data.type === "error") {
-                voiceToTextStatus.textContent = `Error: ${data.message}`;
-                console.error('WebSocket error response:', data.message);
-                socket.close();
-            }
-
-        } else if (event.data instanceof Blob) {
-            // 🎧 Audio blob received (e.g., audio/mpeg from server)
-            const arrayBuffer = await event.data.arrayBuffer();
-            audioContext.decodeAudioData(arrayBuffer, (buffer) => {
-                const source = audioContext.createBufferSource();
-                source.buffer = buffer;
-                source.connect(audioContext.destination);
-                source.start(0);
-            }, (err) => {
-                console.error("Error decoding audio:", err);
-            });
-        }
-    } catch (e) {
-        console.error('Error processing WebSocket message:', e);
-        voiceToTextStatus.textContent = 'Error processing response';
-        socket.close();
-    }
-};
-
-        
-        socket.onerror = (error) => {
-            console.error('WebSocket error:', error);
-            voiceToTextStatus.textContent = 'Connection error';
-        };
-        
-        socket.onclose = (event) => {
-            console.log('WebSocket connection closed', event.code, event.reason);
-            if (event.code !== 1000) {
-                voiceToTextStatus.textContent = `Connection closed unexpectedly (${event.code})`;
-            }
-        };
-        
-    } catch (error) {
-        console.error('Error processing voice:', error);
-        voiceToTextStatus.textContent = `Error: ${error.message}`;
-    }
-}
-
-
-
-// Add these event listeners to your existing code
-document.addEventListener('DOMContentLoaded', function() {
-    // Check browser support on load
-    checkBrowserSupport();
-    
-    // Connect buttons to functions
-    if (startVoiceToTextBtn) {
-        startVoiceToTextBtn.addEventListener('click', startVoiceToTextRecording);
-    }
-    
-    if (stopVoiceToTextBtn) {
-        stopVoiceToTextBtn.addEventListener('click', stopVoiceToTextRecording);
-    }
-});
-
-// Browser support checking function
-function checkBrowserSupport() {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        alert("Your browser doesn't support audio recording. Please use Chrome, Firefox, or Edge.");
-        disableVoiceButtons();
-        return false;
-    }
-    
-    if (!window.WebSocket) {
-        alert("Your browser doesn't support WebSockets. Please use Chrome, Firefox, or Edge.");
-        disableVoiceButtons();
-        return false;
-    }
-    
-    return true;
-}
-
-function disableVoiceButtons() {
-    if (startVoiceToTextBtn) startVoiceToTextBtn.disabled = true;
-    if (stopVoiceToTextBtn) stopVoiceToTextBtn.disabled = true;
-    if (voiceToTextStatus) voiceToTextStatus.textContent = "Voice features not supported by your browser";
-}
-        
-        // Voice to Voice Functions
         async function startVoiceToVoiceChat() {
             if (!checkBrowserSupport()) return;
             
@@ -469,8 +91,7 @@ function disableVoiceButtons() {
             voiceToVoiceStatus.textContent = 'Connecting...';
             
             try {
-                // Connect to WebSocket
-                socket = new WebSocket(`ws://${API_URL.replace('http://', '')}/ws/voice/${userId}`);
+                socket = new WebSocket(`wss://${API_URL.replace(/^https?:\/\//, '')}/ws/voice/${userId}`);
                 
                 socket.onopen = () => {
                     voiceToVoiceStatus.textContent = 'Connected. Ready to start voice chat.';
@@ -481,25 +102,18 @@ function disableVoiceButtons() {
                 
                 socket.onmessage = async (event) => {
                     if (event.data instanceof Blob) {
-                        // Handle audio data
                         playAudioResponse(event.data);
                     } else {
-                        // Handle text data (JSON)
                         try {
                             const data = JSON.parse(event.data);
                             
                             if (data.type === 'transcript') {
-                                // Show transcription
                                 addMessageToChat('user', data.text);
                             } else if (data.type === 'text_response') {
-                                // Show text response
                                 addMessageToChat('bot', data.text);
-                                
-                                // Speak the response (if text_response is received)
                                 speakText(data.text);
                             } else if (data.type === 'end_of_audio') {
                                 voiceToVoiceStatus.textContent = 'Ready for next voice input';
-                                // Re-enable recording for next voice input
                                 if (socket && socket.readyState === WebSocket.OPEN) {
                                     startVoiceRecording();
                                 }
@@ -511,7 +125,6 @@ function disableVoiceButtons() {
                         }
                     }
                 };
-                
                 
                 socket.onerror = (error) => {
                     console.error('WebSocket error:', error);
@@ -543,7 +156,6 @@ function disableVoiceButtons() {
                     if (event.data.size > 0) {
                         audioChunks.push(event.data);
                         
-                        // Send audio chunks to server in real-time
                         if (socket && socket.readyState === WebSocket.OPEN) {
                             socket.send(event.data);
                         }
@@ -561,19 +173,15 @@ function disableVoiceButtons() {
                     voiceToVoiceStatus.textContent = 'Processing audio...';
                     startVoiceToVoiceBtn.classList.remove('recording');
                     
-                    // Signal end of audio to the server
                     if (socket && socket.readyState === WebSocket.OPEN) {
                         socket.send(new Blob([new Uint8Array([69, 78, 68, 95, 79, 70, 95, 65, 85, 68, 73, 79])], { type: 'application/octet-stream' }));
                     }
                     
-                    // Close stream tracks
                     stream.getTracks().forEach(track => track.stop());
                 };
                 
-                // Start recording with small timeslices for more real-time feel
                 mediaRecorder.start(100);
                 
-                // Stop recording after 10 seconds (adjust as needed)
                 setTimeout(() => {
                     if (mediaRecorder && mediaRecorder.state === 'recording') {
                         mediaRecorder.stop();
@@ -602,154 +210,62 @@ function disableVoiceButtons() {
             voiceToVoiceStatus.textContent = 'Ready for voice conversation';
         }
         
+        function speakText(text) {
+            if ('speechSynthesis' in window) {
+                const cleanText = text
+                    .replace(/#{1,6}\s*/g, '')
+                    .replace(/\*\*/g, '')
+                    .replace(/\*/g, '')
+                    .replace(/_/g, '')
+                    .replace(/`/g, '')
+                    .replace(/\n\s*[-*+]\s/g, '. ')
+                    .replace(/\n/g, '. ')
+                    .replace(/\s{2,}/g, ' ')
+                    .replace(/[^\w\s.,!?]/g, '');
         
-
-    function speakText(text) {
-    if ('speechSynthesis' in window) {
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.onstart = () => {
-            console.log('Speech synthesis started');
-        };
-        utterance.onend = () => {
-            console.log('Speech synthesis finished');
-        };
-        speechSynthesis.speak(utterance);
-        console.log('Speaking:', text);  // Log the text that is being spoken
-    } else {
-        console.error('Speech synthesis not supported by your browser');
-    }
-}
-
-        
+                const utterance = new SpeechSynthesisUtterance(cleanText);
+                speechSynthesis.speak(utterance);
+            } else {
+                console.error('Speech synthesis not supported by your browser');
+            }
+        }
         
         async function playAudioResponse(audioBlob) {
             try {
-                // Initialize audio context if it doesn't exist
                 if (!audioContext) {
                     audioContext = new (window.AudioContext || window.webkitAudioContext)({
-                        sampleRate: 44100 // Set a standard sample rate
+                        sampleRate: 44100
                     });
                 }
                 
-                // Log audio information for debugging
-                console.log('Received audio blob:', {
-                    type: audioBlob.type,
-                    size: audioBlob.size
-                });
-                
-                // Create URL from blob
                 const audioURL = URL.createObjectURL(audioBlob);
                 
-                try {
-                    // Fetch and decode the audio data
-                    const response = await fetch(audioURL);
-                    const arrayBuffer = await response.arrayBuffer();
-                    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-                    
-                    // Create audio processing pipeline
-                    const source = audioContext.createBufferSource();
-                    source.buffer = audioBuffer;
-                    
-                    // === Audio Enhancement Chain ===
-                    
-                    // 1. Create compressor to normalize volume levels
-                    const compressor = audioContext.createDynamicsCompressor();
-                    compressor.threshold.value = -24;
-                    compressor.knee.value = 30;
-                    compressor.ratio.value = 12;
-                    compressor.attack.value = 0.003;
-                    compressor.release.value = 0.25;
-                    
-                    // 2. High-pass filter to reduce low-frequency noise
-                    const highPassFilter = audioContext.createBiquadFilter();
-                    highPassFilter.type = "highpass";
-                    highPassFilter.frequency.value = 80;
-                    highPassFilter.Q.value = 0.7;
-                    
-                    // 3. Low-pass filter to smooth harsh frequencies
-                    const lowPassFilter = audioContext.createBiquadFilter();
-                    lowPassFilter.type = "lowpass";
-                    lowPassFilter.frequency.value = 10000;
-                    lowPassFilter.Q.value = 0.7;
-                    
-                    // 4. Presence boost for voice clarity
-                    const presenceFilter = audioContext.createBiquadFilter();
-                    presenceFilter.type = "peaking";
-                    presenceFilter.frequency.value = 2500;
-                    presenceFilter.Q.value = 1.0;
-                    presenceFilter.gain.value = 3;
-                    
-                    // 5. Output gain control
-                    const gainNode = audioContext.createGain();
-                    gainNode.gain.value = 0.9;
-                    
-                    // Connect the audio processing chain
-                    source.connect(compressor);
-                    compressor.connect(highPassFilter);
-                    highPassFilter.connect(lowPassFilter);
-                    lowPassFilter.connect(presenceFilter);
-                    presenceFilter.connect(gainNode);
-                    gainNode.connect(audioContext.destination);
-                    
-                    // Play the enhanced audio
-                    source.start(0);
-                    voiceToVoiceStatus.textContent = 'Playing enhanced audio response...';
-                    
-                    // Clean up when done
-                    source.onended = () => {
-                        URL.revokeObjectURL(audioURL);
-                        voiceToVoiceStatus.textContent = 'Ready for next voice input';
-                    };
-                    
-                } catch (decodeError) {
-                    console.warn('WebAudio API decoding failed, using fallback:', decodeError);
-                    
-                    // Fallback to HTML Audio element
-                    const audio = new Audio(audioURL);
-                    audio.volume = 0.9;
-                    
-                    audio.onerror = (e) => {
-                        console.error('Audio element error:', e);
-                        URL.revokeObjectURL(audioURL);
-                        voiceToVoiceStatus.textContent = 'Audio playback error';
-                    };
-                    
-                    audio.onended = () => {
-                        URL.revokeObjectURL(audioURL);
-                        voiceToVoiceStatus.textContent = 'Ready for next voice input';
-                    };
-                    
-                    try {
-                        await audio.play();
-                        voiceToVoiceStatus.textContent = 'Playing audio (fallback method)...';
-                    } catch (playError) {
-                        console.error('Audio play failed:', playError);
-                        voiceToVoiceStatus.textContent = 'Audio playback failed. Try interacting with the page first.';
-                        
-                        // Add a button to retry playback (helps with autoplay restrictions)
-                        const retryButton = document.createElement('button');
-                        retryButton.textContent = 'Play Response';
-                        retryButton.onclick = async () => {
-                            try {
-                                await audio.play();
-                                retryButton.remove();
-                            } catch (err) {
-                                console.error('Retry failed:', err);
-                            }
-                        };
-                        document.getElementById('voiceToVoiceStatus').appendChild(retryButton);
-                    }
-                }
+                const response = await fetch(audioURL);
+                const arrayBuffer = await response.arrayBuffer();
+                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                
+                const source = audioContext.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(audioContext.destination);
+                source.start(0);
+                
+                voiceToVoiceStatus.textContent = 'Playing audio response...';
+                
+                source.onended = () => {
+                    URL.revokeObjectURL(audioURL);
+                    voiceToVoiceStatus.textContent = 'Ready for next voice input';
+                };
                 
             } catch (error) {
-                console.error('Error in audio playback pipeline:', error);
+                console.error('Error in audio playback:', error);
                 voiceToVoiceStatus.textContent = 'Audio playback failed';
             }
         }
-        // Initialize on load
+        
         window.onload = function() {
             checkBrowserSupport();
         };
     </script>
 </body>
 </html>
+

@@ -4,7 +4,8 @@ import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../redux/store';
 import { signOut } from '../../redux/slices/authSlice';
 import { toggleSidebar } from '../../redux/slices/uiSlice';
-import { Menu, X, Moon, Sun, User, LogOut, MessageSquare, ChevronDown, Settings, LayoutDashboard } from 'lucide-react';
+import { Menu, X, Moon, Sun, User, LogOut, MessageSquare, ChevronDown, Settings, LayoutDashboard, Bell } from 'lucide-react';
+import NotificationCenter from '../notifications/NotificationCenter';
 import { AppDispatch } from '../../redux/store';
 
 const Navbar: React.FC = () => {
@@ -38,12 +39,12 @@ const Navbar: React.FC = () => {
     if (user?.role !== 'admin' && user?.role !== 'superadmin') {
       // If not, show an alert
       alert("Access Denied: You no longer have admin privileges. If you believe this is an error, please contact support.");
-      
+
       // Redirect to the dashboard
       navigate('/dashboard');
       return;
     }
-    
+
     // If they do have privileges, continue to admin dashboard
     navigate('/admin');
     setIsDropdownOpen(false);
@@ -88,8 +89,9 @@ const Navbar: React.FC = () => {
             </div>
           </div>
           <div className="hidden sm:ml-6 sm:flex sm:items-center">
-            <button
+            {/* <button
               type="button"
+              onClick={() => dispatch({ type: 'ui/toggleDarkMode' })}
               className="p-1 rounded-full text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
             >
               {darkMode ? (
@@ -97,7 +99,13 @@ const Navbar: React.FC = () => {
               ) : (
                 <Moon className="h-6 w-6" />
               )}
-            </button>
+            </button> */}
+
+            {user && (
+              <div className="ml-3">
+                <NotificationCenter />
+              </div>
+            )}
 
             {user ? (
               <div className="ml-3 relative" ref={dropdownRef}>

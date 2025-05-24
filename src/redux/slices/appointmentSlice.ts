@@ -1,6 +1,8 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { collection, addDoc, serverTimestamp, getDocs, query, where, orderBy, updateDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, getDocs, query, where, orderBy, updateDoc, doc, getDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../../firebase/config';
+import { updateAppointmentCounts } from '../slices/authSlice';
+import { toast } from 'react-toastify';
 
 export interface Expert {
   id: string;
@@ -30,6 +32,9 @@ export interface Appointment {
   meetingLink?: string;
   notes?: string;
   createdAt: number;
+  cancellationReason?: string;
+  cancelledBy?: 'user' | 'admin' | 'system';
+  cancelledAt?: number;
 }
 
 interface AppointmentState {
@@ -45,87 +50,7 @@ interface AppointmentState {
   success?: boolean;
 }
 
-// Mock experts data
-const mockExperts: Expert[] = [
-  {
-    id: 'exp1',
-    name: 'Dr. Sarah Johnson',
-    specialization: 'General Physician',
-    experience: 12,
-    rating: 4.8,
-    photoURL: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80',
-    availability: [
-      {
-        day: '2024-05-20',
-        slots: ['10:00', '11:00', '14:00', '15:00']
-      },
-      {
-        day: '2024-05-21',
-        slots: ['09:00', '10:00', '11:00', '14:00']
-      },
-      {
-        day: '2024-05-22',
-        slots: ['10:00', '11:00', '14:00', '16:00']
-      },
-      {
-        day: '2024-05-23',
-        slots: ['09:00', '10:00', '14:00', '15:00']
-      }
-    ]
-  },
-  {
-    id: 'exp2',
-    name: 'Dr. Michael Chen',
-    specialization: 'Cardiologist',
-    experience: 15,
-    rating: 4.9,
-    photoURL: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80',
-    availability: [
-      {
-        day: '2024-05-20',
-        slots: ['09:00', '10:00', '15:00', '16:00']
-      },
-      {
-        day: '2024-05-21',
-        slots: ['11:00', '14:00', '15:00', '16:00']
-      },
-      {
-        day: '2024-05-22',
-        slots: ['09:00', '10:00', '11:00', '14:00']
-      },
-      {
-        day: '2024-05-23',
-        slots: ['10:00', '11:00', '15:00', '16:00']
-      }
-    ]
-  },
-  {
-    id: 'exp3',
-    name: 'Dr. Emily Rodriguez',
-    specialization: 'Nutritionist',
-    experience: 8,
-    rating: 4.7,
-    photoURL: 'https://images.unsplash.com/photo-1594824476967-48c8b964273f?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80',
-    availability: [
-      {
-        day: '2024-05-20',
-        slots: ['11:00', '14:00', '15:00', '17:00']
-      },
-      {
-        day: '2024-05-21',
-        slots: ['09:00', '10:00', '11:00', '16:00']
-      },
-      {
-        day: '2024-05-22',
-        slots: ['10:00', '14:00', '15:00', '16:00']
-      },
-      {
-        day: '2024-05-23',
-        slots: ['09:00', '11:00', '14:00', '15:00']
-      }
-    ]
-  }
-];
+
 
 const initialState: AppointmentState = {
   appointments: [],
@@ -142,16 +67,49 @@ const initialState: AppointmentState = {
 
 export const fetchUserAppointments = createAsyncThunk(
   'appointment/fetchUserAppointments',
-  async (userId: string, { rejectWithValue }) => {
+  async (
+    payload: { userId?: string; userRole?: 'user' | 'admin' | 'superadmin' } | string | undefined,
+    { rejectWithValue }
+  ) => {
+    // Handle both old and new parameter formats for backward compatibility
+    let userId: string | undefined;
+    let userRole: 'user' | 'admin' | 'superadmin' | undefined;
+
+    if (typeof payload === 'string' || payload === undefined) {
+      // Old format: just userId
+      userId = payload as string;
+    } else {
+      // New format: object with userId and userRole
+      userId = payload.userId;
+      userRole = payload.userRole;
+    }
+
+    // If userId is undefined and not superadmin, return empty array
+    if (!userId && userRole !== 'superadmin') {
+      console.log("User ID not provided and not superadmin, skipping appointments fetch");
+      return [];
+    }
+
     try {
       const appointmentsRef = collection(db, 'appointments');
-      const q = query(
-        appointmentsRef,
-        where('userId', '==', userId)
-      );
+      let q;
+
+      // Different queries based on user role
+      if (userRole === 'superadmin') {
+        // Superadmin can see all appointments
+        console.log("Fetching all appointments for superadmin");
+        q = query(appointmentsRef);
+      } else if (userRole === 'admin') {
+        // Admin (consultant) can see appointments where they are the expert
+        console.log("Fetching appointments for admin/consultant:", userId);
+        q = query(appointmentsRef, where('expertId', '==', userId));
+      } else {
+        // Regular user can only see their own appointments
+        console.log("Fetching appointments for regular user:", userId);
+        q = query(appointmentsRef, where('userId', '==', userId));
+      }
 
       const querySnapshot = await getDocs(q);
-
       const appointments: Appointment[] = [];
 
       querySnapshot.forEach((doc) => {
@@ -162,15 +120,20 @@ export const fetchUserAppointments = createAsyncThunk(
           expertId: data.expertId,
           expertName: data.expertName || 'Unknown Expert',
           expertSpecialization: data.expertSpecialization || 'Not specified',
+          displayName: data.displayName || 'Unknown User',
           date: data.date,
           time: data.time,
           status: data.status,
           meetingLink: data.meetingLink,
           notes: data.notes,
           createdAt: data.createdAt?.toMillis() || Date.now(),
+          cancellationReason: data.cancellationReason,
+          cancelledBy: data.cancelledBy,
+          cancelledAt: data.cancelledAt?.toMillis(),
         });
       });
 
+      console.log(`Fetched ${appointments.length} appointments`);
       return appointments;
     } catch (error: any) {
       console.error('Error fetching appointments:', error);
@@ -317,7 +280,7 @@ export const scheduleAppointment = createAsyncThunk(
     expertSpecialization: string;
     time: string;
     notes?: string;
-  }, { rejectWithValue, getState }) => {
+  }, { rejectWithValue, getState, dispatch }) => {
     try {
       // Validate required fields
       if (!userId || !expertId || !date || !time) {
@@ -373,6 +336,17 @@ export const scheduleAppointment = createAsyncThunk(
 
       const docRef = await addDoc(collection(db, 'appointments'), appointmentData);
 
+      // Decrement the user's available appointments when creating a new appointment
+      try {
+        // Import the incrementAppointmentsUsed action (which actually decrements appointmentsTotal)
+        const { incrementAppointmentsUsed } = require('../slices/authSlice');
+        await dispatch(incrementAppointmentsUsed(userId));
+        console.log(`Decremented available appointments for user ${userId} when scheduling appointment`);
+      } catch (error) {
+        console.error('Failed to update available appointments when scheduling:', error);
+        // Continue with the appointment creation even if updating fails
+      }
+
       return {
         id: docRef.id,
         ...appointmentData,
@@ -385,17 +359,184 @@ export const scheduleAppointment = createAsyncThunk(
   }
 );
 
-export const cancelAppointment = createAsyncThunk(
-  'appointment/cancelAppointment',
-  async (appointmentId: string, { rejectWithValue }) => {
+export const completeAppointment = createAsyncThunk(
+  'appointment/completeAppointment',
+  async ({ appointmentId, completedBy }: { appointmentId: string, completedBy?: 'user' | 'admin' | 'system' }, { rejectWithValue, dispatch }) => {
     try {
       const appointmentRef = doc(db, 'appointments', appointmentId);
 
-      await updateDoc(appointmentRef, {
-        status: 'cancelled',
-      });
+      // Get the appointment data first to access user information
+      const appointmentDoc = await getDoc(appointmentRef);
+      if (!appointmentDoc.exists()) {
+        throw new Error('Appointment not found');
+      }
 
-      return appointmentId;
+      const appointmentData = appointmentDoc.data();
+      const completionData = {
+        status: 'completed',
+        completedBy: completedBy || 'admin',
+        completedAt: serverTimestamp()
+      };
+
+      await updateDoc(appointmentRef, completionData);
+      console.log("appointment data",appointmentData)
+      // Update the user's appointments used count when an appointment is completed
+      // This will increment appointmentsUsed to track completed appointments
+      try {
+        // Use the imported updateAppointmentCounts action
+        const result = await dispatch(updateAppointmentCounts({userId: appointmentData.userId, isAdminContext: true}));
+
+        if (updateAppointmentCounts.fulfilled.match(result)) {
+          console.log(`Successfully updated appointments used count for user ${appointmentData.userId}`);
+
+          // No need to force refresh the page
+          // Instead, we'll let Redux handle the UI update
+          console.log('Appointment completed and user data updated successfully');
+        } else {
+          console.error('Failed to update appointments used count:', result.error);
+        }
+      } catch (error) {
+        console.error('Failed to update appointments used count when completing:', error);
+        // Continue with the appointment completion even if updating counts fails
+      }
+
+      // Create a notification for the user
+      if (appointmentData.userId) {
+        try {
+          console.log('Creating completion notification for user:', appointmentData.userId);
+
+          // Get the user's display name from the appointment data
+          const userDisplayName = appointmentData.displayName || 'Client';
+
+          const notificationData = {
+            userId: appointmentData.userId,
+            title: 'Appointment Completed',
+            message: `${userDisplayName}, your appointment with ${appointmentData.expertName} on ${appointmentData.date} at ${appointmentData.time} has been marked as completed.`,
+            type: 'appointment',
+            relatedId: appointmentId,
+            read: false,
+            createdAt: serverTimestamp(),
+            action: {
+              type: 'link',
+              label: 'View Appointment History',
+              url: '/dashboard/history'
+            }
+          };
+
+          // Add the notification to Firestore
+          await addDoc(collection(db, 'notifications'), notificationData);
+
+          // Also show a toast notification
+          toast.info(`Notification sent to user about completed appointment`, {
+            position: "top-right",
+            autoClose: 3000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+          });
+        } catch (error) {
+          console.error('Failed to create notification:', error);
+          // Continue with the completion even if notification fails
+        }
+      }
+
+      return { appointmentId, completedBy };
+    } catch (error: any) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+export const cancelAppointment = createAsyncThunk(
+  'appointment/cancelAppointment',
+  async ({ appointmentId, reason, cancelledBy }: { appointmentId: string, reason?: string, cancelledBy?: 'user' | 'admin' | 'system' }, { rejectWithValue, dispatch }) => {
+    try {
+      const appointmentRef = doc(db, 'appointments', appointmentId);
+
+      // Get the appointment data first to access user information
+      const appointmentDoc = await getDoc(appointmentRef);
+      if (!appointmentDoc.exists()) {
+        throw new Error('Appointment not found');
+      }
+
+      const appointmentData = appointmentDoc.data();
+      const cancellationData = {
+        status: 'cancelled',
+        cancellationReason: reason || 'No reason provided',
+        cancelledBy: cancelledBy || 'user',
+        cancelledAt: serverTimestamp()
+      };
+
+      await updateDoc(appointmentRef, cancellationData);
+
+      // If cancelled by admin, create a notification for the user
+      if (cancelledBy === 'admin' && appointmentData.userId) {
+        try {
+          console.log('Admin cancellation detected, creating notification');
+          console.log('User ID:', appointmentData.userId);
+          console.log('Appointment data:', appointmentData);
+
+          // Import directly from Firebase to avoid circular dependency
+          // We'll create the notification document directly instead of using the action
+          const notificationsRef = collection(db, 'notifications');
+          // No need to check for createNotification since we're using Firebase directly
+
+          console.log('Creating cancellation notification for user:', appointmentData.userId);
+          console.log('Cancellation reason:', reason);
+
+          // Get the user's display name from the appointment data
+          const userDisplayName = appointmentData.displayName || 'Client';
+
+          const notificationData = {
+            userId: appointmentData.userId,
+            title: 'Appointment Cancelled',
+            message: `${userDisplayName}, your appointment with ${appointmentData.expertName} on ${appointmentData.date} at ${appointmentData.time} has been cancelled.\n\nReason: ${reason || 'No reason provided'}`,
+            type: 'appointment',
+            relatedId: appointmentId,
+            read: false,
+            createdAt: serverTimestamp(),
+            action: {
+              type: 'link',
+              label: 'View Appointment History',
+              url: '/dashboard/history'
+            }
+          };
+
+          console.log('Notification data:', notificationData);
+
+          // Create the notification directly in Firebase
+          try {
+            const notificationDoc = await addDoc(notificationsRef, {
+              ...notificationData,
+              createdAt: serverTimestamp()
+            });
+            console.log('Notification created with ID:', notificationDoc.id);
+
+            // We don't need to manually update the store
+            // The notification listener will pick up the new notification
+            console.log('Notification created successfully, listener will update the store');
+          } catch (notificationError) {
+            console.error('Error creating notification:', notificationError);
+          }
+
+          // Also show a toast notification
+          const { toast } = require('react-toastify');
+          toast.info(`Notification sent to user about cancelled appointment`, {
+            position: "top-right",
+            autoClose: 3000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+          });
+        } catch (error) {
+          console.error('Failed to create notification:', error);
+          // Continue with the cancellation even if notification fails
+        }
+      }
+
+      return { appointmentId, cancelledBy };
     } catch (error: any) {
       return rejectWithValue(error.message);
     }
@@ -406,6 +547,40 @@ const appointmentSlice = createSlice({
   name: 'appointment',
   initialState,
   reducers: {
+    updateAppointmentInStore: (state, action: PayloadAction<Appointment>) => {
+      const appointment = action.payload;
+
+      // Update in userAppointments
+      const userAppointmentIndex = state.userAppointments.findIndex(
+        (a) => a.id === appointment.id
+      );
+      if (userAppointmentIndex !== -1) {
+        state.userAppointments[userAppointmentIndex] = appointment;
+      } else {
+        state.userAppointments.push(appointment);
+      }
+
+      // Update in consultantAppointments
+      const consultantAppointmentIndex = state.consultantAppointments.findIndex(
+        (a) => a.id === appointment.id
+      );
+      if (consultantAppointmentIndex !== -1) {
+        state.consultantAppointments[consultantAppointmentIndex] = appointment;
+      } else {
+        // Add to consultant appointments if this is for the current user as an expert
+        state.consultantAppointments.push(appointment);
+      }
+
+      // Update in all appointments
+      const allAppointmentIndex = state.appointments.findIndex(
+        (a) => a.id === appointment.id
+      );
+      if (allAppointmentIndex !== -1) {
+        state.appointments[allAppointmentIndex] = appointment;
+      } else {
+        state.appointments.push(appointment);
+      }
+    },
     setSelectedExpert: (state, action: PayloadAction<string>) => {
       const expertId = action.payload;
       state.selectedExpert = state.experts?.find(expert => expert.id === expertId) || null;
@@ -473,16 +648,69 @@ const appointmentSlice = createSlice({
       })
       .addCase(cancelAppointment.fulfilled, (state, action) => {
         state.loading = false;
-        const appointmentId = action.payload;
-        const appointmentIndex = state.userAppointments.findIndex(
+        const { appointmentId, cancelledBy } = action.payload;
+
+        // Update in userAppointments
+        const userAppointmentIndex = state.userAppointments.findIndex(
           (appointment) => appointment.id === appointmentId
         );
+        if (userAppointmentIndex !== -1) {
+          state.userAppointments[userAppointmentIndex].status = 'cancelled';
+        }
 
-        if (appointmentIndex !== -1) {
-          state.userAppointments[appointmentIndex].status = 'cancelled';
+        // Also update in consultantAppointments if present
+        const consultantAppointmentIndex = state.consultantAppointments.findIndex(
+          (appointment) => appointment.id === appointmentId
+        );
+        if (consultantAppointmentIndex !== -1) {
+          state.consultantAppointments[consultantAppointmentIndex].status = 'cancelled';
+        }
+
+        // Also update in all appointments if present
+        const allAppointmentIndex = state.appointments.findIndex(
+          (appointment) => appointment.id === appointmentId
+        );
+        if (allAppointmentIndex !== -1) {
+          state.appointments[allAppointmentIndex].status = 'cancelled';
         }
       })
       .addCase(cancelAppointment.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(completeAppointment.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(completeAppointment.fulfilled, (state, action) => {
+        state.loading = false;
+        const { appointmentId, completedBy } = action.payload;
+
+        // Update in userAppointments
+        const userAppointmentIndex = state.userAppointments.findIndex(
+          (appointment) => appointment.id === appointmentId
+        );
+        if (userAppointmentIndex !== -1) {
+          state.userAppointments[userAppointmentIndex].status = 'completed';
+        }
+
+        // Update in consultantAppointments
+        const consultantAppointmentIndex = state.consultantAppointments.findIndex(
+          (appointment) => appointment.id === appointmentId
+        );
+        if (consultantAppointmentIndex !== -1) {
+          state.consultantAppointments[consultantAppointmentIndex].status = 'completed';
+        }
+
+        // Also update in all appointments if present
+        const allAppointmentIndex = state.appointments.findIndex(
+          (appointment) => appointment.id === appointmentId
+        );
+        if (allAppointmentIndex !== -1) {
+          state.appointments[allAppointmentIndex].status = 'completed';
+        }
+      })
+      .addCase(completeAppointment.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })
@@ -502,6 +730,7 @@ const appointmentSlice = createSlice({
 });
 
 export const {
+  updateAppointmentInStore,
   setSelectedExpert,
   setSelectedDate,
   setSelectedTime,
