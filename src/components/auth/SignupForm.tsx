@@ -136,10 +136,10 @@ const SignupForm: React.FC = () => {
               autoComplete="new-password"
               {...register('password', {
                 required: 'Password is required',
-                minLength: {
-                  value: 6,
-                  message: 'Password must be at least 6 characters',
-                },
+                pattern: {
+                  value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>])[A-Za-z\d!@#$%^&*(),.?":{}|<>]{8,}$/,
+                  message: 'Password must be at least 8 characters and include: uppercase letter, lowercase letter, number, and special character'
+                }
               })}
               className={`block w-full pl-10 pr-3 py-2 border ${
                 errors.password ? 'border-red-300' : 'border-gray-300 dark:border-gray-700'

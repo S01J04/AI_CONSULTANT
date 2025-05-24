@@ -1158,6 +1158,7 @@ export const updateUserPlan = createAsyncThunk(
       console.log(`SUMMARY: Remaining appointments: ${Math.max(0, (updatedUserData.appointmentsTotal || 0) - (updatedUserData.appointmentsUsed || 0))}.`);
       console.log(`SUMMARY: Appointments will reset on ${updatedUserData.appointmentsResetDate ? new Date(updatedUserData.appointmentsResetDate).toLocaleString() : 'Not set'}.`);
       console.log(`SUMMARY: Appointments used count was reset to ${updatedUserData.appointmentsUsed || 0}.`);
+      console.log(`🛡️ PROTECTION: Subscription is protected from auto-reset for 10 minutes after purchase`);
 
       return updatedUserData;
     } catch (error: any) {
