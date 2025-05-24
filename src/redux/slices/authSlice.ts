@@ -218,6 +218,7 @@ export const registerUser = createAsyncThunk(
         lastLogin: Date.now(),
         chatCount: 10, // Initialize chat count to 10 for new users
         chatCount: 10, // Initialize chat count to 10 for new users
+
       };
 
       await setDoc(doc(db, 'users', user.uid), userData);
@@ -312,6 +313,7 @@ export const loginUser = createAsyncThunk(
         emailVerified: user.emailVerified, // Update email verification status
       });
 
+
       // If email is not verified, remind the user
       if (!user.emailVerified) {
         // Create a notification about email verification
@@ -388,6 +390,7 @@ export const googleLogin = createAsyncThunk(
           chatCount: 10, // Initialize chat count to 10 for new users
           chatCount: 10, // Initialize chat count to 10 for new users
 
+
         };
 
         await setDoc(doc(db, 'users', user.uid), userData);
@@ -412,6 +415,7 @@ export const googleLogin = createAsyncThunk(
         lastLogin: Date.now(),
         emailVerified: user.emailVerified, // Update email verification status
       });
+
 
 
       // Don't store sensitive user data in localStorage

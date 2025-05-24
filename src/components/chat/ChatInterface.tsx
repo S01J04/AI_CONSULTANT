@@ -80,6 +80,7 @@ console.log(inputLoading,aiLoading,loading)
     const hasEmptyAiMessage = currentSession?.messages?.some(msg => 
       msg.sender === "ai" && msg.text === ""
     );
+
     if (hasEmptyAiMessage && messagesContainerRef.current) {
       // Find the last message element
       const messagesContainer = messagesContainerRef.current;
@@ -144,6 +145,7 @@ console.log(inputLoading,aiLoading,loading)
   }, [networkError]);
 
 
+
   const handleRetry = () => {
     setRetrying(true);
     dispatch(setNetworkError(false));
@@ -203,6 +205,7 @@ console.log(inputLoading,aiLoading,loading)
       return;
     }
 
+
     // Check if user has a premium plan
     const hasPremiumPlan = user.plan === 'premium' || user.plan === 'basic';
 
@@ -219,7 +222,6 @@ console.log(inputLoading,aiLoading,loading)
 
     // Log the current chat count for debugging
     console.log(`Current chat count: ${user.chatCount}`);
-
 
 
     try {

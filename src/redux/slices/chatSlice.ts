@@ -23,6 +23,7 @@ import { updateChatCount } from "./authSlice";
 import { updateChatCount } from "./authSlice";
 
 
+
 // -----------------------
 // Interfaces
 // -----------------------
@@ -215,34 +216,7 @@ const handleAiResponse = async (message: string, sessionId: string): Promise<str
     const data = await response.json();
     console.log('Response data:', data);
 
-    // Check for context length exceeded error in the response
-    if (data.detail && typeof data.detail === 'string' &&
-        (data.detail.includes('context_length_exceeded') ||
-         data.detail.includes('maximum context length'))) {
-      throw new Error('Message too long for AI to process. Please send a shorter message.');
-    }
 
-    // Check for valid response format
-    if (!data || !data.message) {
-      throw new Error('Invalid response from server: missing message field');
-    }
-
-    return data.message;
-  } catch (error: any) {
-    console.error('AI response error:', error);
-
-    // Handle different types of network errors
-    if (error.name === 'AbortError') {
-      throw new Error('Network error: Request timed out. Please try again.');
-    } else if (error instanceof TypeError && error.message.includes('fetch')) {
-      throw new Error('Network error. Please check your internet connection.');
-    } else if (error.message.includes('context_length_exceeded') ||
-               error.message.includes('maximum context length')) {
-      throw new Error('Message too long for AI to process. Please send a shorter message.');
-    }
-
-    throw error;
-  }
 };
 
 // Utility function to convert Firestore timestamps
@@ -449,22 +423,11 @@ export const sendMessage = createAsyncThunk<
             text: fullText,
             timeStamp: Date.now()
 
+
         };
 
         await updateDoc(chatRef, {
           messages: arrayUnion(newMessage, aiMessage),
-        updatedAt: serverTimestamp()
-      });
-
-        // Update title if this is one of the first messages
-      const updatedDoc = await getDoc(chatRef);
-        const updatedData = updatedDoc.data();
-        const updatedMessages = mapFirestoreMessages(updatedData?.messages || []);
-
-      if (updatedMessages.length > 0 && updatedMessages.length < 4) {
-          const updatedTitle = updatedMessages[0].text.slice(0, 50) + (updatedMessages[0].text.length > 50 ? '...' : '');
-        await updateDoc(chatRef, {
-          title: updatedTitle,
           updatedAt: serverTimestamp()
         });
 
