@@ -34,6 +34,8 @@ export interface UserData {
   appointmentsResetDate?: number; // Track when appointments should reset (for subscription plans)
   hadSubscriptionBefore?: boolean; // Flag to track if user ever had a subscription that was removed
   chatCount?: number; // Track how many chat messages the user has left (for free users)
+  chatCount?: number; // Track how many chat messages the user has left (for free users)
+
 }
 
 // Helper function to get user-friendly auth error messages
@@ -215,6 +217,8 @@ export const registerUser = createAsyncThunk(
         emailVerified: false,
         lastLogin: Date.now(),
         chatCount: 10, // Initialize chat count to 10 for new users
+        chatCount: 10, // Initialize chat count to 10 for new users
+
       };
 
       await setDoc(doc(db, 'users', user.uid), userData);
@@ -289,6 +293,7 @@ export const loginUser = createAsyncThunk(
         await setDoc(doc(db, 'users', user.uid), userData);
       }
 
+
       // Update last login time and ensure chatCount exists
       const updateData: any = {
         lastLogin: Date.now(),
@@ -302,6 +307,12 @@ export const loginUser = createAsyncThunk(
       }
 
       await updateDoc(doc(db, 'users', user.uid), updateData);
+      // Update last login time
+      await updateDoc(doc(db, 'users', user.uid), {
+        lastLogin: Date.now(),
+        emailVerified: user.emailVerified, // Update email verification status
+      });
+
 
       // If email is not verified, remind the user
       if (!user.emailVerified) {
@@ -377,6 +388,9 @@ export const googleLogin = createAsyncThunk(
           lastLogin: Date.now(),
           emailVerified: user.emailVerified,
           chatCount: 10, // Initialize chat count to 10 for new users
+          chatCount: 10, // Initialize chat count to 10 for new users
+
+
         };
 
         await setDoc(doc(db, 'users', user.uid), userData);
@@ -395,6 +409,14 @@ export const googleLogin = createAsyncThunk(
       }
 
       await updateDoc(doc(db, 'users', user.uid), updateData);
+
+      // Update last login time
+      await updateDoc(doc(db, 'users', user.uid), {
+        lastLogin: Date.now(),
+        emailVerified: user.emailVerified, // Update email verification status
+      });
+
+
 
       // Don't store sensitive user data in localStorage
       // Instead, only store minimal information needed for UI
@@ -589,6 +611,27 @@ export const incrementAppointmentsUsed = createAsyncThunk(
         }
 
         return refreshedUserData;
+      }
+
+      // For non-premium plans, check if we have additional appointments
+      if (refreshedUserData.additionalAppointments && refreshedUserData.additionalAppointments > 0) {
+        // If user has additional appointments, decrement one
+        const newAdditionalAppointments = refreshedUserData.additionalAppointments - 1;
+        await updateDoc(userRef, {
+          additionalAppointments: newAdditionalAppointments
+        });
+        console.log(`Decremented additionalAppointments from ${refreshedUserData.additionalAppointments} to ${newAdditionalAppointments}`);
+      } else {
+        // No additional appointments, decrement the total
+        const currentAppointmentsTotal = refreshedUserData.appointmentsTotal || 0;
+        const newAppointmentsTotal = Math.max(0, currentAppointmentsTotal - 1); // Ensure it doesn't go below 0
+
+        await updateDoc(userRef, {
+          appointmentsTotal: newAppointmentsTotal
+        });
+        console.log(`Decremented appointmentsTotal from ${currentAppointmentsTotal} to ${newAppointmentsTotal}`);
+      }
+
       }
 
       // For non-premium plans, check if we have additional appointments
@@ -1158,6 +1201,7 @@ export const updateUserPlan = createAsyncThunk(
       console.log(`SUMMARY: Remaining appointments: ${Math.max(0, (updatedUserData.appointmentsTotal || 0) - (updatedUserData.appointmentsUsed || 0))}.`);
       console.log(`SUMMARY: Appointments will reset on ${updatedUserData.appointmentsResetDate ? new Date(updatedUserData.appointmentsResetDate).toLocaleString() : 'Not set'}.`);
       console.log(`SUMMARY: Appointments used count was reset to ${updatedUserData.appointmentsUsed || 0}.`);
+      console.log(`🛡️ PROTECTION: Subscription is protected from auto-reset for 10 minutes after purchase`);
 
       return updatedUserData;
     } catch (error: any) {
@@ -1481,6 +1525,9 @@ const authSlice = createSlice({
 });
 
 export const { setUser, clearError, updateLocalUserRole, updateChatCount } = authSlice.actions;
+
+export const { setUser, clearError, updateLocalUserRole, updateChatCount } = authSlice.actions;
+export const { setUser, clearError, updateLocalUserRole } = authSlice.actions;
 export default authSlice.reducer;
 
 

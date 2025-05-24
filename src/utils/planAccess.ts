@@ -3,7 +3,11 @@ import { PaymentPlan } from '../redux/slices/paymentSlice';
 
 // TESTING MODE CONFIGURATION
 export const TESTING_MODE = true; // Set to false to use actual expiration dates
+<<<<<<< HEAD
+export const TEST_EXPIRY_MINUTES = 2; // 2 minutes for subscription expiry (consistent with UI)
+=======
 export const TEST_EXPIRY_MINUTES = 30; // 30 minutes for subscription expiry
+>>>>>>> 013afc75f9d7db8ae7e78bce4b94e1ebf1bf2ff8
 
 // Get subscription expiry date
 export const getSubscriptionExpiryDate = (user: UserData | null): Date | null => {
@@ -76,6 +80,18 @@ export const isSubscriptionExpired = (user: UserData | null): boolean => {
     return true;
   }
 
+<<<<<<< HEAD
+  // Add grace period for newly purchased subscriptions (5 minutes)
+  const gracePeriod = 5 * 60 * 1000; // 5 minutes in milliseconds
+  const timeSincePurchase = Date.now() - user.planUpdatedAt;
+
+  if (timeSincePurchase < gracePeriod) {
+    // console.log('Subscription is within grace period, not considering it expired');
+    return false;
+  }
+
+=======
+>>>>>>> 013afc75f9d7db8ae7e78bce4b94e1ebf1bf2ff8
   // Get the expiry date (will use planExpiryDate if available, or calculate based on testing mode)
   const expiryDate = getSubscriptionExpiryDate(user);
   const now = new Date();
@@ -104,6 +120,50 @@ export const isSubscriptionExpired = (user: UserData | null): boolean => {
   return isExpired;
 };
 
+<<<<<<< HEAD
+// Check if subscription is expired, ignoring grace period (used by timer)
+export const isSubscriptionExpiredIgnoringGracePeriod = (user: UserData | null): boolean => {
+  console.log('🔍 Checking expiry ignoring grace period for timer');
+
+  if (!user) {
+    console.log('🔍 No user provided');
+    return false;
+  }
+
+  // If user has no plan, they don't have an active subscription
+  if (user.plan === null || user.plan === undefined) {
+    console.log(`🔍 User has no plan (${user.plan})`);
+    const hadPlanBefore = user.hadSubscriptionBefore === true;
+    console.log(`🔍 Had plan before: ${hadPlanBefore}`);
+    return hadPlanBefore;
+  }
+
+  // If user has a plan but no planUpdatedAt, something is wrong with the data
+  if (!user.planUpdatedAt) {
+    console.log('🔍 User has plan but no planUpdatedAt timestamp, considering it expired');
+    return true;
+  }
+
+  // Skip grace period check - go directly to expiry date check
+  console.log('🔍 Skipping grace period for timer check');
+
+  // Get the expiry date
+  const expiryDate = getSubscriptionExpiryDate(user);
+  const now = new Date();
+
+  if (!expiryDate) {
+    console.log('🔍 Could not determine expiry date, considering subscription expired');
+    return true;
+  }
+
+  const isExpired = now > expiryDate;
+  console.log(`🔍 Timer expiry check: now=${now.toISOString()}, expiry=${expiryDate.toISOString()}, expired=${isExpired}`);
+
+  return isExpired;
+};
+
+=======
+>>>>>>> 013afc75f9d7db8ae7e78bce4b94e1ebf1bf2ff8
 // Define feature access by plan
 export const PLAN_FEATURES = {
   // No plan / Free - No access to any features

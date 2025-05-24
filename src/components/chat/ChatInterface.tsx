@@ -71,7 +71,13 @@ console.log(inputLoading,aiLoading,loading)
   // Second useEffect - scroll to show AI message when it starts generating
   useEffect(() => {
     // Scroll when an empty AI message is first added
+
     const hasEmptyAiMessage = currentSession?.messages?.some(msg =>
+      msg.sender === "ai" && msg.text === ""
+    );
+
+
+    const hasEmptyAiMessage = currentSession?.messages?.some(msg => 
       msg.sender === "ai" && msg.text === ""
     );
 
@@ -111,7 +117,7 @@ console.log(inputLoading,aiLoading,loading)
     }
   }, [retrying, user, dispatch]);
 
-  // Show toast when network error occurs
+
   // useEffect(() => {
   //   if (networkError) {
   //     toast.error("Network error. Please check your internet connection.", {
@@ -124,6 +130,21 @@ console.log(inputLoading,aiLoading,loading)
   //     });
   //   }
   // }, [networkError]);
+
+  useEffect(() => {
+    if (networkError) {
+      toast.error("Network error. Please check your internet connection.", {
+        position: "top-right",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+    }
+  }, [networkError]);
+
+
 
   const handleRetry = () => {
     setRetrying(true);
@@ -167,6 +188,23 @@ console.log(inputLoading,aiLoading,loading)
       setinputLoading(false);
       return;
     }
+
+    // Check if user has a premium plan
+    const hasPremiumPlan = user.plan === 'premium' || user.plan === 'basic';
+
+    // If user doesn't have a premium plan, check chat count
+    if (!hasPremiumPlan && (user.chatCount === undefined || user.chatCount <= 0)) {
+      toast.error("You've reached your free message limit. Please upgrade to a premium plan to continue chatting.", {
+        position: "top-center",
+        autoClose: 5000,
+      });
+      setinputLoading(false);
+      navigate('/pricing');
+      return;
+    }
+      return;
+    }
+
 
     // Check if user has a premium plan
     const hasPremiumPlan = user.plan === 'premium' || user.plan === 'basic';
@@ -365,6 +403,7 @@ console.log(inputLoading,aiLoading,loading)
 
       {/* Chat Input */}
       <div className="bg-white fixed w-screen md:w-[40%] bottom-0 md:bottom-3 rounded-2xl border left-1/2 transform -translate-x-1/2 dark:bg-gray-800 px-4 py-3 border-gray-300 dark:border-gray-700 shadow-lg">
+
         {/* Message count indicator for non-premium users */}
         {user && !user.plan && (
           <div className="mb-2 text-xs text-center">

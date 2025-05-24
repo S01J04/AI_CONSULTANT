@@ -6,7 +6,11 @@ const STRIPE_PUBLISHABLE_KEY = 'pk_test_51QMwnLFj2Yn4QHjJXveqHn9S2pBWEYCd65wTuun
 // Replace with your actual Stripe secret key (WARNING: This is not secure for production)
 // In production, this should be handled by a server-side function
 const STRIPE_SECRET_KEY = 'sk_test_51QMwnLFj2Yn4QHjJSdy9xML7uUXvjHGgmEljssIehZIe2URtcMdH2MoqhZ7VB2fmZsOb4nZoDiNuXYKeatsLlrY100ZTt6EK3Q';
+<<<<<<< HEAD
+
+=======
 // hey 
+>>>>>>> 013afc75f9d7db8ae7e78bce4b94e1ebf1bf2ff8
 // For direct client-side implementation (not recommended for production)
 export const stripe_call = async (data: any) => {
   try {

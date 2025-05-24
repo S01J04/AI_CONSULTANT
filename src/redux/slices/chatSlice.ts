@@ -20,6 +20,10 @@ import { AppDispatch, RootState } from "../store";
 import { toast } from 'react-toastify';
 import { updateChatCount } from "./authSlice";
 
+import { updateChatCount } from "./authSlice";
+
+
+
 // -----------------------
 // Interfaces
 // -----------------------
@@ -55,6 +59,7 @@ export interface ChatState {
 // Mock AI Response Function
 // -----------------------
 const handleAiResponse = async (message: string, sessionId: string): Promise<string> => {
+
   // try {
   //   // Limit message length to prevent context length exceeded errors
   //   const MAX_MESSAGE_LENGTH = 1000; // Adjust based on your needs
@@ -154,6 +159,63 @@ const handleAiResponse = async (message: string, sessionId: string): Promise<str
   ]
   // Return a random response from the array
   return dummy_AI[Math.floor(Math.random() * dummy_AI.length)]
+
+  try {
+    // Limit message length to prevent context length exceeded errors
+    const MAX_MESSAGE_LENGTH = 1000; // Adjust based on your needs
+    let trimmedMessage = message;
+
+    if (message.length > MAX_MESSAGE_LENGTH) {
+      console.log(`Message too long (${message.length} chars), trimming to ${MAX_MESSAGE_LENGTH} chars`);
+      trimmedMessage = message.substring(0, MAX_MESSAGE_LENGTH) + "... (message truncated due to length)";
+    }
+
+    console.log('Sending request to:', `${import.meta.env.VITE_openAIKey}/chat/text`);
+    console.log('Request payload length:', trimmedMessage.length);
+
+    // Add timeout to the fetch request
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+
+    const response = await fetch(`${import.meta.env.VITE_openAIKey}/chat/text`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        user_id: sessionId,
+        message: trimmedMessage
+      }),
+      signal: controller.signal
+    }).finally(() => clearTimeout(timeoutId));
+
+    console.log('Response status:', response.status);
+
+    if (!response.ok) {
+      // Try to get more detailed error information
+      let errorText = '';
+      try {
+        errorText = await response.text();
+        console.log('Error response:', errorText);
+      } catch (e) {
+        console.error('Could not read error response:', e);
+      }
+
+      if (response.status === 500) {
+        throw new Error('Internal server error. The server is experiencing issues.');
+      } else if (response.status === 503) {
+        throw new Error('Service unavailable. The server is temporarily unavailable.');
+      } else if (response.status === 429) {
+        throw new Error('Too many requests. Please try again later.');
+      } else {
+        throw new Error(`Server responded with status: ${response.status}${errorText ? ` - ${errorText}` : ''}`);
+      }
+    }
+
+    // Parse the response data
+    const data = await response.json();
+    console.log('Response data:', data);
+
 
 };
 
@@ -346,18 +408,29 @@ export const sendMessage = createAsyncThunk<
 
       // Update Firestore
       try {
+
         const chatRef = doc(db, "chatSessions", sessionId);
         const aiMessage = {
           id: Date.now().toString(),
           sender: "ai",
           text: fullText,
           timeStamp: Date.now()
+
+      const chatRef = doc(db, "chatSessions", sessionId);
+        const aiMessage = {
+          id: Date.now().toString(),
+            sender: "ai",
+            text: fullText,
+            timeStamp: Date.now()
+
+
         };
 
         await updateDoc(chatRef, {
           messages: arrayUnion(newMessage, aiMessage),
           updatedAt: serverTimestamp()
         });
+
 
         // Get user data to check plan and update chat count
         const userRef = doc(db, "users", userId);

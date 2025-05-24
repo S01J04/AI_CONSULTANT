@@ -2,23 +2,38 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { CheckCircle, AlertCircle } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
+<<<<<<< HEAD
+import { RootState, AppDispatch } from '../../redux/store';
+import { updateUserPlan } from '../../redux/slices/authSlice';
+import { processPayment } from '../../redux/slices/paymentSlice';
+import { markUserProcessingPayment, unmarkUserProcessingPayment } from '../../services/subscriptionService';
+=======
 import { RootState } from '../../redux/store';
 import { doc, updateDoc, getDoc, setDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { updateUserPlan } from '../../redux/slices/authSlice';
 import { processPayment } from '../../redux/slices/paymentSlice';
 import { toast } from 'react-toastify';
+>>>>>>> 013afc75f9d7db8ae7e78bce4b94e1ebf1bf2ff8
 
 const PaymentSuccess: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+<<<<<<< HEAD
+  const dispatch = useDispatch<AppDispatch>();
+=======
   const dispatch = useDispatch();
+>>>>>>> 013afc75f9d7db8ae7e78bce4b94e1ebf1bf2ff8
   const { user } = useSelector((state: RootState) => state.auth);
   const { plans } = useSelector((state: RootState) => state.payment);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const hasProcessedPayment = useRef(false); // Add this to prevent multiple processing
+<<<<<<< HEAD
+
+=======
   
+>>>>>>> 013afc75f9d7db8ae7e78bce4b94e1ebf1bf2ff8
   const queryParams = new URLSearchParams(location.search);
   const sessionId = queryParams.get('session_id');
   const planId = queryParams.get('plan_id');
@@ -40,7 +55,11 @@ const PaymentSuccess: React.FC = () => {
       try {
         console.log('Processing successful payment');
         hasProcessedPayment.current = true; // Mark as processed to prevent duplicates
+<<<<<<< HEAD
+
+=======
         
+>>>>>>> 013afc75f9d7db8ae7e78bce4b94e1ebf1bf2ff8
         // Find the plan details
         const plan = plans.find(p => p.id === planId);
         if (!plan) {
@@ -63,6 +82,60 @@ const PaymentSuccess: React.FC = () => {
 
         console.log('Selected plan:', selectedPlan);
 
+<<<<<<< HEAD
+        // 🔒 Lock the user to prevent subscription service from interfering
+        markUserProcessingPayment(user.uid);
+
+        try {
+          // 1. Update the user's plan in Firestore first (this is the source of truth)
+          console.log('Updating user plan in Firestore');
+          const planUpdateResult = await dispatch(updateUserPlan({
+            userId: user.uid,
+            planId: selectedPlan.id,
+            planName: selectedPlan.name
+          }));
+
+          // Check if the plan update was successful
+          if (updateUserPlan.fulfilled.match(planUpdateResult)) {
+            console.log('User plan updated successfully');
+
+            // 2. Then process the payment record in Redux
+            try {
+              console.log('Processing payment record in Redux');
+              const resultAction = await dispatch(processPayment({
+                userId: user.uid,
+                planId: selectedPlan.id,
+                amount: selectedPlan.price,
+                currency: selectedPlan.currency,
+                paymentMethod: 'card',
+              }));
+
+              if (processPayment.fulfilled.match(resultAction)) {
+                console.log('Payment record created successfully:', resultAction.payload);
+              } else {
+                console.warn('Payment record creation failed, but plan is already updated');
+              }
+
+              setLoading(false);
+            } catch (error: any) {
+              console.error('Error creating payment record:', error);
+              // Don't show error since the plan update was successful
+              console.log('Plan update was successful, payment record creation failed but this is not critical');
+              setLoading(false);
+            }
+          } else {
+            console.error('Plan update failed:', planUpdateResult.error);
+            setError('Failed to update subscription plan. Please contact support.');
+            setLoading(false);
+          }
+        } catch (error: any) {
+          console.error('Error in payment processing:', error);
+          setError('Failed to process payment. Please contact support.');
+          setLoading(false);
+        } finally {
+          // 🔓 Always unlock the user, even if there was an error
+          unmarkUserProcessingPayment(user.uid);
+=======
         // 1. Process the payment in Redux
         console.log('Processing payment in Redux');
         const resultAction = await dispatch(processPayment({
@@ -107,6 +180,7 @@ const PaymentSuccess: React.FC = () => {
           console.error('Payment failed:', resultAction.error);
           setError('Payment failed. Please try again.');
           setLoading(false);
+>>>>>>> 013afc75f9d7db8ae7e78bce4b94e1ebf1bf2ff8
         }
       } catch (error: any) {
         console.error('Error processing payment:', error);
@@ -129,7 +203,11 @@ const PaymentSuccess: React.FC = () => {
           setLoading(false);
         }
       }, 2000);
+<<<<<<< HEAD
+
+=======
       
+>>>>>>> 013afc75f9d7db8ae7e78bce4b94e1ebf1bf2ff8
       return () => clearTimeout(timer);
     }
   }, [user, planId, planName, sessionId, plans, dispatch]);
@@ -140,7 +218,11 @@ const PaymentSuccess: React.FC = () => {
       const timer = setTimeout(() => {
         navigate('/dashboard');
       }, 10000);
+<<<<<<< HEAD
+
+=======
       
+>>>>>>> 013afc75f9d7db8ae7e78bce4b94e1ebf1bf2ff8
       return () => clearTimeout(timer);
     }
   }, [loading, error, navigate]);
