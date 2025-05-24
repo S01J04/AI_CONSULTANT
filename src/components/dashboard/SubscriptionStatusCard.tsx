@@ -2,10 +2,15 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, AlertCircle, Clock, Check, X } from 'lucide-react';
 import usePlanAccess from '../../hooks/usePlanAccess';
+<<<<<<< HEAD
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../../redux/store';
 import { checkAndResetExpiredSubscription } from '../../services/subscriptionService';
 import { validateUserRole } from '../../redux/slices/authSlice';
+=======
+import { useSelector } from 'react-redux';
+import { RootState } from '../../redux/store';
+>>>>>>> 013afc75f9d7db8ae7e78bce4b94e1ebf1bf2ff8
 
 interface SubscriptionStatusCardProps {
   className?: string;
@@ -13,7 +18,10 @@ interface SubscriptionStatusCardProps {
 
 const SubscriptionStatusCard: React.FC<SubscriptionStatusCardProps> = ({ className = '' }) => {
   const { user } = useSelector((state: RootState) => state.auth);
+<<<<<<< HEAD
   const dispatch = useDispatch<AppDispatch>();
+=======
+>>>>>>> 013afc75f9d7db8ae7e78bce4b94e1ebf1bf2ff8
 
   const {
     isExpired,
@@ -29,6 +37,7 @@ const SubscriptionStatusCard: React.FC<SubscriptionStatusCardProps> = ({ classNa
 
   // State for countdown timer
   const [timeLeft, setTimeLeft] = useState<{ hours: number; minutes: number; seconds: number } | null>(null);
+<<<<<<< HEAD
   const [hasTriggeredReset, setHasTriggeredReset] = useState(false);
 
   // Function to actively trigger subscription reset
@@ -52,6 +61,8 @@ const SubscriptionStatusCard: React.FC<SubscriptionStatusCardProps> = ({ classNa
       console.error('❌ Error triggering subscription reset:', error);
     }
   }, [user, hasTriggeredReset, dispatch]);
+=======
+>>>>>>> 013afc75f9d7db8ae7e78bce4b94e1ebf1bf2ff8
 
   // Memoize the calculateTimeLeft function to prevent unnecessary recreations
   const calculateTimeLeft = useCallback(() => {
@@ -61,6 +72,7 @@ const SubscriptionStatusCard: React.FC<SubscriptionStatusCardProps> = ({ classNa
     const diff = expiryDate.getTime() - now.getTime();
 
     if (diff <= 0) {
+<<<<<<< HEAD
       // Subscription has expired - actively trigger reset
       console.log('⏰ Subscription timer expired - triggering reset');
       triggerSubscriptionReset();
@@ -72,6 +84,16 @@ const SubscriptionStatusCard: React.FC<SubscriptionStatusCardProps> = ({ classNa
       setHasTriggeredReset(false);
     }
 
+=======
+      // Subscription has expired, refresh the page to update UI
+      // Use a timeout to avoid immediate reload which can cause infinite loops
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+      return null;
+    }
+
+>>>>>>> 013afc75f9d7db8ae7e78bce4b94e1ebf1bf2ff8
     // Calculate hours, minutes and seconds
     const totalSeconds = Math.floor(diff / 1000);
     const hours = Math.floor(totalSeconds / 3600);
@@ -79,7 +101,11 @@ const SubscriptionStatusCard: React.FC<SubscriptionStatusCardProps> = ({ classNa
     const seconds = totalSeconds % 60;
 
     return { hours, minutes, seconds };
+<<<<<<< HEAD
   }, [hasActivePlan, isExpired, expiryDate, triggerSubscriptionReset, hasTriggeredReset]); // Only recreate when these dependencies change
+=======
+  }, [hasActivePlan, isExpired, expiryDate]); // Only recreate when these dependencies change
+>>>>>>> 013afc75f9d7db8ae7e78bce4b94e1ebf1bf2ff8
 
   // Update countdown timer every second
   useEffect(() => {
