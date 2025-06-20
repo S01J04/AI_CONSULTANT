@@ -46,12 +46,12 @@ const Footer: React.FC = () => {
             <h3 className="text-sm font-semibold text-gray-200 uppercase tracking-wider">Services</h3>
             <ul className="mt-4 space-y-4">
               <li>
-                <Link to="/chat" className="text-base text-gray-300 hover:text-white">
+                <Link to="/" className="text-base text-gray-300 hover:text-white">
                   AI Consultation
                 </Link>
               </li>
               <li>
-                <Link to="/experts" className="text-base text-gray-300 hover:text-white">
+                <Link to="/appointments" className="text-base text-gray-300 hover:text-white">
                   Expert Calls
                 </Link>
               </li>
@@ -71,22 +71,22 @@ const Footer: React.FC = () => {
             <h3 className="text-sm font-semibold text-gray-200 uppercase tracking-wider">Company</h3>
             <ul className="mt-4 space-y-4">
               <li>
-                <Link to="/about" className="text-base text-gray-300 hover:text-white">
+                <Link to="/aboutus" className="text-base text-gray-300 hover:text-white">
                   About Us
                 </Link>
               </li>
               <li>
-                <Link to="/careers" className="text-base text-gray-300 hover:text-white">
-                  Careers
+                <Link to="/cancellationandnorefundpolicy" className="text-base text-gray-300 hover:text-white">
+                  Cancellation & No Refund Policy
                 </Link>
               </li>
               <li>
-                <Link to="/privacy" className="text-base text-gray-300 hover:text-white">
+                <Link to="/privacypolicy" className="text-base text-gray-300 hover:text-white">
                   Privacy Policy
                 </Link>
               </li>
               <li>
-                <Link to="/terms" className="text-base text-gray-300 hover:text-white">
+                <Link to="/termsandcondtions" className="text-base text-gray-300 hover:text-white">
                   Terms of Service
                 </Link>
               </li>

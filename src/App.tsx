@@ -115,6 +115,9 @@ const App: React.FC = () => {
 
 // Import subscription service
 import { initSubscriptionService } from './services/subscriptionService';
+import Termsandcondtions from './pages/Termsandcondtions';
+import { Privacypolicy } from './pages/Privacypolicy';
+import { Cancellationandnorefundpolicy } from './pages/Cancellationandnorefundpolicy';
 
 // App Content Component (with access to Redux)
 const AppContent: React.FC = () => {
@@ -145,6 +148,9 @@ const AppContent: React.FC = () => {
           <Route path="/admin/consultant/:consultantId" element={<ConsultantDetailsPage />} />
           <Route path="/settings" element={<UserDashboard />} />
           <Route path="/pricing" element={<PricingPage />} />
+          <Route path="/termsandcondtions" element={<Termsandcondtions />} />
+          <Route path="/privacypolicy" element={<Privacypolicy />} />
+          <Route path="/cancellationandnorefundpolicy" element={<Cancellationandnorefundpolicy />} />
           <Route path="/appointments" element={<SubscriptionProtectedRoute feature="canBookAppointments"><AppointmentsPage /></SubscriptionProtectedRoute>} />
           <Route path="/aboutus" element={<AboutUs />} />
           <Route path="/voicechat" element={<SubscriptionProtectedRoute feature="canUseVoice"><VoiceCallWithAI /></SubscriptionProtectedRoute>} />
