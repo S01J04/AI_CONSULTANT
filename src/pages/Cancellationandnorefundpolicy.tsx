@@ -1,6 +1,10 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 
 export const Cancellationandnorefundpolicy = () => {
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   return (
     <div className="max-w-3xl mx-auto px-4 py-10 bg-white rounded-lg shadow-md mt-8 mb-8">
       <h1 className="text-3xl font-bold mb-6 text-center text-blue-700">Cancellation and No Refund Policy</h1>
