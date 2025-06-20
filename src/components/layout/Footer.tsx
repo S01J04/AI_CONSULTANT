@@ -98,7 +98,7 @@ const Footer: React.FC = () => {
               <li className="flex items-center">
                 <Mail className="h-5 w-5 text-indigo-400 mr-2" />
                 <a href="mailto:support@aiconsult.com" className="text-base text-gray-300 hover:text-white">
-                  support@aiconsult.com
+                  info@rewiree.com
                 </a>
               </li>
               <li className="flex items-center">
