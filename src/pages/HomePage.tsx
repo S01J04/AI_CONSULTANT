@@ -96,7 +96,7 @@ const HomePage: React.FC = () => {
               Features
             </h2>
             <p className="mt-1 text-4xl font-extrabold text-gray-900 dark:text-white sm:text-5xl sm:tracking-tight">
-              Why Choose AI Consult
+              Why Choose Rewiree
             </p>
             <p className="max-w-xl mt-5 mx-auto text-xl text-gray-500 dark:text-gray-300">
               Our platform combines cutting-edge AI technology with human expertise to provide you with the best health consultation experience.

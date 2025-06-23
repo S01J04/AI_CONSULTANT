@@ -10,11 +10,11 @@ const Footer: React.FC = () => {
           <div className="mb-8 md:mb-0">
             <div className="flex items-center">
               <MessageSquare className="h-8 w-8 text-indigo-400" />
-              <span className="ml-2 text-xl font-bold">AI Consult</span>
+              <span className="ml-2 text-xl font-bold">Rewire</span>
             </div>
             <p className="mt-4 text-gray-300 text-sm">
               Providing AI-powered consultations and expert advice for your health and wellness needs.
-            </p>
+             <br /> This website is managed by Sashakt Enterprises Pvt Ltd. </p>
             <div className="mt-6 flex space-x-6">
               <a href="#" className="text-gray-400 hover:text-white">
                 <span className="sr-only">Facebook</span>
@@ -47,7 +47,7 @@ const Footer: React.FC = () => {
             <ul className="mt-4 space-y-4">
               <li>
                 <Link to="/" className="text-base text-gray-300 hover:text-white">
-                  AI Consultation
+                  Rewire
                 </Link>
               </li>
               <li>
@@ -119,7 +119,7 @@ const Footer: React.FC = () => {
         </div>
         <div className="mt-12 border-t border-gray-700 pt-8">
           <p className="text-base text-gray-400 text-center">
-            &copy; {new Date().getFullYear()} AI Consult. All rights reserved.
+            &copy; {new Date().getFullYear()} Rewire. All rights reserved.
           </p>
         </div>
       </div>

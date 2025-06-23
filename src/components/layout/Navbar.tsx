@@ -57,8 +57,9 @@ const Navbar: React.FC = () => {
           <div className="flex">
             <div className="flex-shrink-0 flex items-center">
               <Link to="/" className="flex items-center">
-                <MessageSquare className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
-                <span className="ml-2 text-xl font-bold text-gray-900 dark:text-white">AI Consult</span>
+                <img src='https://cdn.discordapp.com/attachments/1341776801491582979/1386766245684183142/logo_1.jpg?ex=685ae635&is=685994b5&hm=f252622c980fdfd9ad1325d28675d22e3248ba6460a954163cc961732ace95d1&'
+                 className="w-28 text-indigo-600 dark:text-indigo-400" />
+                {/* <span className="ml-2 text-xl font-bold text-gray-900 dark:text-white">AI Consult</span> */}
               </Link>
             </div>
             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">

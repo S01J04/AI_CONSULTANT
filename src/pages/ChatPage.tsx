@@ -88,7 +88,7 @@ const ChatPage: React.FC = () => {
             Sign in to access chat
           </h2>
           <p className="text-gray-600 dark:text-gray-300 mb-6">
-            Please sign in or create an account to start chatting with our AI consultant.
+            Please sign in or create an account to start chatting with our Rewiree.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
