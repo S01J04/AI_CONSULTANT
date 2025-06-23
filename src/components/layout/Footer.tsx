@@ -14,7 +14,7 @@ const Footer: React.FC = () => {
             </div>
             <p className="mt-4 text-gray-300 text-sm">
               Providing AI-powered consultations and expert advice for your health and wellness needs.
-             <br /> This website is managed by Sashakt Enterprises Pvt Ltd. </p>
+              </p>
             <div className="mt-6 flex space-x-6">
               <a href="#" className="text-gray-400 hover:text-white">
                 <span className="sr-only">Facebook</span>
@@ -117,7 +117,8 @@ const Footer: React.FC = () => {
             </ul>
           </div>
         </div>
-        <div className="mt-12 border-t border-gray-700 pt-8">
+        <div className="mt-12 flex items-center  border-t border-gray-700 pt-8">
+          <p className='text-base text-gray-400 pr-20'> This website is managed by Sashakt Enterprises Pvt Ltd.</p>
           <p className="text-base text-gray-400 text-center">
             &copy; {new Date().getFullYear()} Rewire. All rights reserved.
           </p>
