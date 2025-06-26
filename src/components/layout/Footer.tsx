@@ -60,11 +60,11 @@ const Footer: React.FC = () => {
                   Subscription Plans
                 </Link>
               </li>
-              <li>
+              {/* <li>
                 <Link to="/faq" className="text-base text-gray-300 hover:text-white">
                   FAQ
                 </Link>
-              </li>
+              </li> */}
             </ul>
           </div>
           <div>
@@ -104,16 +104,10 @@ const Footer: React.FC = () => {
               <li className="flex items-center">
                 <Phone className="h-5 w-5 text-indigo-400 mr-2" />
                 <a href="tel:+1234567890" className="text-base text-gray-300 hover:text-white">
-                  +1 (234) 567-890
+                  +91 9004782037
                 </a>
               </li>
-              <li className="flex items-start">
-                <MapPin className="h-5 w-5 text-indigo-400 mr-2 mt-1" />
-                <span className="text-base text-gray-300">
-                  123 AI Street, Tech City<br />
-                  CA 94103, USA
-                </span>
-              </li>
+            
             </ul>
           </div>
         </div>

@@ -402,8 +402,8 @@ const PricingPlans: React.FC = () => {
                 Can I cancel my subscription?
               </h4>
               <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                Yes, you can cancel your subscription at any time. Your benefits will continue until the end of your billing period.
-              </p>
+               No, once a subscription is purchased, it cannot be cancelled. Please review our <a href="/cancellationandnorefundpolicy" className="text-indigo-600 hover:underline">Cancellation and No Refund Policy</a> for more details.
+                 </p>
             </div>
             <div>
               <h4 className="text-base font-medium text-gray-900 dark:text-white">

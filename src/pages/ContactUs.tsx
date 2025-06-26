@@ -99,7 +99,7 @@ const ContactUs = () => {
       <div className="mt-8 text-center">
         <p className="text-gray-600">Or reach us at:</p>
         <p className="text-indigo-600 font-medium flex items-center justify-center gap-2">
-          <PhoneCall className="w-4 h-4" /> +1 234 567 890
+          <PhoneCall className="w-4 h-4" /> +91 9004782037
         </p>
       </div>
     </motion.div>
