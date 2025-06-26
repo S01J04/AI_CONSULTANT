@@ -7,7 +7,7 @@ import { toggleSidebar } from '../../redux/slices/uiSlice';
 import { Menu, X, Moon, Sun, User, LogOut, MessageSquare, ChevronDown, Settings, LayoutDashboard, Bell } from 'lucide-react';
 import NotificationCenter from '../notifications/NotificationCenter';
 import { AppDispatch } from '../../redux/store';
-
+import IMG from './logo.jpg'; // Adjust the path as necessary
 const Navbar: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
@@ -57,7 +57,7 @@ const Navbar: React.FC = () => {
           <div className="flex">
             <div className="flex-shrink-0 flex items-center">
               <Link to="/" className="flex items-center">
-                <img src='/assets/logo.jpg'
+                <img src={IMG} alt="Rewiree Logo"
                  className="w-28 text-indigo-600 dark:text-indigo-400" />
                 {/* <span className="ml-2 text-xl font-bold text-gray-900 dark:text-white">AI Consult</span> */}
               </Link>
