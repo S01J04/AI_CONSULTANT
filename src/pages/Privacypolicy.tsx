@@ -32,7 +32,7 @@ export const Privacypolicy = () => {
         <h2 className="text-xl font-semibold mb-2">6. Changes to This Policy</h2>
         <p className="text-gray-700">We may update this Privacy Policy from time to time. Changes will be posted on this page with a revised date. Please review it periodically.
         </p>
-        <p className='text-gray-700'>This policy is effective date 21/07/2025.</p>
+        <p className='text-gray-700'>This policy is effective dated 21/07/2025.</p>
       </section>
       <div className="mt-8 text-center">
         <p className="text-gray-700">If you have any questions or concerns regarding this Privacy Policy, please contact us at <a href="mailto:info@rewiree.com" className="text-blue-600 underline">info@rewiree.com</a>.</p>
