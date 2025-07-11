@@ -35,20 +35,17 @@ const Termsandcondtions = () => {
         </ul>
         <p className="text-gray-700">All it takes is a simple email to our team at <a href="mailto:info@rewiree.com" className="text-blue-600 underline">info@rewiree.com</a> and we will take care of the rest.</p>
       </section>
+     
       <section className="mb-6">
-        <h2 className="text-xl font-semibold mb-2">5. Cookies and Tracking</h2>
-        <p className="text-gray-700">To enhance your user experience, we may use cookies or similar technologies to analyze platform performance and understand how users interact with our services. You can choose to disable cookies in your browser settings, although it may impact some features.</p>
-      </section>
-      <section className="mb-6">
-        <h2 className="text-xl font-semibold mb-2">6. Consent and Use</h2>
+        <h2 className="text-xl font-semibold mb-2">5. Consent and Use</h2>
         <p className="text-gray-700">By signing up for Rewiree or continuing to use our services, you agree to these terms and acknowledge our approach to data collection, usage, and protection as described above. If you do not agree with any part of these terms, we advise you to discontinue use of the platform.</p>
       </section>
       <section className="mb-6">
-        <h2 className="text-xl font-semibold mb-2">7. Updates to This Policy</h2>
+        <h2 className="text-xl font-semibold mb-2">6. Updates to This Policy</h2>
         <p className="text-gray-700">We may update these Terms and Conditions from time to time to reflect changes in law, technology, or our services. When we do, we will notify you on our platform or via email. We encourage you to review these terms regularly so you always know where we stand.</p>
       </section>
       <section className="mb-6">
-        <h2 className="text-xl font-semibold mb-2">8. Entertainment Articles</h2>
+        <h2 className="text-xl font-semibold mb-2">7. Entertainment Articles</h2>
         <p className="text-gray-700">Rewiree is also providing entertainment articles to keep you informed and engaged with the latest trends.</p>
       </section>
       <div className="mt-8 text-center">

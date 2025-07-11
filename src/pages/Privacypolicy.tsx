@@ -10,7 +10,7 @@ export const Privacypolicy = () => {
       <h1 className="text-3xl font-bold mb-6 text-center text-blue-700">Privacy Policy</h1>
       <section className="mb-6">
         <h2 className="text-xl font-semibold mb-2">1. Information We Collect</h2>
-        <p className="text-gray-700">We collect personal information such as your name, email address, phone number, and professional background when you register or use our platform. We also collect usage data through cookies and analytics tools.</p>
+        <p className="text-gray-700">We collect personal information such as your name, email address, phone number, and professional background when you register or use our platform.</p>
       </section>
       <section className="mb-6">
         <h2 className="text-xl font-semibold mb-2">2. How We Use Your Information</h2>
@@ -30,7 +30,9 @@ export const Privacypolicy = () => {
       </section>
       <section className="mb-6">
         <h2 className="text-xl font-semibold mb-2">6. Changes to This Policy</h2>
-        <p className="text-gray-700">We may update this Privacy Policy from time to time. Changes will be posted on this page with a revised date. Please review it periodically.</p>
+        <p className="text-gray-700">We may update this Privacy Policy from time to time. Changes will be posted on this page with a revised date. Please review it periodically.
+        </p>
+        <p className='text-gray-700'>This policy is effective date 21/07/2025.</p>
       </section>
       <div className="mt-8 text-center">
         <p className="text-gray-700">If you have any questions or concerns regarding this Privacy Policy, please contact us at <a href="mailto:info@rewiree.com" className="text-blue-600 underline">info@rewiree.com</a>.</p>
