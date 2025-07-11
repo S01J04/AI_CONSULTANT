@@ -17,7 +17,10 @@ const ChatPage: React.FC = () => {
   const { state } = useLocation();
   const [retrying, setRetrying] = useState(false);
   const { canAccess, getUpgradeMessage } = usePlanAccess();
-
+  useEffect(() => {
+    // Scroll to the top when the component mounts
+    window.scrollTo(0, 0);
+  }, []);
   // Set current session from navigation state if available
   useEffect(() => {
     if (state) {

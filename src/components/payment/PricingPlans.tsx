@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { RootState, AppDispatch } from '../../redux/store';
@@ -14,7 +14,10 @@ const PricingPlans: React.FC = () => {
   const { plans, loading } = useSelector((state: RootState) => state.payment);
   const { user } = useSelector((state: RootState) => state.auth);
   const [processingPayment, setProcessingPayment] = useState<string | null>(null);
-
+useEffect(() => {
+    // Scroll to the top when the component mounts
+    window.scrollTo(0, 0);
+  }, []);
   // Function to handle payment processing
   const handlePayment = async (plan: any) => {
     if (!user) return;

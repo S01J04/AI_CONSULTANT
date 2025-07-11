@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { Faq3 } from "../components/faq3";
 import ContactUs from "./ContactUs";
+import { useEffect } from "react";
 
 const faqData = {
   heading: "Frequently Asked Questions",
@@ -46,6 +47,10 @@ const faqData = {
 };
 
 function AboutUs() {
+  useEffect(() => {
+    // Scroll to the top when the component mounts
+    window.scrollTo(0, 0);
+  }, []);
   return (
     <div>
       <div className="sm:w-[100%] md:w-[70%] mx-auto my-20 p-10 shadow-md rounded-3xl text-center bg-white dark:bg-gray-900">

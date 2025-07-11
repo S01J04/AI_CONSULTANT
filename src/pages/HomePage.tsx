@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { MessageSquare, Calendar, Shield, Zap, Users, Award } from 'lucide-react';
 import {motion} from "framer-motion"
@@ -61,6 +61,10 @@ const logoData = {
   ],
 };  
 const HomePage: React.FC = () => {
+  useEffect(() => {
+    // Scroll to the top when the component mounts
+    window.scrollTo(0, 0);
+  }, []);
   return (
     <div className="bg-white overflow-x-hidden dark:bg-gray-900">
       {/* Hero Section */}

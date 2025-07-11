@@ -12,7 +12,10 @@ const AppointmentsPage: React.FC = () => {
   const { user } = useSelector((state: RootState) => state.auth);
   const appointment = useSelector((state: RootState) => state.appointment);
   const [activeView, setActiveView] = useState<'experts' | 'scheduler'>('experts');
-  
+  useEffect(() => {
+    // Scroll to the top when the component mounts
+    window.scrollTo(0, 0);
+  }, []);
   // Track if we're on mobile based on window width
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   
