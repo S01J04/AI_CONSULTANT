@@ -166,7 +166,7 @@ const HomePage: React.FC = () => {
           </div>
         </div>
       </div>
-      <Logos3 {...logoData} />
+      {/* <Logos3 {...logoData} /> */}
       {/* Testimonials */}
       <div className="bg-white dark:bg-gray-900 py-16 sm:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
