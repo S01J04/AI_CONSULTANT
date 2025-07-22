@@ -35,95 +35,93 @@ async function getPhonePeOAuthToken() {
 
 exports.initiatePhonePePayment = functions.https.onRequest((req, res) => {
   cors(req, res, async () => {
-    try {
-      if (req.method !== 'POST') {
-        return res.status(405).json({ success: false, error: 'Method Not Allowed' });
-      }
-
-      const { userId, planId, planName, price } = req.body;
-
-      if (!price || !planId) {
-        return res.status(400).json({ success: false, error: "Missing price or planId" });
-      }
-
-      console.log("✅ Incoming initiate payment request:", { userId, planId, planName, price });
-
-
-      // Generate unique merchantOrderId
-      const merchantOrderId = `TXN_${uuidv4()}`;
-
-      // Use origin header or fallback (change if needed)
-      const origin = req.headers.origin || 'http://localhost:5173';
-      const redirectUrl = `${origin}/payment/success?plan_id=${encodeURIComponent(planId)}&session_id=${merchantOrderId}`;
-
-      // Get OAuth token for PhonePe API
-      const token = await getPhonePeOAuthToken();
-      console.log('✅ Access Token:', token);
-
-      // Build payment payload
-      const paymentBody = {
-        merchantOrderId,
-        amount: price * 100, // in paise!
-        expireAfter: 1200,
-        paymentFlow: {
-          type: 'PG_CHECKOUT',
-          message: `Payment for plan: ${planName}`,
-          merchantUrls: {
-            redirectUrl,
-          },
-        },
-      };
-
-      console.log('✅ Payment Payload:', paymentBody);
-
-      // Call PhonePe API to create payment order
-      let payRes;
+  (  async () => {
       try {
-        payRes = await axios.post(PAYMENT_URL, paymentBody, {
-          headers: {
-            Authorization: `O-Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
+        if (req.method !== 'POST') {
+          return res.status(405).json({ success: false, error: 'Method Not Allowed' });
+        }
+
+        const { userId, planId, planName, price } = req.body;
+
+        if (!price || !planId || !userId) {
+          return res.status(400).json({ success: false, error: "Missing userId, price, or planId" });
+        }
+
+        console.log("✅ Initiating payment for:", { userId, planId, planName, price });
+
+        const merchantOrderId = `TXN_${uuidv4()}`;
+
+        // 1️⃣ Save payment doc first
+        await db.collection("payments").doc(merchantOrderId).set({
+          userId,
+          planId,
+          planName,
+          amount: price,
+          status: "pending",
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
-      } catch (err) {
-        console.error('❌ PhonePe API payment failed:', err?.response?.data || err.message);
-        return res.status(500).json({ success: false, error: 'Payment initiation failed', details: err?.response?.data || err.message });
+
+        console.log(`✅ Firestore: Payment doc created with ID ${merchantOrderId}`);
+
+        const origin = req.headers.origin || 'http://localhost:5173';
+        const redirectUrl = `${origin}/payment/success?plan_id=${encodeURIComponent(planId)}&session_id=${merchantOrderId}`;
+
+        // 2️⃣ Get OAuth token from PhonePe
+        const token = await getPhonePeOAuthToken();
+        console.log('✅ Access Token retrieved');
+
+        // 3️⃣ Build payment payload
+        const paymentBody = {
+          merchantOrderId,
+          amount: price * 100, // in paise
+          expireAfter: 1200,
+          paymentFlow: {
+            type: 'PG_CHECKOUT',
+            message: `Payment for plan: ${planName}`,
+            merchantUrls: {
+              redirectUrl,
+            },
+          },
+        };
+
+        console.log('✅ Payment payload ready');
+
+        // 4️⃣ Send request to PhonePe
+        let payRes;
+        try {
+          payRes = await axios.post(PAYMENT_URL, paymentBody, {
+            headers: {
+              Authorization: `O-Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+        } catch (err) {
+          console.error('❌ PhonePe API payment failed:', err?.response?.data || err.message);
+          return res.status(500).json({ success: false, error: 'Payment initiation failed', details: err?.response?.data || err.message });
+        }
+
+        const phonepeRedirectUrl = payRes?.data?.redirectUrl;
+
+        if (!phonepeRedirectUrl) {
+          console.error('❌ Missing redirect URL in PhonePe response');
+          return res.status(500).json({ success: false, error: 'No redirect URL returned from PhonePe' });
+        }
+
+        // 5️⃣ Return redirect info
+        return res.status(200).json({
+          success: true,
+          redirectUrl: phonepeRedirectUrl,
+          sessionId: merchantOrderId,
+        });
+
+      } catch (error) {
+        console.error("❌ initiatePhonePePayment error:", error?.response?.data || error.message);
+        return res.status(500).json({
+          success: false,
+          error: error?.response?.data || error.message || "Unknown error",
+        });
       }
-
-      console.log('✅ PhonePe API Response:', payRes.data);
-
-      const phonepeRedirectUrl = payRes?.data?.redirectUrl;
-
-      if (!phonepeRedirectUrl) {
-        console.error('❌ Missing redirect URL in PhonePe response');
-        return res.status(500).json({ success: false, error: 'No redirect URL returned from PhonePe' });
-      }
-
-      // Create Firestore payment doc with status 'pending' only after successful payment initiation
-      await db.collection("payments").doc(merchantOrderId).set({
-        userId: userId || null,
-        planId,
-        planName,
-        amount: price , // convert to paise
-        status: "pending",
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-      console.log(`Payment doc created with ID ${merchantOrderId} and status 'pending'`);
-
-      // Return redirect URL + sessionId to frontend
-      return res.status(200).json({
-        success: true,
-        redirectUrl: phonepeRedirectUrl,
-        sessionId: merchantOrderId,
-      });
-
-    } catch (error) {
-      console.error("❌ initiatePhonePePayment error:", error?.response?.data || error.message);
-      return res.status(500).json({
-        success: false,
-        error: error?.response?.data || error.message || "Unknown error",
-      });
-    }
+    })();
   });
 });
 
