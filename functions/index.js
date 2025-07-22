@@ -207,7 +207,7 @@ exports.verifyPaymentStatus = functions.https.onRequest((req, res) => {
 
 async function updateUserPlanBackend(userId, planId, planName) {
   if (!userId || !planId) throw new Error("Missing userId or planId");
-
+  console.log('user',userId)
   const userRef = db.collection('users').doc(userId); // ✅ FIXED: use admin.firestore()
   const userDoc = await userRef.get(); // ✅ FIXED
   if (!userDoc.exists) throw new Error("User not found");
