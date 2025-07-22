@@ -50,17 +50,6 @@ exports.initiatePhonePePayment = functions.https.onRequest((req, res) => {
         console.log("✅ Initiating payment for:", { userId, planId, planName, price });
 
         const merchantOrderId = `TXN_${uuidv4()}`;
-
-        // 1️⃣ Save payment doc first
-        await db.collection("payments").doc(merchantOrderId).set({
-          userId,
-          planId,
-          planName,
-          amount: price,
-          status: "pending",
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-
         console.log(`✅ Firestore: Payment doc created with ID ${merchantOrderId}`);
 
         const origin = req.headers.origin || 'http://localhost:5173';
