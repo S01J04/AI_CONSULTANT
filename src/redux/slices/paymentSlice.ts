@@ -54,7 +54,7 @@ const initialState: PaymentState = {
       id: 'premium',
       name: 'Premium Plan',
       description: 'Full access to AI consultation with premium features',
-      price: 999,
+      price: 799,
       currency: 'INR',
       duration: 30,
       features: [
@@ -69,7 +69,7 @@ const initialState: PaymentState = {
       id: 'pay-per-call',
       name: 'Pay Per Call',
       description: 'Book a single appointment with an expert',
-      price: 299,
+      price: 599,
       currency: 'INR',
       duration: 1,
       features: [

@@ -8,7 +8,6 @@ import { Check, X } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { stripe_call } from './cloudefunctions/stripefunction';
 import { db } from '../../firebase/config';
-import { doc, setDoc } from 'firebase/firestore';
 
 const PricingPlans: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -231,16 +230,6 @@ useEffect(() => {
     console.log('Payment initiation response:', data);
     if (data.redirectUrl) {
       // Go to PhonePe payment page
-       await setDoc(
-  doc(db, "payments", data.sessionId),
-  {
-    userId: user.uid,
-    planId,
-    planName: plan.name,
-    amount: plan.price,
-    status: "pending",
-  }
-);
       window.location.href = data.redirectUrl;
     } else {
       alert('Failed to initiate payment.');
