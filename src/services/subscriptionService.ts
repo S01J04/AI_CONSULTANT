@@ -79,7 +79,27 @@ export const checkAndResetExpiredSubscription = async (user: UserData | null, fo
       const latestUserData = userDoc.data() as UserData;
 
       // Double-check with latest data (or skip double-check if forced by timer)
-      if (forceCheck || isSubscriptionExpired(latestUserData)) {
+      console.log('--- Subscription Reset Debug ---');
+      console.log('Latest Firestore user data:', latestUserData);
+      console.log('plan:', latestUserData.plan);
+      console.log('planName:', latestUserData.planName);
+      console.log('planExpiryDate:', latestUserData.planExpiryDate);
+      console.log('planUpdatedAt:', latestUserData.planUpdatedAt);
+      console.log('hadSubscriptionBefore:', latestUserData.hadSubscriptionBefore);
+      const expiryDate = latestUserData.planExpiryDate ? new Date(latestUserData.planExpiryDate) : null;
+      const now = new Date();
+      console.log('Current time:', now.toISOString());
+      if (forceCheck || (isSubscriptionExpired(latestUserData) && (!expiryDate || now > expiryDate))) {
+        if (expiryDate && now <= expiryDate) {
+          console.log(`⏸️ Not resetting: planExpiryDate (${expiryDate.toISOString()}) is in the future for user ${user.uid}`);
+          return false;
+        }
+        console.log('Reason for reset:', {
+          forceCheck,
+          isExpired: isSubscriptionExpired(latestUserData),
+          expiryDateNull: !expiryDate,
+          expiryDatePast: expiryDate && now > expiryDate
+        });
         console.log(`🔄 Updating Firestore to reset subscription for user ${user.uid}`);
 
         // Update the user document to remove the plan
@@ -124,34 +144,19 @@ export const checkAndResetExpiredSubscription = async (user: UserData | null, fo
  */
 export const initSubscriptionService = (user: UserData | null) => {
   if (!user) return;
-
-  // Check for expired subscriptions immediately
-  checkAndResetExpiredSubscription(user)
-    .then(wasReset => {
-      if (wasReset) {
-        console.log('Subscription was reset due to expiration');
-        // You could dispatch an action here to update the UI
-        // or show a notification to the user
-      }
-    })
-    .catch(error => {
-      console.error('Error in subscription service initialization:', error);
-    });
-
-  // You could also set up a periodic check here if needed
-  // For example, check every hour while the app is running
-  /*
-  setInterval(() => {
+  // Instead of running immediately, wait a few seconds
+  setTimeout(() => {
+     console.log(`Initializing subscription service for user ${user.uid}`);
     checkAndResetExpiredSubscription(user)
       .then(wasReset => {
         if (wasReset) {
           console.log('Subscription was reset due to expiration');
-          // Update UI or show notification
         }
       })
       .catch(error => {
-        console.error('Error in periodic subscription check:', error);
+        console.error('Error in subscription check:', error);
       });
-  }, 60 * 60 * 1000); // Check every hour
-  */
+  }, 30 * 1000); // 20 second grace
+  // Check for expired subscriptions immediately
+ 
 };

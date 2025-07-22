@@ -170,171 +170,60 @@ export const fetchUserPayments = createAsyncThunk(
   }
 );
 
+
 export const processPayment = createAsyncThunk(
   'payment/processPayment',
-  async ({
-    userId,
-    planId,
-    amount,
-    currency,
-    paymentMethod
-  }: {
-    userId: string;
-    planId: string;
-    amount: number;
-    currency: string;
-    paymentMethod: string
-  }, { rejectWithValue }) => {
+  async (
+    {
+      userId,
+      planId,
+      amount,
+      currency,
+      paymentMethod,
+    }: {
+      userId: string;
+      planId: string;
+      amount: number;
+      currency: string;
+      paymentMethod: string;
+    },
+    { rejectWithValue }
+  ) => {
     try {
-      // Validate inputs
       if (!userId) return rejectWithValue('User ID is required');
       if (!planId) return rejectWithValue('Plan ID is required');
       if (!amount || amount <= 0) return rejectWithValue('Invalid payment amount');
 
-      // Get the plan details
-      const plan = initialState.plans.find(p => p.id === planId);
-      if (!plan) return rejectWithValue('Invalid plan selected');
+      const transactionId = 'txn_' + Math.random().toString(36).slice(2);
+      const orderId = 'order_' + Math.random().toString(36).slice(2);
 
-      // Simulate a payment processing UI
-      // In a real app, this would open Razorpay or another payment gateway
-      console.log('Processing payment for plan:', plan.name);
-      console.log('Amount:', amount, currency);
-      console.log('Payment method:', paymentMethod);
+      const paymentRecord = {
+        userId,
+        planId,
+        amount,
+        currency,
+        paymentMethod,
+        status: 'completed',
+        transactionId,
+        orderId,
+        createdAt: serverTimestamp(),
+      };
 
-      // Simulate payment processing delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      console.log('📌 Saving local payment record:', paymentRecord);
 
-      // Generate a fake transaction ID and order ID
-      const transactionId = 'txn_' + Math.random().toString(36).substring(2, 15);
-      const orderId = 'order_' + Math.random().toString(36).substring(2, 15);
-      const paymentId = 'pay_' + Math.random().toString(36).substring(2, 15);
+      const paymentRef = await addDoc(collection(db, 'payments'), paymentRecord);
 
-      // Create a payment record in Firestore
-      let paymentData;
-      let paymentDocId;
-
-      try {
-        // First, prepare the payment data
-        // Make sure all fields are properly formatted and valid
-        const firestorePaymentData = {
-          userId: userId.toString(), // Ensure userId is a string
-          planId: planId.toString(), // Ensure planId is a string
-          planName: plan.name || 'Unknown Plan',
-          amount: Number(amount) || 0, // Ensure amount is a number
-          currency: currency || 'USD',
-          status: 'completed',
-          paymentMethod: paymentMethod || 'card',
-          transactionId: transactionId,
-          orderId: orderId,
-          createdAt: serverTimestamp(),
-          timestamp: Date.now(), // Add a regular timestamp as backup
-        };
-
-        console.log('Attempting to save payment to Firestore:', firestorePaymentData);
-
-        // Add to Firestore
-        const paymentRef = collection(db, 'payments');
-        const paymentDoc = await addDoc(paymentRef, firestorePaymentData);
-        paymentDocId = paymentDoc.id;
-
-        console.log('Payment successfully saved to Firestore with ID:', paymentDocId);
-
-        // Create the return data with the Firestore document ID
-        // Make sure it matches the format expected by the application
-        paymentData = {
-          id: paymentDocId,
-          userId: userId.toString(),
-          planId: planId.toString(),
-          planName: plan.name || 'Unknown Plan',
-          amount: Number(amount) || 0,
-          currency: currency || 'USD',
-          status: 'completed',
-          paymentMethod: paymentMethod || 'card',
-          transactionId: transactionId,
-          orderId: orderId,
-          createdAt: Date.now(),
-        };
-
-        console.log('Payment data created successfully:', paymentData);
-
-        console.log('Payment successfully stored in Firestore with ID:', paymentDocId);
-      } catch (firestoreError: any) {
-        console.error('Error storing payment in Firestore:', firestoreError);
-
-        // Log detailed error information for debugging
-        console.error('Firestore error details:', {
-          code: firestoreError.code,
-          message: firestoreError.message,
-          stack: firestoreError.stack,
-        });
-
-        // If Firestore fails, create a local payment record as fallback
-        paymentDocId = paymentId;
-        paymentData = {
-          id: paymentDocId,
-          userId: userId.toString(),
-          planId: planId.toString(),
-          planName: plan.name || 'Unknown Plan',
-          amount: Number(amount) || 0,
-          currency: currency || 'USD',
-          status: 'completed',
-          paymentMethod: paymentMethod || 'card',
-          transactionId: transactionId,
-          orderId: orderId,
-          createdAt: Date.now(),
-        };
-
-        console.log('Created local payment record as fallback:', paymentData);
-
-        // Store in localStorage as backup
-        try {
-          const existingPayments = JSON.parse(localStorage.getItem('payments') || '[]');
-          existingPayments.push(paymentData);
-          localStorage.setItem('payments', JSON.stringify(existingPayments));
-          console.log('Payment stored in localStorage as fallback');
-        } catch (storageError) {
-          console.error('Error storing payment in localStorage:', storageError);
-        }
-      }
-
-      // Return the payment data
-      return paymentData;
-    } catch (error: any) {
-      console.error('Payment processing error:', error);
-
-      // Get a more detailed error message
-      let errorMessage = 'Payment processing failed';
-
-      if (error.code) {
-        // Firebase error codes
-        switch (error.code) {
-          case 'permission-denied':
-            errorMessage = 'You do not have permission to make payments';
-            break;
-          case 'resource-exhausted':
-            errorMessage = 'Payment service is currently unavailable. Please try again later.';
-            break;
-          case 'unauthenticated':
-            errorMessage = 'Please log in to make a payment';
-            break;
-          default:
-            errorMessage = `Payment error: ${error.code}`;
-        }
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-
-      // Log detailed error for debugging
-      console.log('Detailed payment error:', {
-        code: error.code,
-        message: error.message,
-        stack: error.stack
-      });
-
-      return rejectWithValue(errorMessage);
+      return {
+        ...paymentRecord,
+        id: paymentRef.id,
+      };
+    } catch (err: any) {
+      console.error('❌ Error saving payment record:', err);
+      return rejectWithValue(err.message || 'Unknown error');
     }
   }
 );
+
 
 const paymentSlice = createSlice({
   name: 'payment',

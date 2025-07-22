@@ -8,144 +8,135 @@ import { processPayment } from '../../redux/slices/paymentSlice';
 import { markUserProcessingPayment, unmarkUserProcessingPayment } from '../../services/subscriptionService';
 
 const PaymentSuccess: React.FC = () => {
+  // Local lock to prevent expiry checks during payment processing
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch<AppDispatch>();
   const { user } = useSelector((state: RootState) => state.auth);
   const { plans } = useSelector((state: RootState) => state.payment);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const hasProcessedPayment = useRef(false); // Add this to prevent multiple processing
+  const [verified, setVerified] = useState(false); // NEW: track if payment is verified
+
+  const hasProcessedPayment = useRef(false); // prevent duplicate processing
 
   const queryParams = new URLSearchParams(location.search);
   const sessionId = queryParams.get('session_id');
   const planId = queryParams.get('plan_id');
   const planName = queryParams.get('plan') || 'Premium';
+useEffect(() => {
+  console.log('Redux user updated:', user);
+}, [user]);
+  // 1️⃣ Verify payment status from backend function
+useEffect(() => {
+  if (!sessionId) {
+    setError('Missing session ID');
+    setLoading(false);
+    return;
+  }
 
-  useEffect(() => {
-    // Only process payment once
-    if (hasProcessedPayment.current) {
+  async function verifyPayment() {
+    try {
+      setLoading(true);
+      setIsProcessingPayment(true); // Lock: start processing
+      if (user?.uid) {
+        markUserProcessingPayment(user.uid);
+      }
+      const res = await fetch(
+        `https://us-central1-rewiree-4ff17.cloudfunctions.net/verifyPaymentStatus?session_id=${sessionId}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',            
+          },
+        }
+      );
+      const data = await res.json();
+      console.log('Payment verification response:', data);
+      if (data.success && data.paymentStatus === 'completed') {
+        setVerified(true);
+        dispatch(updateUserPlan(data.user));
+        console.log('Updated user data in redux:', user);
+      } else {
+        setError('Payment verification failed. Redirecting...');
+        setTimeout(() => navigate('/pricing'), 3000);
+      }
+    } catch {
+      setError('Error verifying payment. Redirecting...');
+      setTimeout(() => navigate('/pricing'), 3000);
+    } finally {
+      setLoading(false);
+      // Unlock after a short delay to allow Redux/Firestore sync
+      setTimeout(() => setIsProcessingPayment(false), 2000);
+    }
+  }
+
+  verifyPayment();
+}, [sessionId, navigate, dispatch]);
+
+
+  // 2️⃣ Process payment only after verification
+useEffect(() => {
+  if (!verified || isProcessingPayment) return;
+  if (hasProcessedPayment.current) return;
+
+  const processSuccessfulPayment = async () => {
+    if (!user) {
+      setError('User not logged in');
+      setLoading(false);
       return;
     }
 
-    const processSuccessfulPayment = async () => {
-      if (!user) {
-        setError('User not logged in');
+    try {
+      console.log('🔒 Locking payment processing...');
+      hasProcessedPayment.current = true;
+
+      const plan = plans.find(p => p.id === planId) || plans.find(p => p.name === planName);
+
+      if (!plan) {
+        console.error('Plan not found, cannot record payment');
+        setError('Plan not found');
         setLoading(false);
         return;
       }
 
-      try {
-        console.log('Processing successful payment');
-        hasProcessedPayment.current = true; // Mark as processed to prevent duplicates
+      // ✅ The actual plan was already updated in Firestore in the Cloud Function!
+      // Here you only record a local app payment record for history/analytics
+      const resultAction = await dispatch(processPayment({
+        userId: user.uid,
+        planId: plan.id,
+        amount: plan.price,
+        currency: plan.currency,
+        paymentMethod: 'card',
+      }));
 
-        // Find the plan details
-        const plan = plans.find(p => p.id === planId);
-        if (!plan) {
-          console.log('Plan not found, using fallback plan name:', planName);
-          // Try to find by name if ID is not available
-          const planByName = plans.find(p => p.name === planName);
-          if (!planByName) {
-            setError('Plan not found');
-            setLoading(false);
-            return;
-          }
-        }
-
-        const selectedPlan = plan || plans.find(p => p.name === planName);
-        if (!selectedPlan) {
-          setError('Plan not found');
-          setLoading(false);
-          return;
-        }
-
-        console.log('Selected plan:', selectedPlan);
-
-        // 🔒 Lock the user to prevent subscription service from interfering
-        markUserProcessingPayment(user.uid);
-
-        try {
-          // 1. Update the user's plan in Firestore first (this is the source of truth)
-          console.log('Updating user plan in Firestore');
-          const planUpdateResult = await dispatch(updateUserPlan({
-            userId: user.uid,
-            planId: selectedPlan.id,
-            planName: selectedPlan.name
-          }));
-
-          // Check if the plan update was successful
-          if (updateUserPlan.fulfilled.match(planUpdateResult)) {
-            console.log('User plan updated successfully');
-
-            // 2. Then process the payment record in Redux
-            try {
-              console.log('Processing payment record in Redux');
-              const resultAction = await dispatch(processPayment({
-                userId: user.uid,
-                planId: selectedPlan.id,
-                amount: selectedPlan.price,
-                currency: selectedPlan.currency,
-                paymentMethod: 'card',
-              }));
-
-              if (processPayment.fulfilled.match(resultAction)) {
-                console.log('Payment record created successfully:', resultAction.payload);
-              } else {
-                console.warn('Payment record creation failed, but plan is already updated');
-              }
-
-              setLoading(false);
-            } catch (error: any) {
-              console.error('Error creating payment record:', error);
-              // Don't show error since the plan update was successful
-              console.log('Plan update was successful, payment record creation failed but this is not critical');
-              setLoading(false);
-            }
-          } else {
-            console.error('Plan update failed:', planUpdateResult.error);
-            setError('Failed to update subscription plan. Please contact support.');
-            setLoading(false);
-          }
-        } catch (error: any) {
-          console.error('Error in payment processing:', error);
-          setError('Failed to process payment. Please contact support.');
-          setLoading(false);
-        } finally {
-          // 🔓 Always unlock the user, even if there was an error
-          unmarkUserProcessingPayment(user.uid);
-        }
-      } catch (error: any) {
-        console.error('Error processing payment:', error);
-        setError('Failed to process payment. Please contact support.');
-        setLoading(false);
+      if (processPayment.fulfilled.match(resultAction)) {
+        console.log('Payment record saved successfully:', resultAction.payload);
+      } else {
+        console.warn('Failed to save local payment record.');
       }
-    };
 
-    if (user) {
-      console.log('Starting payment processing with session:', sessionId, 'plan:', planId || planName);
-      processSuccessfulPayment();
-    } else {
-      console.log('User not logged in yet, waiting...');
-      // If user isn't loaded yet, we'll wait
-      const timer = setTimeout(() => {
-        if (user) {
-          processSuccessfulPayment();
-        } else {
-          setError('User not logged in');
-          setLoading(false);
-        }
-      }, 2000);
-
-      return () => clearTimeout(timer);
+      setLoading(false);
+    } catch (error: any) {
+      console.error('Error in post-payment recording:', error);
+      setError('Could not finalize payment record.');
+      setLoading(false);
+    } finally {
+      unmarkUserProcessingPayment(user.uid);
     }
-  }, [user, planId, planName, sessionId, plans, dispatch]);
+  };
 
-  // Add a redirect to dashboard after 10 seconds
+  processSuccessfulPayment();
+}, [verified, isProcessingPayment, user, planId, planName, plans, dispatch]);
+
+  // Redirect to dashboard after 10 seconds if no error
   useEffect(() => {
     if (!loading && !error) {
       const timer = setTimeout(() => {
         navigate('/dashboard');
-      }, 10000);
+      }, 5000);
 
       return () => clearTimeout(timer);
     }

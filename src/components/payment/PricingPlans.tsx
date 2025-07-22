@@ -19,98 +19,98 @@ useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
   // Function to handle payment processing
-  const handlePayment = async (plan: any) => {
-    if (!user) return;
+  // const handlePayment = async (plan: any) => {
+  //   if (!user) return;
 
-    try {
-      // In a real app, this would open the Razorpay payment flow
-      // For now, we'll simulate a successful payment
-      const resultAction = await dispatch(processPayment({
-        userId: user.uid,
-        planId: plan.id,
-        amount: plan.price,
-        currency: plan.currency,
-        paymentMethod: 'card',
-      }));
+  //   try {
+  //     // In a real app, this would open the Razorpay payment flow
+  //     // For now, we'll simulate a successful payment
+  //     const resultAction = await dispatch(processPayment({
+  //       userId: user.uid,
+  //       planId: plan.id,
+  //       amount: plan.price,
+  //       currency: plan.currency,
+  //       paymentMethod: 'card',
+  //     }));
 
-      // Check if the payment was successful
-      if (processPayment.fulfilled.match(resultAction)) {
-        console.log('Payment successful:', resultAction.payload);
+  //     // Check if the payment was successful
+  //     if (processPayment.fulfilled.match(resultAction)) {
+  //       console.log('Payment successful:', resultAction.payload);
 
-        // Update the user's plan in Firestore
-        if (user) {
-          try {
-            await dispatch(updateUserPlan({
-              userId: user.uid,
-              planId: plan.id,
-              planName: plan.name
-            }));
-            console.log('User plan updated successfully');
+  //       // Update the user's plan in Firestore
+  //       if (user) {
+  //         try {
+  //           await dispatch(updateUserPlan({
+  //             userId: user.uid,
+  //             planId: plan.id,
+  //             planName: plan.name
+  //           }));
+  //           console.log('User plan updated successfully');
 
-            // Show a success toast notification
-            toast.success(`Payment successful! You are now subscribed to the ${plan.name} plan.`, {
-              position: "top-center",
-              autoClose: 5000,
-              hideProgressBar: false,
-              closeOnClick: true,
-              pauseOnHover: true,
-              draggable: true,
-            });
-          } catch (updateError) {
-            console.error('Error updating user plan:', updateError);
-            // Continue anyway - the payment was successful
-          }
-        }
+  //           // Show a success toast notification
+  //           toast.success(`Payment successful! You are now subscribed to the ${plan.name} plan.`, {
+  //             position: "top-center",
+  //             autoClose: 5000,
+  //             hideProgressBar: false,
+  //             closeOnClick: true,
+  //             pauseOnHover: true,
+  //             draggable: true,
+  //           });
+  //         } catch (updateError) {
+  //           console.error('Error updating user plan:', updateError);
+  //           // Continue anyway - the payment was successful
+  //         }
+  //       }
 
-        // Navigate to dashboard after successful payment
-        // navigate('/dashboard');
-      } else {
-        // Payment failed
-        console.error('Payment failed:', resultAction.payload);
+  //       // Navigate to dashboard after successful payment
+  //       // navigate('/dashboard');
+  //     } else {
+  //       // Payment failed
+  //       console.error('Payment failed:', resultAction.payload);
 
-        // Get a more detailed error message
-        let errorMessage = 'Unknown error';
-        const errorPayload = resultAction.payload;
+  //       // Get a more detailed error message
+  //       let errorMessage = 'Unknown error';
+  //       const errorPayload = resultAction.payload;
 
-        if (typeof errorPayload === 'string') {
-          errorMessage = errorPayload;
-        } else if (errorPayload && typeof errorPayload === 'object') {
-          errorMessage = (errorPayload as any).message || 'Payment processing error';
-        }
+  //       if (typeof errorPayload === 'string') {
+  //         errorMessage = errorPayload;
+  //       } else if (errorPayload && typeof errorPayload === 'object') {
+  //         errorMessage = (errorPayload as any).message || 'Payment processing error';
+  //       }
 
-        toast.error(`Payment failed: ${errorMessage}`);
-      }
-    } catch (error: any) {
-      console.error('Payment processing failed:', error);
+  //       toast.error(`Payment failed: ${errorMessage}`);
+  //     }
+  //   } catch (error: any) {
+  //     console.error('Payment processing failed:', error);
 
-      // Get a more detailed error message
-      let errorMessage = 'Unknown error';
+  //     // Get a more detailed error message
+  //     let errorMessage = 'Unknown error';
 
-      if (error.code) {
-        // Firebase error codes
-        switch (error.code) {
-          case 'permission-denied':
-            errorMessage = 'You do not have permission to make payments';
-            break;
-          case 'resource-exhausted':
-            errorMessage = 'Payment service is currently unavailable';
-            break;
-          case 'unauthenticated':
-            errorMessage = 'Please log in to make a payment';
-            break;
-          default:
-            errorMessage = `Error: ${error.code}`;
-        }
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
+  //     if (error.code) {
+  //       // Firebase error codes
+  //       switch (error.code) {
+  //         case 'permission-denied':
+  //           errorMessage = 'You do not have permission to make payments';
+  //           break;
+  //         case 'resource-exhausted':
+  //           errorMessage = 'Payment service is currently unavailable';
+  //           break;
+  //         case 'unauthenticated':
+  //           errorMessage = 'Please log in to make a payment';
+  //           break;
+  //         default:
+  //           errorMessage = `Error: ${error.code}`;
+  //       }
+  //     } else if (error.message) {
+  //       errorMessage = error.message;
+  //     }
 
-      toast.error(`Payment failed: ${errorMessage}`);
-    } finally {
-      // Reset processing state
-      setProcessingPayment(null);
-    }
-  };
+  //     toast.error(`Payment failed: ${errorMessage}`);
+  //   } finally {
+  //     // Reset processing state
+  //     setProcessingPayment(null);
+  //   }
+  // };
 
   const handleSelectPlan = async (planId: string) => {
     if (!user) {
@@ -195,94 +195,43 @@ useEffect(() => {
     });
     try {
       // Import the stripe_call function
-      const { stripe_call } = await import('./cloudefunctions/stripefunction.tsx');
+      // const { stripe_call } = await import('./cloudefunctions/stripefunction.tsx');
       
-      // Call the function with plan details
-      const result = await stripe_call({
-        userId: user.uid,
-        planId: plan.id,
-        planName: plan.name,
-        price: plan.price,
-        currency: plan.currency || 'inr'
-      });
-      
-      // Redirect to Stripe Checkout
-      const redirectResult = await result.redirect();
-      
-      if (redirectResult.error) {
-        throw new Error(redirectResult.error);
-      }
-      // console.log("stripe done")
-      // // In a real app, this would open the Razorpay payment flow
-      // // For now, we'll simulate a successful payment
-      // const resultAction = await dispatch(processPayment({
+      // // Call the function with plan details
+      // const result = await stripe_call({
       //   userId: user.uid,
       //   planId: plan.id,
-      //   amount: plan.price,
-      //   currency: plan.currency,
-      //   paymentMethod: 'card',
-      // }));
+      //   planName: plan.name,
+      //   price: plan.price,
+      //   currency: plan.currency || 'inr'
+      // });
+      
+      // // Redirect to Stripe Checkout
+      // const redirectResult = await result.redirect();
+     const response = await fetch(
+      'https://us-central1-rewiree-4ff17.cloudfunctions.net/initiatePhonePePayment',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.uid, // or "user_123" if not logged in
+          price: plan.price,
+          planName: plan.name,
+          planId: plan.id,
+        }),
+      }
+    );
 
-      // // Check if the payment was successful
-      // if (processPayment.fulfilled.match(resultAction)) {
-      //   console.log('Payment successful:', resultAction.payload);
-        
-      //   // Update the user's plan in Firestore
-      //   if (user) {
-      //     try {
-      //       await dispatch(updateUserPlan({
-      //         userId: user.uid,
-      //         planId: plan.id,
-      //         planName: plan.name
-      //       }));
-      //       console.log('User plan updated successfully');
-
-      //       // Show a success toast notification with reset information
-      //       toast.success(`Payment successful! `, {
-      //         position: "top-center",
-      //         autoClose: 5000,
-      //         hideProgressBar: false,
-      //         closeOnClick: true,
-      //         pauseOnHover: true,
-      //         draggable: true,
-      //       });
-      //     } catch (updateError) {
-      //       console.error('Error updating user plan:', updateError);
-      //       // Continue anyway - the payment was successful
-
-      //       // Still show a success toast for the payment with reset information
-      //       toast.success(`Payment successful! You are now subscribed to the ${plan.name} plan. Your appointments used count has been reset to 0 and any unused appointments have been added to your total.`, {
-      //         position: "top-center",
-      //         autoClose: 5000,
-      //       });
-      //     }
-      //   } else {
-      //     // Show a success toast even if we couldn't update the user plan
-      //     toast.success(`Payment successful! You are now subscribed to the ${plan.name} plan. Your appointments used count has been reset to 0 and any unused appointments have been added to your total.`, {
-      //       position: "top-center",
-      //       autoClose: 5000,
-      //     });
-      //   }
-
-      //   // Navigate to the payment success page with the plan name
-      //   navigate(`/payment/success?plan=${encodeURIComponent(plan.name)}`);
-      // } else {
-      //   // If the payment failed, show an error message
-      //   console.error('Payment failed:', resultAction);
-      //   const errorPayload = resultAction.payload;
-      //   let errorMessage = 'Unknown error';
-
-      //   // Try to extract the error message
-      //   if (typeof errorPayload === 'string') {
-      //     errorMessage = errorPayload;
-      //   } else if (errorPayload && typeof errorPayload === 'object') {
-      //     errorMessage = (errorPayload as any).message || 'Payment processing error';
-      //   }
-
-      //   toast.error(`Payment failed: ${errorMessage}`);
-      //   // Reset processing state
-      //   setProcessingPayment(null);
-      // }
+    const data = await response.json();
+    console.log('Payment initiation response:', data);
+    if (data.redirectUrl) {
+      // Go to PhonePe payment page
+      window.location.href = data.redirectUrl;
+    } else {
+      alert('Failed to initiate payment.');
+    }
     } catch (error: any) {
       console.error('Payment processing failed:', error);
 
