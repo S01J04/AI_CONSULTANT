@@ -3,6 +3,7 @@ const axios = require("axios");
 const cors = require("cors")({ origin: true }); // Allow CORS for all origins
 const { v4: uuidv4 } = require("uuid");
 const admin = require("firebase-admin");
+const { StandardCheckoutClient } = require("pg-sdk-node");
 
 admin.initializeApp();
 
@@ -10,6 +11,7 @@ const db = admin.firestore();
 
 const PHONEPE_BASE_URL = 'https://api-preprod.phonepe.com/apis/pg-sandbox';
 const PHONEPE_TOKEN_URL = `${PHONEPE_BASE_URL}/v1/oauth/token`;
+const PHONEPE_ORDER_STATUS_URL = `${PHONEPE_BASE_URL}/checkout/v2/order/{{merchantOrderId}}/status`;
 const PAYMENT_URL = `${PHONEPE_BASE_URL}/checkout/v2/pay`;
 
 const CLIENT_ID = process.env.PHONEPE_CLIENT_ID;
@@ -101,7 +103,7 @@ exports.initiatePhonePePayment = functions.https.onRequest((req, res) => {
         }
 
         const phonepeRedirectUrl = payRes?.data?.redirectUrl;
-
+        console.log('✅ PhonePe payment initiated successfully:', payRes);
         if (!phonepeRedirectUrl) {
           console.error('❌ Missing redirect URL in PhonePe response');
           return res.status(500).json({ success: false, error: 'No redirect URL returned from PhonePe' });
@@ -131,7 +133,6 @@ exports.initiatePhonePePayment = functions.https.onRequest((req, res) => {
 exports.verifyPaymentStatus = functions.https.onRequest((req, res) => {
   cors(req, res, () => {
     if (req.method === 'OPTIONS') {
-      // ✅ Proper CORS preflight handling
       res.set('Access-Control-Allow-Origin', '*');
       res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
       res.set('Access-Control-Allow-Headers', 'Content-Type');
@@ -145,59 +146,96 @@ exports.verifyPaymentStatus = functions.https.onRequest((req, res) => {
           return res.status(400).json({ success: false, error: "Missing session_id" });
         }
 
-        console.log(`🔍 Verifying payment status for session: ${sessionId}`);
+        const accessToken = await getPhonePeOAuthToken();
+
+        const phonepeRes = await axios.get(
+          PHONEPE_ORDER_STATUS_URL.replace('{{merchantOrderId}}', sessionId),
+          {
+            headers: {
+              Authorization: `O-Bearer ${accessToken}`,
+            },
+          }
+        );
+
+        console.log(`📦 PhonePe Response:`, phonepeRes);
+        const phonepeData = phonepeRes.data;
+
+        const phonepeStatus = phonepeData?.state;
+
+        if (!phonepeStatus) {
+          return res.status(500).json({ success: false, error: "Invalid PhonePe status response" });
+        }
 
         const paymentDocRef = db.collection("payments").doc(sessionId);
         const paymentDoc = await paymentDocRef.get();
 
         if (!paymentDoc.exists) {
-          console.warn(`Payment document not found for session: ${sessionId}`);
+          console.warn(`⚠️ Payment document not found for session: ${sessionId}`);
           return res.status(404).json({ success: false, error: "Payment session not found" });
         }
 
         const paymentData = paymentDoc.data();
         let currentStatus = paymentData.status || "pending";
 
-        if (currentStatus === "pending") {
+        if (phonepeStatus === "COMPLETED" && currentStatus === "pending") {
           await paymentDocRef.update({
             status: "completed",
+            phonepeState: phonepeStatus,
+            transactionId: phonepeData.paymentDetails?.[0]?.transactionId || null,
+            paymentMode: phonepeData.paymentDetails?.[0]?.paymentMode || null,
+            paidAmount: phonepeData.paymentDetails?.[0]?.amount || null,
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
           });
 
           await updateUserPlanBackend(paymentData.userId, paymentData.planId, paymentData.planName);
-
-          console.log(`✅ Payment status updated to 'completed' for session: ${sessionId}`);
           currentStatus = "completed";
+
+        } else if (["FAILED", "EXPIRED"].includes(phonepeStatus)) {
+          await paymentDocRef.update({
+            status: "failed",
+            phonepeState: phonepeStatus,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+          currentStatus = "failed";
+
+        } else if (phonepeStatus === "PENDING") {
+          // No DB update needed
+          currentStatus = "pending";
         } else {
-          console.log(`✅ Payment status is '${currentStatus}' for session: ${sessionId}`);
+          currentStatus = phonepeStatus.toLowerCase(); // For unexpected new status values
         }
 
-        // ✅ Always return fresh user data to frontend
         const userRef = db.collection("users").doc(paymentData.userId);
         const userDoc = await userRef.get();
-        console.log(`🔍 Fetched user data for userId: ${paymentData.userId}`);
+
         if (!userDoc.exists) {
           throw new Error("User not found after update");
         }
 
         const updatedUser = userDoc.data();
-        console.log(`✅ User data updated for userId: ${paymentData.userId}`, updatedUser);
 
         return res.json({
           success: true,
+          phonepeStatus,
           paymentStatus: currentStatus,
           user: updatedUser,
+          // orderId: phonepeData.orderId,
+          // transactionId: phonepeData.paymentDetails?.[0]?.transactionId || null,
+          // amount: phonepeData.paymentDetails?.[0]?.amount || null,
+          // paymentMode: phonepeData.paymentDetails?.[0]?.paymentMode || null,
         });
 
       } catch (error) {
         console.error("❌ verifyPaymentStatus error:", error);
         res.set('Access-Control-Allow-Origin', '*');
-        return res.status(500).json({ success: false, error: "Internal server error" });
+        return res.status(500).json({
+          success: false,
+          error: error?.response?.data || error.message || "Internal server error",
+        });
       }
     })();
   });
 });
-
 
 
 
