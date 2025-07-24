@@ -55,105 +55,105 @@ export interface ChatState {
 // Mock AI Response Function
 // -----------------------
 const handleAiResponse = async (message: string, sessionId: string): Promise<string> => {
-  // try {
-  //   // Limit message length to prevent context length exceeded errors
-  //   const MAX_MESSAGE_LENGTH = 1000; // Adjust based on your needs
-  //   let trimmedMessage = message;
+  try {
+    // Limit message length to prevent context length exceeded errors
+    const MAX_MESSAGE_LENGTH = 1000; // Adjust based on your needs
+    let trimmedMessage = message;
 
-  //   if (message.length > MAX_MESSAGE_LENGTH) {
-  //     console.log(`Message too long (${message.length} chars), trimming to ${MAX_MESSAGE_LENGTH} chars`);
-  //     trimmedMessage = message.substring(0, MAX_MESSAGE_LENGTH) + "... (message truncated due to length)";
-  //   }
+    if (message.length > MAX_MESSAGE_LENGTH) {
+      console.log(`Message too long (${message.length} chars), trimming to ${MAX_MESSAGE_LENGTH} chars`);
+      trimmedMessage = message.substring(0, MAX_MESSAGE_LENGTH) + "... (message truncated due to length)";
+    }
 
-  //   console.log('Sending request to:', `${import.meta.env.VITE_openAIKey}/chat/text`);
-  //   console.log('Request payload length:', trimmedMessage.length);
+    console.log('Sending request to:', `${import.meta.env.VITE_openAIKey}/chat/text`);
+    console.log('Request payload length:', trimmedMessage.length);
 
-  //   // Add timeout to the fetch request
-  //   const controller = new AbortController();
-  //   const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+    // Add timeout to the fetch request
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
 
-  //   const response = await fetch(`${import.meta.env.VITE_openAIKey}/chat/text`, {
-  //     method: 'POST',
-  //     headers: {
-  //       'Content-Type': 'application/json',
-  //     },
-  //     body: JSON.stringify({
-  //       user_id: sessionId,
-  //       message: trimmedMessage
-  //     }),
-  //     signal: controller.signal
-  //   }).finally(() => clearTimeout(timeoutId));
+    const response = await fetch(`${import.meta.env.VITE_openAIKey}/chat/text`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        user_id: sessionId,
+        message: trimmedMessage
+      }),
+      signal: controller.signal
+    }).finally(() => clearTimeout(timeoutId));
 
-  //   console.log('Response status:', response.status);
+    console.log('Response status:', response.status);
 
-  //   if (!response.ok) {
-  //     // Try to get more detailed error information
-  //     let errorText = '';
-  //     try {
-  //       errorText = await response.text();
-  //       console.log('Error response:', errorText);
-  //     } catch (e) {
-  //       console.error('Could not read error response:', e);
-  //     }
+    if (!response.ok) {
+      // Try to get more detailed error information
+      let errorText = '';
+      try {
+        errorText = await response.text();
+        console.log('Error response:', errorText);
+      } catch (e) {
+        console.error('Could not read error response:', e);
+      }
 
-  //     if (response.status === 500) {
-  //       throw new Error('Internal server error. The server is experiencing issues.');
-  //     } else if (response.status === 503) {
-  //       throw new Error('Service unavailable. The server is temporarily unavailable.');
-  //     } else if (response.status === 429) {
-  //       throw new Error('Too many requests. Please try again later.');
-  //     } else {
-  //       throw new Error(`Server responded with status: ${response.status}${errorText ? ` - ${errorText}` : ''}`);
-  //     }
-  //   }
+      if (response.status === 500) {
+        throw new Error('Internal server error. The server is experiencing issues.');
+      } else if (response.status === 503) {
+        throw new Error('Service unavailable. The server is temporarily unavailable.');
+      } else if (response.status === 429) {
+        throw new Error('Too many requests. Please try again later.');
+      } else {
+        throw new Error(`Server responded with status: ${response.status}${errorText ? ` - ${errorText}` : ''}`);
+      }
+    }
 
-  //   // Parse the response data
-  //   const data = await response.json();
-  //   console.log('Response data:', data);
+    // Parse the response data
+    const data = await response.json();
+    console.log('Response data:', data);
 
-  //   // Check for context length exceeded error in the response
-  //   if (data.detail && typeof data.detail === 'string' &&
-  //       (data.detail.includes('context_length_exceeded') ||
-  //        data.detail.includes('maximum context length'))) {
-  //     throw new Error('Message too long for AI to process. Please send a shorter message.');
-  //   }
+    // Check for context length exceeded error in the response
+    if (data.detail && typeof data.detail === 'string' &&
+        (data.detail.includes('context_length_exceeded') ||
+         data.detail.includes('maximum context length'))) {
+      throw new Error('Message too long for AI to process. Please send a shorter message.');
+    }
 
-  //   // Check for valid response format
-  //   if (!data || !data.message) {
-  //     throw new Error('Invalid response from server: missing message field');
-  //   }
+    // Check for valid response format
+    if (!data || !data.message) {
+      throw new Error('Invalid response from server: missing message field');
+    }
 
-  //   return data.message;
-  // } catch (error: any) {
-  //   console.error('AI response error:', error);
+    return data.message;
+  } catch (error: any) {
+    console.error('AI response error:', error);
 
-  //   // Handle different types of network errors
-  //   if (error.name === 'AbortError') {
-  //     throw new Error('Network error: Request timed out. Please try again.');
-  //   } else if (error instanceof TypeError && error.message.includes('fetch')) {
-  //     throw new Error('Network error. Please check your internet connection.');
-  //   } else if (error.message.includes('context_length_exceeded') ||
-  //              error.message.includes('maximum context length')) {
-  //     throw new Error('Message too long for AI to process. Please send a shorter message.');
-  //   }
+    // Handle different types of network errors
+    if (error.name === 'AbortError') {
+      throw new Error('Network error: Request timed out. Please try again.');
+    } else if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error('Network error. Please check your internet connection.');
+    } else if (error.message.includes('context_length_exceeded') ||
+               error.message.includes('maximum context length')) {
+      throw new Error('Message too long for AI to process. Please send a shorter message.');
+    }
 
-  //   throw error;
-  // }
+    throw error;
+  }
    //dummy AI response
-   const dummy_AI=[
-    "I'm here to help with your health and wellness questions. What specific concerns would you like to discuss today?",
-    "Thank you for your message. Based on what you've shared, I'd recommend focusing on balanced nutrition and regular exercise. Would you like more specific advice on either of these areas?",
-    "That's an interesting question about health. Research suggests that maintaining a consistent sleep schedule, staying hydrated, and managing stress are key factors for overall wellness. Would you like to know more about any of these topics?",
-    "I understand your concerns. Many people face similar health challenges. Some effective strategies include setting realistic goals, finding activities you enjoy, and building a support network. Which of these would you like to explore further?",
-    "Based on your question, I'd suggest consulting with a healthcare professional for personalized advice. In general, maintaining a balanced diet, regular physical activity, and adequate sleep can help with many health concerns.",
-    "Wellness is a journey, not a destination. Small, consistent changes often lead to the best long-term results. What small step could you take today to improve your wellbeing?",
-    "Mental health is just as important as physical health. Practices like mindfulness, regular social connection, and limiting screen time can all contribute to better mental wellbeing. Would you like more information on any of these approaches?",
-    "Thank you for sharing that with me. While I can provide general guidance, remember that everyone's health needs are unique. Have you discussed these concerns with your healthcare provider?",
-    "That's a common question. The latest research suggests that a combination of regular movement, nutritious eating, quality sleep, and stress management provides the foundation for good health. Which area would you like to focus on first?",
-    "I appreciate your interest in improving your health. Remember that sustainable changes happen gradually. What's one area of your wellness routine that you'd like to enhance?"
-  ]
-  // Return a random response from the array
-  return dummy_AI[Math.floor(Math.random() * dummy_AI.length)]
+  //  const dummy_AI=[
+  //   "I'm here to help with your health and wellness questions. What specific concerns would you like to discuss today?",
+  //   "Thank you for your message. Based on what you've shared, I'd recommend focusing on balanced nutrition and regular exercise. Would you like more specific advice on either of these areas?",
+  //   "That's an interesting question about health. Research suggests that maintaining a consistent sleep schedule, staying hydrated, and managing stress are key factors for overall wellness. Would you like to know more about any of these topics?",
+  //   "I understand your concerns. Many people face similar health challenges. Some effective strategies include setting realistic goals, finding activities you enjoy, and building a support network. Which of these would you like to explore further?",
+  //   "Based on your question, I'd suggest consulting with a healthcare professional for personalized advice. In general, maintaining a balanced diet, regular physical activity, and adequate sleep can help with many health concerns.",
+  //   "Wellness is a journey, not a destination. Small, consistent changes often lead to the best long-term results. What small step could you take today to improve your wellbeing?",
+  //   "Mental health is just as important as physical health. Practices like mindfulness, regular social connection, and limiting screen time can all contribute to better mental wellbeing. Would you like more information on any of these approaches?",
+  //   "Thank you for sharing that with me. While I can provide general guidance, remember that everyone's health needs are unique. Have you discussed these concerns with your healthcare provider?",
+  //   "That's a common question. The latest research suggests that a combination of regular movement, nutritious eating, quality sleep, and stress management provides the foundation for good health. Which area would you like to focus on first?",
+  //   "I appreciate your interest in improving your health. Remember that sustainable changes happen gradually. What's one area of your wellness routine that you'd like to enhance?"
+  // ]
+  // // Return a random response from the array
+  // return dummy_AI[Math.floor(Math.random() * dummy_AI.length)]
 
 };
 
