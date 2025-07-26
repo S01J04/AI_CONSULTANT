@@ -88,7 +88,7 @@ const VoiceCallWithAI = () => {
     const getAIResponse = async (text: string) => {
         speechSynthesis.cancel();
         try {
-            const res = await fetch(`${import.meta.env.VITE_openAIKey}/chat/text`, {
+            const res = await fetch(`http://127.0.0.1:8000/chat/text`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ user_id: userId, message: text }),
