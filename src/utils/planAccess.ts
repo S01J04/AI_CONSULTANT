@@ -2,8 +2,8 @@ import { UserData } from '../redux/slices/authSlice';
 import { PaymentPlan } from '../redux/slices/paymentSlice';
 
 // TESTING MODE CONFIGURATION
-export const TESTING_MODE = true; // Set to false to use actual expiration dates
-export const TEST_EXPIRY_MINUTES = 2; // 2 minutes for subscription expiry (consistent with UI)
+export const TESTING_MODE = false; // Set to false to use actual expiration dates
+export const TEST_EXPIRY_MINUTES = 10; // 10 minutes for subscription expiry (consistent with UI)
 
 // Get subscription expiry date
 export const getSubscriptionExpiryDate = (user: UserData | null): Date | null => {

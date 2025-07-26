@@ -150,7 +150,6 @@ const SubscriptionStatusCard: React.FC<SubscriptionStatusCardProps> = ({ classNa
                   </span>
                 </div>
               )}
-
               {/* Show expiry date */}
               {formattedExpiryDate && (
                 <div className="flex items-center">
@@ -169,24 +168,25 @@ const SubscriptionStatusCard: React.FC<SubscriptionStatusCardProps> = ({ classNa
               )}
 
               {/* Live Countdown Timer */}
-              {timeLeft && (
+              {/* Days Remaining Display */}
+              {daysRemaining !== undefined && (
                 <div className="flex items-center">
-                  <span className="text-sm font-medium text-gray-500 dark:text-gray-400 mr-2">Expires in:</span>
-                  <span className="text-sm font-bold text-red-600 dark:text-red-400 flex items-center">
-                    <Clock className="h-4 w-4 mr-1" />
-                    {timeLeft.hours > 0 ? `${timeLeft.hours.toString().padStart(2, '0')}:` : ''}
-                    {timeLeft.minutes.toString().padStart(2, '0')}:{timeLeft.seconds.toString().padStart(2, '0')}
+                  <span className="text-sm font-medium text-gray-500 dark:text-gray-400 mr-2">Time Remaining:</span>
+                  <span className="text-sm font-bold text-gray-900 dark:text-gray-100 flex items-center">
+                    <Clock className="h-4 w-4 mr-1 text-indigo-500" />
+                    {daysRemaining} {daysRemaining === 1 ? 'day' : 'days'}
                   </span>
-                  <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
-                    (Testing mode: 2-minute expiration)
-                  </span>
+                  {daysRemaining && timeLeft && (
+                    <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">
+                      ({timeLeft.hours}h {timeLeft.minutes}m {timeLeft.seconds}s)
+                    </span>
+                  )}
                 </div>
+
+
               )}
-
-
             </div>
           )}
-
           {/* No more trial access */}
 
           {isExpired && userPlan && (

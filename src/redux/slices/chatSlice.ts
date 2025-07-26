@@ -72,14 +72,16 @@ const handleAiResponse = async (message: string, sessionId: string): Promise<str
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
 
-    const response = await fetch(`${import.meta.env.VITE_openAIKey}/chat/text`, {
+    const response = await fetch(`http://127.0.0.1:8000/chat/text`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+         'Accept': 'text/event-stream'
       },
       body: JSON.stringify({
         user_id: sessionId,
-        message: trimmedMessage
+        message: trimmedMessage,
+         client_type: "web",
       }),
       signal: controller.signal
     }).finally(() => clearTimeout(timeoutId));

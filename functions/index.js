@@ -243,36 +243,48 @@ exports.verifyPaymentStatus = functions.https.onRequest((req, res) => {
 
 async function updateUserPlanBackend(userId, planId, planName) {
   if (!userId || !planId) throw new Error("Missing userId or planId");
-  console.log('user',userId)
-  const userRef = db.collection('users').doc(userId); // ✅ FIXED: use admin.firestore()
-  const userDoc = await userRef.get(); // ✅ FIXED
+
+  const userRef = db.collection('users').doc(userId);
+  const userDoc = await userRef.get();
   if (!userDoc.exists) throw new Error("User not found");
 
   const currentUserData = userDoc.data();
 
+  // Set appointments limit
   let appointmentsTotal = 0;
   if (planId === 'premium') appointmentsTotal = 2;
   else if (planId === 'pay-per-call') appointmentsTotal = 1;
 
-  const planDurationDays = planId === 'pay-per-call' ? 7 : 30;
+  const now = Date.now();
 
-  // const now = Date.now();
-  // const expiryDate = now + planDurationDays * 24 * 60 * 60 * 1000;
-const now = Date.now();
-const expiryDate = now + 2 * 60 * 1000;
+  // Set plan duration (✅ change this line if testing with 20 mins)
+  const planDurationMs = planId === 'pay-per-call'
+    ? 7 * 24 * 60 * 60 * 1000
+    : 30 * 24 * 60 * 60 * 1000;
+
+  // ✅ For 20-minute test mode:
+  // const planDurationMs = 20 * 60 * 1000;
+
+  let finalExpiryDate = now + planDurationMs;
 
   const isRenewal = currentUserData.plan === planId;
 
-  let finalExpiryDate = expiryDate;
-  if (isRenewal && currentUserData.planExpiryDate && currentUserData.planExpiryDate > now) {
-    finalExpiryDate = currentUserData.planExpiryDate + planDurationDays * 24 * 60 * 60 * 1000;
+  // If renewing and not yet expired, extend from current expiry
+  if (
+    isRenewal &&
+    currentUserData.planExpiryDate &&
+    currentUserData.planExpiryDate > now
+  ) {
+    finalExpiryDate = currentUserData.planExpiryDate + planDurationMs;
   }
 
+  // Total appointments = base + existing extra
   const baseAppointments = appointmentsTotal;
   const currentAdditionalAppointments = currentUserData.additionalAppointments || 0;
   const newAppointmentsTotal = baseAppointments + currentAdditionalAppointments;
 
-  const newAppointmentsResetDate = now + 30 * 24 * 60 * 60 * 1000;
+  // ✅ Reset appointments after same duration as plan
+  const newAppointmentsResetDate = now + planDurationMs;
 
   const updateData = {
     plan: planId,
@@ -286,7 +298,9 @@ const expiryDate = now + 2 * 60 * 1000;
     appointmentsUsed: 0,
   };
 
-  await userRef.update(updateData); // ✅ FIXED
+  await userRef.update(updateData);
 
-  console.log(`User ${userId} plan updated to ${planId} with expiry ${new Date(finalExpiryDate).toLocaleString()}`);
+  console.log(
+    `✅ User ${userId} upgraded to '${planId}' plan. Expires: ${new Date(finalExpiryDate).toLocaleString()}, Appointments reset: ${new Date(newAppointmentsResetDate).toLocaleString()}`
+  );
 }
