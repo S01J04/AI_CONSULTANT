@@ -54,109 +54,173 @@ export interface ChatState {
 // -----------------------
 // Mock AI Response Function
 // -----------------------
-const handleAiResponse = async (message: string, sessionId: string): Promise<string> => {
+// const handleAiResponse = async (message: string, sessionId: string): Promise<string> => {
+//   try {
+//     // Limit message length to prevent context length exceeded errors
+//     const MAX_MESSAGE_LENGTH = 1000; // Adjust based on your needs
+//     let trimmedMessage = message;
+
+//     if (message.length > MAX_MESSAGE_LENGTH) {
+//       console.log(`Message too long (${message.length} chars), trimming to ${MAX_MESSAGE_LENGTH} chars`);
+//       trimmedMessage = message.substring(0, MAX_MESSAGE_LENGTH) + "... (message truncated due to length)";
+//     }
+
+//     console.log('Sending request to:', `${import.meta.env.VITE_openAIKey}/chat/text`);
+//     console.log('Request payload length:', trimmedMessage.length);
+
+//     // Add timeout to the fetch request
+//     const controller = new AbortController();
+//     const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+
+//     const response = await fetch(`https://ai-consultant-chatbot-371140242198.asia-south1.run.app/chat/text`, {
+//       method: 'POST',
+//       headers: {
+//         'Content-Type': 'application/json',
+//          'Accept': 'text/event-stream'
+//       },
+//       body: JSON.stringify({
+//         user_id: sessionId,
+//         message: trimmedMessage,
+//          client_type: "web",
+//       }),
+//       // signal: controller.signal
+//     })
+//     // .finally(() => clearTimeout(timeoutId));
+
+//     console.log('Response status:', response.status);
+
+//     if (!response.ok) {
+//       // Try to get more detailed error information
+//       let errorText = '';
+//       try {
+//         errorText = await response.text();
+//         console.log('Error response:', errorText);
+//       } catch (e) {
+//         console.error('Could not read error response:', e);
+//       }
+
+//       if (response.status === 500) {
+//         throw new Error('Internal server error. The server is experiencing issues.');
+//       } else if (response.status === 503) {
+//         throw new Error('Service unavailable. The server is temporarily unavailable.');
+//       } else if (response.status === 429) {
+//         throw new Error('Too many requests. Please try again later.');
+//       } else {
+//         throw new Error(`Server responded with status: ${response.status}${errorText ? ` - ${errorText}` : ''}`);
+//       }
+//     }
+
+//     // Parse the response data
+//     const data = await response.json();
+//     console.log('Response data:', data);
+
+//     // Check for context length exceeded error in the response
+//     if (data.detail && typeof data.detail === 'string' &&
+//         (data.detail.includes('context_length_exceeded') ||
+//          data.detail.includes('maximum context length'))) {
+//       throw new Error('Message too long for AI to process. Please send a shorter message.');
+//     }
+
+//     // Check for valid response format
+//     if (!data || !data.message) {
+//       throw new Error('Invalid response from server: missing message field');
+//     }
+
+//     return data.message;
+//   } catch (error: any) {
+//     console.error('AI response error:', error);
+
+//     // Handle different types of network errors
+//     if (error.name === 'AbortError') {
+//       throw new Error('Network error: Request timed out. Please try again.');
+//     } else if (error instanceof TypeError && error.message.includes('fetch')) {
+//       throw new Error('Network error. Please check your internet connection.');
+//     } else if (error.message.includes('context_length_exceeded') ||
+//                error.message.includes('maximum context length')) {
+//       throw new Error('Message too long for AI to process. Please send a shorter message.');
+//     }
+
+//     throw error;
+//   }
+//    //dummy AI response
+//   //  const dummy_AI=[
+//   //   "I'm here to help with your health and wellness questions. What specific concerns would you like to discuss today?",
+//   //   "Thank you for your message. Based on what you've shared, I'd recommend focusing on balanced nutrition and regular exercise. Would you like more specific advice on either of these areas?",
+//   //   "That's an interesting question about health. Research suggests that maintaining a consistent sleep schedule, staying hydrated, and managing stress are key factors for overall wellness. Would you like to know more about any of these topics?",
+//   //   "I understand your concerns. Many people face similar health challenges. Some effective strategies include setting realistic goals, finding activities you enjoy, and building a support network. Which of these would you like to explore further?",
+//   //   "Based on your question, I'd suggest consulting with a healthcare professional for personalized advice. In general, maintaining a balanced diet, regular physical activity, and adequate sleep can help with many health concerns.",
+//   //   "Wellness is a journey, not a destination. Small, consistent changes often lead to the best long-term results. What small step could you take today to improve your wellbeing?",
+//   //   "Mental health is just as important as physical health. Practices like mindfulness, regular social connection, and limiting screen time can all contribute to better mental wellbeing. Would you like more information on any of these approaches?",
+//   //   "Thank you for sharing that with me. While I can provide general guidance, remember that everyone's health needs are unique. Have you discussed these concerns with your healthcare provider?",
+//   //   "That's a common question. The latest research suggests that a combination of regular movement, nutritious eating, quality sleep, and stress management provides the foundation for good health. Which area would you like to focus on first?",
+//   //   "I appreciate your interest in improving your health. Remember that sustainable changes happen gradually. What's one area of your wellness routine that you'd like to enhance?"
+//   // ]
+//   // // Return a random response from the array
+//   // return dummy_AI[Math.floor(Math.random() * dummy_AI.length)]
+
+// };
+const handleAiResponse = async (
+  message: string,
+  sessionId: string,
+  onChunk?: (chunk: string) => void
+): Promise<string> => {
   try {
-    // Limit message length to prevent context length exceeded errors
-    const MAX_MESSAGE_LENGTH = 1000; // Adjust based on your needs
+    const MAX_MESSAGE_LENGTH = 1000;
     let trimmedMessage = message;
-
     if (message.length > MAX_MESSAGE_LENGTH) {
-      console.log(`Message too long (${message.length} chars), trimming to ${MAX_MESSAGE_LENGTH} chars`);
-      trimmedMessage = message.substring(0, MAX_MESSAGE_LENGTH) + "... (message truncated due to length)";
+      trimmedMessage = message.substring(0, MAX_MESSAGE_LENGTH) + "... (message truncated)";
     }
-
-    console.log('Sending request to:', `${import.meta.env.VITE_openAIKey}/chat/text`);
-    console.log('Request payload length:', trimmedMessage.length);
-
-    // Add timeout to the fetch request
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
-
-    const response = await fetch(`http://127.0.0.1:8000/chat/text`, {
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    const response = await fetch(`https://ai-consultant-chatbot-371140242198.asia-south1.run.app/chat/text`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-         'Accept': 'text/event-stream'
+        'Accept': 'text/event-stream'
       },
       body: JSON.stringify({
         user_id: sessionId,
         message: trimmedMessage,
-         client_type: "web",
+        client_type: "web"
       }),
       signal: controller.signal
-    }).finally(() => clearTimeout(timeoutId));
-
-    console.log('Response status:', response.status);
-
+    });
+    clearTimeout(timeoutId);
     if (!response.ok) {
-      // Try to get more detailed error information
-      let errorText = '';
-      try {
-        errorText = await response.text();
-        console.log('Error response:', errorText);
-      } catch (e) {
-        console.error('Could not read error response:', e);
+      const errorText = await response.text();
+      throw new Error(`Server Error ${response.status}: ${errorText}`);
+    }
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let finalMessage = '';
+    while (reader) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value, { stream: true });
+      const lines = chunk.split('\n');
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const jsonStr = line.replace(/^data:\s*/, '').trim();
+          try {
+            const parsed = JSON.parse(jsonStr);
+            if (parsed.message) {
+              finalMessage += parsed.message;
+              if (onChunk) onChunk(finalMessage);
+            }
+          } catch (e) {
+            // Ignore parse errors for non-JSON lines
+          }
+        }
       }
-
-      if (response.status === 500) {
-        throw new Error('Internal server error. The server is experiencing issues.');
-      } else if (response.status === 503) {
-        throw new Error('Service unavailable. The server is temporarily unavailable.');
-      } else if (response.status === 429) {
-        throw new Error('Too many requests. Please try again later.');
-      } else {
-        throw new Error(`Server responded with status: ${response.status}${errorText ? ` - ${errorText}` : ''}`);
-      }
     }
-
-    // Parse the response data
-    const data = await response.json();
-    console.log('Response data:', data);
-
-    // Check for context length exceeded error in the response
-    if (data.detail && typeof data.detail === 'string' &&
-        (data.detail.includes('context_length_exceeded') ||
-         data.detail.includes('maximum context length'))) {
-      throw new Error('Message too long for AI to process. Please send a shorter message.');
-    }
-
-    // Check for valid response format
-    if (!data || !data.message) {
-      throw new Error('Invalid response from server: missing message field');
-    }
-
-    return data.message;
+    if (!finalMessage) throw new Error('No message returned from AI');
+    return finalMessage;
   } catch (error: any) {
-    console.error('AI response error:', error);
-
-    // Handle different types of network errors
     if (error.name === 'AbortError') {
-      throw new Error('Network error: Request timed out. Please try again.');
-    } else if (error instanceof TypeError && error.message.includes('fetch')) {
-      throw new Error('Network error. Please check your internet connection.');
-    } else if (error.message.includes('context_length_exceeded') ||
-               error.message.includes('maximum context length')) {
-      throw new Error('Message too long for AI to process. Please send a shorter message.');
+      throw new Error('Request timed out. Please try again.');
     }
-
     throw error;
   }
-   //dummy AI response
-  //  const dummy_AI=[
-  //   "I'm here to help with your health and wellness questions. What specific concerns would you like to discuss today?",
-  //   "Thank you for your message. Based on what you've shared, I'd recommend focusing on balanced nutrition and regular exercise. Would you like more specific advice on either of these areas?",
-  //   "That's an interesting question about health. Research suggests that maintaining a consistent sleep schedule, staying hydrated, and managing stress are key factors for overall wellness. Would you like to know more about any of these topics?",
-  //   "I understand your concerns. Many people face similar health challenges. Some effective strategies include setting realistic goals, finding activities you enjoy, and building a support network. Which of these would you like to explore further?",
-  //   "Based on your question, I'd suggest consulting with a healthcare professional for personalized advice. In general, maintaining a balanced diet, regular physical activity, and adequate sleep can help with many health concerns.",
-  //   "Wellness is a journey, not a destination. Small, consistent changes often lead to the best long-term results. What small step could you take today to improve your wellbeing?",
-  //   "Mental health is just as important as physical health. Practices like mindfulness, regular social connection, and limiting screen time can all contribute to better mental wellbeing. Would you like more information on any of these approaches?",
-  //   "Thank you for sharing that with me. While I can provide general guidance, remember that everyone's health needs are unique. Have you discussed these concerns with your healthcare provider?",
-  //   "That's a common question. The latest research suggests that a combination of regular movement, nutritious eating, quality sleep, and stress management provides the foundation for good health. Which area would you like to focus on first?",
-  //   "I appreciate your interest in improving your health. Remember that sustainable changes happen gradually. What's one area of your wellness routine that you'd like to enhance?"
-  // ]
-  // // Return a random response from the array
-  // return dummy_AI[Math.floor(Math.random() * dummy_AI.length)]
-
 };
 
 // Utility function to convert Firestore timestamps
@@ -268,36 +332,28 @@ export const sendMessage = createAsyncThunk<
       try {
 
 
-        const response = await handleAiResponse(message, sessionId);
-        // Turn off AI loading immediately after getting the response
-        dispatch(setAiLoading({ sessionId, loading: false }));
-
-        // Create AI message
-      const aiMessageId = Date.now().toString();
-      const initialAiMessage: Message = {
-        id: aiMessageId,
-        sender: "ai",
-        text: "",
-        timeStamp: Date.now()
-      };
+        // Typing effect for streamed AI response
+        const aiMessageId = Date.now().toString();
+        const initialAiMessage: Message = {
+          id: aiMessageId,
+          sender: "ai",
+          text: "",
+          timeStamp: Date.now()
+        };
         dispatch(addMessage({ sessionId, message: initialAiMessage }));
-
-        // Ensure response is defined before splitting
-        if (response) {
-          // Simulate typing effect
-          const words = response.split(' ');
-          for (let i = 0; i < words.length; i++) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-            fullText += (i === 0 ? "" : " ") + words[i];
-            dispatch(updateMessage({ sessionId, messageId: aiMessageId, text: fullText }));
-          }
-        } else {
-          // Handle case where response is undefined
-          fullText = "I'm sorry, I couldn't generate a response. Please try again.";
+        let fullText = "";
+        let firstChunk = true;
+        await handleAiResponse(message, sessionId, (partial) => {
+          fullText = partial;
           dispatch(updateMessage({ sessionId, messageId: aiMessageId, text: fullText }));
-      }
-      setinputLoading(false);
-      setMessage("");
+          if (firstChunk) {
+            dispatch(setAiLoading({ sessionId, loading: false }));
+            firstChunk = false;
+          }
+        });
+                    setinputLoading(false);
+
+        setMessage("");
       } catch (error: any) {
         console.error("Error generating AI response:", error);
         dispatch(setAiLoading({ sessionId, loading: false }));
