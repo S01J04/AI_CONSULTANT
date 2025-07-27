@@ -50,6 +50,7 @@ const VoiceCallWithAI = () => {
         if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
             setBrowserSupported(false);
             setStatus('Speech Recognition not supported');
+            toast.error('Speech recognition is not supported in this browser. On mobile, only Chrome for Android is supported. iOS Safari and most other mobile browsers do NOT support voice recognition.');
         }
 
         // Try asking for mic permission on mount
@@ -471,6 +472,15 @@ const VoiceCallWithAI = () => {
                  <p className="text-lg text-center">{status}</p>
                  {/* {aiResponse && <p className="text-lg text-center">{aiResponse}</p>} */}
                  {transcribedText && <p className="text-lg text-center">Transcribed: {transcribedText}</p>}
+
+                 {!browserSupported && (
+                     <div className="bg-red-100 text-red-700 p-4 rounded text-center mb-4">
+                         <strong>Voice recognition is not supported in this browser.</strong><br />
+                         On mobile, only Chrome for Android is supported.<br />
+                         iOS Safari and most other mobile browsers do <b>NOT</b> support voice recognition.<br />
+                         Please use a compatible browser for voice chat features.
+                     </div>
+                 )}
 
                  <div className="flex justify-center">
                  <canvas ref={canvasRef} width={200} height={200} className="rounded-full bg-transparent" />
