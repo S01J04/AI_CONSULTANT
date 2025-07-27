@@ -17,6 +17,12 @@ const VoiceCallWithAI = () => {
     const navigate = useNavigate();
     const userId = user?.uid;
     const [isMicOn, setIsMicOn] = useState(false);
+    const isMicOnRef = useRef(isMicOn);
+    const isSpeakingRef = useRef(false);
+
+    useEffect(() => {
+        isMicOnRef.current = isMicOn;
+    }, [isMicOn]);
     const [status, setStatus] = useState('Idle');
     const [aiResponse, setAIResponse] = useState('');
     const [transcribedText, setTranscribedText] = useState('');
@@ -85,16 +91,91 @@ const VoiceCallWithAI = () => {
         draw();
     };
 
-    const getAIResponse = async (text: string) => {
+    // Streaming AI response with real-time speech
+    const getAIResponse = async (text: string, onChunk?: (chunk: string) => void) => {
         speechSynthesis.cancel();
         try {
-            const res = await fetch(`http://127.0.0.1:8000/chat/text`, {
+            const res = await fetch(`https://ai-consultant-chatbot-371140242198.asia-south1.run.app/chat/text`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
                 body: JSON.stringify({ user_id: userId, message: text }),
             });
-            const data = await res.json();
-            return data.message;
+            if (!res.ok) {
+                const errorText = await res.text();
+                throw new Error(`Server Error ${res.status}: ${errorText}`);
+            }
+            const reader = res.body?.getReader();
+            const decoder = new TextDecoder('utf-8');
+            let finalMessage = '';
+            let sentenceBuffer = '';
+            let speaking = false;
+            function speakSentence(sentence: string) {
+                if (!sentence.trim()) return;
+                speaking = true;
+                isSpeakingRef.current = true;
+                const clean = sentence.replace(/[*#@&^%$!()_+={}\[\]|\\:;"'<>,.?/~`]/g, '');
+                const utterance = new SpeechSynthesisUtterance(clean);
+                utterance.rate = 1.0;
+                utterance.pitch = 1.0;
+                utterance.volume = 1.0;
+                utterance.lang = 'en-US';
+                // Pause recognition while speaking
+                if (recognitionRef.current) {
+                    try { recognitionRef.current.stop(); } catch (e) {}
+                }
+                utterance.onend = () => {
+                    speaking = false;
+                    isSpeakingRef.current = false;
+                    // Resume recognition if mic is on and not speaking
+                    if (isMicOnRef.current && recognitionRef.current && !isSpeakingRef.current) {
+                        try { recognitionRef.current.start(); } catch (e) {}
+                    }
+                };
+                utterance.onerror = () => {
+                    speaking = false;
+                    isSpeakingRef.current = false;
+                    if (isMicOnRef.current && recognitionRef.current && !isSpeakingRef.current) {
+                        try { recognitionRef.current.start(); } catch (e) {}
+                    }
+                };
+                window.speechSynthesis.speak(utterance);
+            }
+            while (reader) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                const chunk = decoder.decode(value, { stream: true });
+                const lines = chunk.split('\n');
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        const jsonStr = line.replace(/^data:\s*/, '').trim();
+                        try {
+                            const parsed = JSON.parse(jsonStr);
+                            if (parsed.message) {
+                                finalMessage += parsed.message;
+                                if (onChunk) onChunk(finalMessage);
+                                sentenceBuffer += parsed.message;
+                                // Speak full sentences as they arrive
+                                let match;
+                                const sentenceRegex = /[^.!?]*[.!?]/g;
+                                while ((match = sentenceRegex.exec(sentenceBuffer)) !== null) {
+                                    const sentence = match[0];
+                                    speakSentence(sentence);
+                                }
+                                // Remove spoken sentences from buffer
+                                sentenceBuffer = sentenceBuffer.replace(/[^.!?]*[.!?]/g, '');
+                            }
+                        } catch (e) {
+                            // Ignore parse errors for non-JSON lines
+                        }
+                    }
+                }
+            }
+            // Speak any remaining text in the buffer (in case the last sentence is incomplete)
+            if (sentenceBuffer.trim().length > 0) {
+                speakSentence(sentenceBuffer);
+            }
+            if (!finalMessage) throw new Error('No message returned from AI');
+            return finalMessage;
         } catch (err) {
             console.error('AI fetch error:', err);
             return 'Error getting response';
@@ -183,9 +264,14 @@ const VoiceCallWithAI = () => {
                     // Process final results
                     if (isFinal && filtered.length > 0) {
                         try {
-                            const response = await getAIResponse(filtered);
+                            let lastText = '';
+                            const response = await getAIResponse(filtered, (partial) => {
+                                setAIResponse(partial);
+                                lastText = partial;
+                            });
                             setAIResponse(response);
-                            await speakResponse(response);
+                            // Optionally, speak any remaining text not spoken in the stream (edge case)
+                            // await speakResponse(response.substring(lastText.length));
                         } catch (err) {
                             console.error('Error processing AI response:', err);
                             toast.error('Error processing response');
@@ -244,8 +330,8 @@ const VoiceCallWithAI = () => {
             };
 
             recognition.onend = () => {
-                // Only restart if still active
-                if (isMicOn) {
+                // Only restart if still active and not speaking
+                if (isMicOnRef.current && !isSpeakingRef.current) {
                     setTimeout(() => {
                         try {
                             recognition.start();
