@@ -54,172 +54,154 @@ export interface ChatState {
 // -----------------------
 // Mock AI Response Function
 // -----------------------
-// const handleAiResponse = async (message: string, sessionId: string): Promise<string> => {
+
+// const handleAiResponse = async (
+//   message: string,
+//   sessionId: string,
+//   onChunk?: (chunk: string) => void
+// ): Promise<string> => {
 //   try {
-//     // Limit message length to prevent context length exceeded errors
-//     const MAX_MESSAGE_LENGTH = 1000; // Adjust based on your needs
+//     const MAX_MESSAGE_LENGTH = 1000;
 //     let trimmedMessage = message;
-
 //     if (message.length > MAX_MESSAGE_LENGTH) {
-//       console.log(`Message too long (${message.length} chars), trimming to ${MAX_MESSAGE_LENGTH} chars`);
-//       trimmedMessage = message.substring(0, MAX_MESSAGE_LENGTH) + "... (message truncated due to length)";
+//       trimmedMessage = message.substring(0, MAX_MESSAGE_LENGTH) + "... (message truncated)";
 //     }
-
-//     console.log('Sending request to:', `${import.meta.env.VITE_openAIKey}/chat/text`);
-//     console.log('Request payload length:', trimmedMessage.length);
-
-//     // Add timeout to the fetch request
 //     const controller = new AbortController();
-//     const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
-
+//     const timeoutId = setTimeout(() => controller.abort(), 15000);
 //     const response = await fetch(`https://ai-consultant-chatbot-371140242198.asia-south1.run.app/chat/text`, {
 //       method: 'POST',
 //       headers: {
 //         'Content-Type': 'application/json',
-//          'Accept': 'text/event-stream'
+//         'Accept': 'text/event-stream'
 //       },
 //       body: JSON.stringify({
 //         user_id: sessionId,
 //         message: trimmedMessage,
-//          client_type: "web",
+//         client_type: "web"
 //       }),
-//       // signal: controller.signal
-//     })
-//     // .finally(() => clearTimeout(timeoutId));
-
-//     console.log('Response status:', response.status);
-
+//       signal: controller.signal
+//     });
+//     clearTimeout(timeoutId);
 //     if (!response.ok) {
-//       // Try to get more detailed error information
-//       let errorText = '';
-//       try {
-//         errorText = await response.text();
-//         console.log('Error response:', errorText);
-//       } catch (e) {
-//         console.error('Could not read error response:', e);
+//       const errorText = await response.text();
+//       throw new Error(`Server Error ${response.status}: ${errorText}`);
+//     }
+//     console.log(response);
+//     const reader = response.body?.getReader();
+//     const decoder = new TextDecoder('utf-8');
+//     let finalMessage = '';
+//     while (reader) {
+//       const { done, value } = await reader.read();
+//       if (done) break;
+//       const chunk = decoder.decode(value, { stream: true });
+//       const lines = chunk.split('\n');
+//       for (const line of lines) {
+//         if (line.startsWith('data: ')) {
+//           const jsonStr = line.replace(/^data:\s*/, '').trim();
+//           try {
+//             const parsed = JSON.parse(jsonStr);
+//             if (parsed.message) {
+//               finalMessage += parsed.message;
+//               if (onChunk) onChunk(finalMessage);
+//             }
+//           } catch (e) {
+//             // Ignore parse errors for non-JSON lines
+//           }
+//         }
 //       }
-
-//       if (response.status === 500) {
-//         throw new Error('Internal server error. The server is experiencing issues.');
-//       } else if (response.status === 503) {
-//         throw new Error('Service unavailable. The server is temporarily unavailable.');
-//       } else if (response.status === 429) {
-//         throw new Error('Too many requests. Please try again later.');
-//       } else {
-//         throw new Error(`Server responded with status: ${response.status}${errorText ? ` - ${errorText}` : ''}`);
-//       }
 //     }
-
-//     // Parse the response data
-//     const data = await response.json();
-//     console.log('Response data:', data);
-
-//     // Check for context length exceeded error in the response
-//     if (data.detail && typeof data.detail === 'string' &&
-//         (data.detail.includes('context_length_exceeded') ||
-//          data.detail.includes('maximum context length'))) {
-//       throw new Error('Message too long for AI to process. Please send a shorter message.');
-//     }
-
-//     // Check for valid response format
-//     if (!data || !data.message) {
-//       throw new Error('Invalid response from server: missing message field');
-//     }
-
-//     return data.message;
+//     if (!finalMessage) throw new Error('No message returned from AI');
+//     return finalMessage;
 //   } catch (error: any) {
-//     console.error('AI response error:', error);
-
-//     // Handle different types of network errors
 //     if (error.name === 'AbortError') {
-//       throw new Error('Network error: Request timed out. Please try again.');
-//     } else if (error instanceof TypeError && error.message.includes('fetch')) {
-//       throw new Error('Network error. Please check your internet connection.');
-//     } else if (error.message.includes('context_length_exceeded') ||
-//                error.message.includes('maximum context length')) {
-//       throw new Error('Message too long for AI to process. Please send a shorter message.');
+//       throw new Error('Request timed out. Please try again.');
 //     }
-
 //     throw error;
 //   }
-//    //dummy AI response
-//   //  const dummy_AI=[
-//   //   "I'm here to help with your health and wellness questions. What specific concerns would you like to discuss today?",
-//   //   "Thank you for your message. Based on what you've shared, I'd recommend focusing on balanced nutrition and regular exercise. Would you like more specific advice on either of these areas?",
-//   //   "That's an interesting question about health. Research suggests that maintaining a consistent sleep schedule, staying hydrated, and managing stress are key factors for overall wellness. Would you like to know more about any of these topics?",
-//   //   "I understand your concerns. Many people face similar health challenges. Some effective strategies include setting realistic goals, finding activities you enjoy, and building a support network. Which of these would you like to explore further?",
-//   //   "Based on your question, I'd suggest consulting with a healthcare professional for personalized advice. In general, maintaining a balanced diet, regular physical activity, and adequate sleep can help with many health concerns.",
-//   //   "Wellness is a journey, not a destination. Small, consistent changes often lead to the best long-term results. What small step could you take today to improve your wellbeing?",
-//   //   "Mental health is just as important as physical health. Practices like mindfulness, regular social connection, and limiting screen time can all contribute to better mental wellbeing. Would you like more information on any of these approaches?",
-//   //   "Thank you for sharing that with me. While I can provide general guidance, remember that everyone's health needs are unique. Have you discussed these concerns with your healthcare provider?",
-//   //   "That's a common question. The latest research suggests that a combination of regular movement, nutritious eating, quality sleep, and stress management provides the foundation for good health. Which area would you like to focus on first?",
-//   //   "I appreciate your interest in improving your health. Remember that sustainable changes happen gradually. What's one area of your wellness routine that you'd like to enhance?"
-//   // ]
-//   // // Return a random response from the array
-//   // return dummy_AI[Math.floor(Math.random() * dummy_AI.length)]
-
 // };
+// =======================
+// AI RESPONSE HANDLER
+// =======================
 const handleAiResponse = async (
   message: string,
   sessionId: string,
   onChunk?: (chunk: string) => void
 ): Promise<string> => {
+  console.log("🔍 [AI] Starting handleAiResponse for session:", sessionId);
+
   try {
     const MAX_MESSAGE_LENGTH = 1000;
     let trimmedMessage = message;
+
     if (message.length > MAX_MESSAGE_LENGTH) {
+      console.warn("⚠️ [AI] Message too long, truncating.");
       trimmedMessage = message.substring(0, MAX_MESSAGE_LENGTH) + "... (message truncated)";
     }
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+    console.log("📡 [AI] Sending request to AI backend...");
     const response = await fetch(`https://ai-consultant-chatbot-371140242198.asia-south1.run.app/chat/text`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'text/event-stream'
       },
-      body: JSON.stringify({
-        user_id: sessionId,
-        message: trimmedMessage,
-        client_type: "web"
-      }),
+      body: JSON.stringify({ user_id: sessionId, message: trimmedMessage, client_type: "web" }),
       signal: controller.signal
     });
+
     clearTimeout(timeoutId);
+
     if (!response.ok) {
       const errorText = await response.text();
+      console.error("❌ [AI] Server Error:", errorText);
       throw new Error(`Server Error ${response.status}: ${errorText}`);
     }
-    console.log(response);
+
+    console.log("✅ [AI] Response stream started:", response);
     const reader = response.body?.getReader();
     const decoder = new TextDecoder('utf-8');
     let finalMessage = '';
+
     while (reader) {
       const { done, value } = await reader.read();
       if (done) break;
+
       const chunk = decoder.decode(value, { stream: true });
       const lines = chunk.split('\n');
+
       for (const line of lines) {
         if (line.startsWith('data: ')) {
           const jsonStr = line.replace(/^data:\s*/, '').trim();
+
           try {
             const parsed = JSON.parse(jsonStr);
+
             if (parsed.message) {
               finalMessage += parsed.message;
+              console.log("💬 [AI] Chunk received:", parsed.message);
+
               if (onChunk) onChunk(finalMessage);
             }
           } catch (e) {
-            // Ignore parse errors for non-JSON lines
+            console.warn("⚠️ [AI] Non-JSON line ignored:", line);
           }
         }
       }
     }
+
     if (!finalMessage) throw new Error('No message returned from AI');
+    console.log("✅ [AI] Final AI Response:", finalMessage);
     return finalMessage;
+
   } catch (error: any) {
     if (error.name === 'AbortError') {
+      console.error("⏳ [AI] Request timed out.");
       throw new Error('Request timed out. Please try again.');
     }
+    console.error("❌ [AI] Error in handleAiResponse:", error);
     throw error;
   }
 };
@@ -291,222 +273,327 @@ export const fetchUserSessions = createAsyncThunk<
 );
 
 // Send Message & Generate AI Response
+// export const sendMessage = createAsyncThunk<
+//   { sessionId: string; updatedTitle: string },
+//   { setinputLoading: (loading: boolean) => void; setMessage: (message: string) => void; message: string; sessionId: string },
+//   { state: RootState; dispatch: AppDispatch; rejectValue: string }
+// >(
+//   "chat/sendMessage",
+//   async (
+//     { setinputLoading, setMessage, message, sessionId },
+//     { dispatch, rejectWithValue }
+//   ) => {
+//     try {
+//       const userId = auth.currentUser?.uid;
+//       if (!userId) return rejectWithValue("User not found");
+
+//       // Create new session if needed
+//       if (!sessionId) {
+//         const action = await dispatch(createNewSession());
+//         if (createNewSession.fulfilled.match(action)) {
+//           sessionId = action.payload.id as string;
+//           if (!sessionId) return rejectWithValue("Failed to create session");
+//         } else {
+//           return rejectWithValue("Failed to create new session");
+//         }
+//       }
+
+//       // Create user message
+//       const newMessage: Message = {
+//         id: Date.now().toString(),
+//         sender: "user",
+//         text: message,
+//         timeStamp: Date.now()
+//       };
+
+//       // Update UI immediately
+//       dispatch(addMessage({ sessionId, message: newMessage }));
+//       dispatch(setAiLoading({ sessionId, loading: true }));
+
+//       // Generate AI response
+//       let fullText = "";
+//       try {
+
+
+//         // Typing effect for streamed AI response
+//         const aiMessageId = Date.now().toString();
+//         const initialAiMessage: Message = {
+//           id: aiMessageId,
+//           sender: "ai",
+//           text: "",
+//           timeStamp: Date.now()
+//         };
+//         dispatch(addMessage({ sessionId, message: initialAiMessage }));
+//         let fullText = "";
+//         let firstChunk = true;
+//         await handleAiResponse(message, sessionId, (partial) => {
+//           fullText = partial;
+//           dispatch(updateMessage({ sessionId, messageId: aiMessageId, text: fullText }));
+//           if (firstChunk) {
+//             dispatch(setAiLoading({ sessionId, loading: false }));
+//             firstChunk = false;
+//           }
+//         });
+//                     setinputLoading(false);
+
+//         setMessage("");
+//       } catch (error: any) {
+//         console.error("Error generating AI response:", error);
+//         dispatch(setAiLoading({ sessionId, loading: false }));
+
+//         // Add an error message from the AI
+//         const aiErrorMessageId = Date.now().toString();
+//         let errorMessage = "I'm sorry, I encountered an error processing your request. Please try again later.";
+
+//         // Customize error message based on error type
+//         if (error.message?.includes('Network error') || error.message?.includes('fetch')) {
+//           errorMessage = "I'm having trouble connecting to the server. Please check your internet connection and try again.";
+//           dispatch(setNetworkError(true));
+//         } else if (error.message?.includes('timed out')) {
+//           errorMessage = "The request timed out. Please try again when you have a better connection.";
+//           dispatch(setNetworkError(true));
+//         } else if (error.message?.includes('status: 500') || error.message?.includes('Internal server error')) {
+//           errorMessage = "The server is experiencing issues. Please try again later.";
+//         } else if (error.message?.includes('missing message field') || error.message?.includes('Invalid response')) {
+//           errorMessage = "I received an invalid response from the server. This might be a temporary issue. Please try again.";
+//         } else if (error.message?.includes('context_length_exceeded') ||
+//                    error.message?.includes('maximum context length') ||
+//                    error.message?.includes('too long for AI')) {
+//           errorMessage = "Your message is too long for me to process. Please send a shorter message or break it into smaller parts.";
+//         }
+
+//         const aiErrorMessage: Message = {
+//           id: aiErrorMessageId,
+//           sender: "ai",
+//           text: errorMessage,
+//           timeStamp: Date.now()
+//         };
+
+//         // Show a toast notification for the error
+//         toast.error(`Error: ${error.message?.substring(0, 100)}`, {
+//           position: "top-right",
+//           autoClose: 5000,
+//           hideProgressBar: false,
+//           closeOnClick: true,
+//           pauseOnHover: true,
+//           draggable: true,
+//         });
+
+//         dispatch(addMessage({ sessionId, message: aiErrorMessage }));
+//         setinputLoading(false);
+//         setMessage("");
+//         return { sessionId, updatedTitle: "" };
+//       }
+
+//       // Update Firestore
+//       try {
+//         const chatRef = doc(db, "chatSessions", sessionId);
+//         const aiMessage = {
+//           id: Date.now().toString(),
+//           sender: "ai",
+//           text: fullText,
+//           timeStamp: Date.now()
+//         };
+
+//         await updateDoc(chatRef, {
+//           messages: arrayUnion(newMessage, aiMessage),
+//           updatedAt: serverTimestamp()
+//         });
+
+//         // Get user data to check plan and update chat count
+//         const userRef = doc(db, "users", userId);
+//         const userDoc = await getDoc(userRef);
+
+//         if (userDoc.exists()) {
+//           const userData = userDoc.data();
+//           const hasPremiumPlan = userData.plan === 'premium' || userData.plan === 'basic';
+
+//           // Only decrement chat count for non-premium users
+//           if (!hasPremiumPlan && userData.chatCount !== undefined) {
+//             // Calculate new chat count
+//             const newChatCount = Math.max(0, userData.chatCount - 1);
+
+//             // Update Firestore
+//             await updateDoc(userRef, {
+//               chatCount: newChatCount
+//             });
+
+//             // Update Redux state
+//             dispatch(updateChatCount({
+//               uid: userId,
+//               chatCount: newChatCount
+//             }));
+//           }
+//         }
+
+//         // Update title if this is one of the first messages
+//       const updatedDoc = await getDoc(chatRef);
+//         const updatedData = updatedDoc.data();
+//         const updatedMessages = mapFirestoreMessages(updatedData?.messages || []);
+
+//       if (updatedMessages.length > 0 && updatedMessages.length < 4) {
+//           const updatedTitle = updatedMessages[0].text.slice(0, 50) + (updatedMessages[0].text.length > 50 ? '...' : '');
+//         await updateDoc(chatRef, {
+//           title: updatedTitle,
+//           updatedAt: serverTimestamp()
+//         });
+
+//           // Refresh sessions to get the updated title
+//           dispatch(fetchUserSessions());
+
+
+
+//           // Cleanup
+//           return { sessionId, updatedTitle };
+//         }
+
+
+
+
+
+//         // Cleanup
+//         setinputLoading(false);
+//         setMessage("");
+
+//         return { sessionId, updatedTitle: "" };
+//       } catch (firestoreError: any) {
+//         console.error("Error updating Firestore:", firestoreError);
+
+//         // Show error toast
+//         toast.error(`Error saving message: ${firestoreError.message || 'Unknown error'}`, {
+//           position: "top-right",
+//           autoClose: 5000,
+//           hideProgressBar: false,
+//           closeOnClick: true,
+//           pauseOnHover: true,
+//           draggable: true,
+//         });
+
+//         // Cleanup
+//         setinputLoading(false);
+//         setMessage("");
+
+//         return { sessionId, updatedTitle: "" };
+//       }
+//     } catch (error: any) {
+//       console.error("Error in sendMessage:", error);
+//       setinputLoading(false);
+
+//       // Show error toast
+//       toast.error(`Error sending message: ${error.message || 'Unknown error'}`, {
+//         position: "top-right",
+//         autoClose: 5000,
+//         hideProgressBar: false,
+//         closeOnClick: true,
+//         pauseOnHover: true,
+//         draggable: true,
+//       });
+
+//       return rejectWithValue(error.message || "Failed to send message");
+//     }
+//   }
+// );
 export const sendMessage = createAsyncThunk<
   { sessionId: string; updatedTitle: string },
   { setinputLoading: (loading: boolean) => void; setMessage: (message: string) => void; message: string; sessionId: string },
   { state: RootState; dispatch: AppDispatch; rejectValue: string }
 >(
   "chat/sendMessage",
-  async (
-    { setinputLoading, setMessage, message, sessionId },
-    { dispatch, rejectWithValue }
-  ) => {
+  async ({ setinputLoading, setMessage, message, sessionId }, { dispatch, rejectWithValue }) => {
+    console.log("📝 [Chat] sendMessage triggered for:", sessionId);
+
     try {
       const userId = auth.currentUser?.uid;
-      if (!userId) return rejectWithValue("User not found");
+      if (!userId) {
+        console.error("❌ [Chat] User not authenticated.");
+        return rejectWithValue("User not found");
+      }
 
-      // Create new session if needed
+      // ✅ Create new session if none exists
       if (!sessionId) {
+        console.log("⚠️ [Chat] No session ID. Creating a new session...");
         const action = await dispatch(createNewSession());
         if (createNewSession.fulfilled.match(action)) {
           sessionId = action.payload.id as string;
-          if (!sessionId) return rejectWithValue("Failed to create session");
+          console.log("✅ [Chat] New session created:", sessionId);
         } else {
+          console.error("❌ [Chat] Failed to create new session");
           return rejectWithValue("Failed to create new session");
         }
       }
 
-      // Create user message
-      const newMessage: Message = {
-        id: Date.now().toString(),
-        sender: "user",
-        text: message,
-        timeStamp: Date.now()
-      };
-
-      // Update UI immediately
+      // ✅ Add USER message to Redux
+      const newMessage: Message = { id: Date.now().toString(), sender: "user", text: message, timeStamp: Date.now() };
       dispatch(addMessage({ sessionId, message: newMessage }));
       dispatch(setAiLoading({ sessionId, loading: true }));
 
-      // Generate AI response
+      // ✅ Generate AI response
+      console.log("🤖 [AI] Generating response...");
+      const aiMessageId = Date.now().toString();
+      dispatch(addMessage({ sessionId, message: { id: aiMessageId, sender: "ai", text: "", timeStamp: Date.now() } }));
+
       let fullText = "";
-      try {
+      let firstChunk = true;
+      await handleAiResponse(message, sessionId, (partial) => {
+        fullText = partial;
+        dispatch(updateMessage({ sessionId, messageId: aiMessageId, text: fullText }));
 
-
-        // Typing effect for streamed AI response
-        const aiMessageId = Date.now().toString();
-        const initialAiMessage: Message = {
-          id: aiMessageId,
-          sender: "ai",
-          text: "",
-          timeStamp: Date.now()
-        };
-        dispatch(addMessage({ sessionId, message: initialAiMessage }));
-        let fullText = "";
-        let firstChunk = true;
-        await handleAiResponse(message, sessionId, (partial) => {
-          fullText = partial;
-          dispatch(updateMessage({ sessionId, messageId: aiMessageId, text: fullText }));
-          if (firstChunk) {
-            dispatch(setAiLoading({ sessionId, loading: false }));
-            firstChunk = false;
-          }
-        });
-                    setinputLoading(false);
-
-        setMessage("");
-      } catch (error: any) {
-        console.error("Error generating AI response:", error);
-        dispatch(setAiLoading({ sessionId, loading: false }));
-
-        // Add an error message from the AI
-        const aiErrorMessageId = Date.now().toString();
-        let errorMessage = "I'm sorry, I encountered an error processing your request. Please try again later.";
-
-        // Customize error message based on error type
-        if (error.message?.includes('Network error') || error.message?.includes('fetch')) {
-          errorMessage = "I'm having trouble connecting to the server. Please check your internet connection and try again.";
-          dispatch(setNetworkError(true));
-        } else if (error.message?.includes('timed out')) {
-          errorMessage = "The request timed out. Please try again when you have a better connection.";
-          dispatch(setNetworkError(true));
-        } else if (error.message?.includes('status: 500') || error.message?.includes('Internal server error')) {
-          errorMessage = "The server is experiencing issues. Please try again later.";
-        } else if (error.message?.includes('missing message field') || error.message?.includes('Invalid response')) {
-          errorMessage = "I received an invalid response from the server. This might be a temporary issue. Please try again.";
-        } else if (error.message?.includes('context_length_exceeded') ||
-                   error.message?.includes('maximum context length') ||
-                   error.message?.includes('too long for AI')) {
-          errorMessage = "Your message is too long for me to process. Please send a shorter message or break it into smaller parts.";
+        if (firstChunk) {
+          console.log("✅ [AI] First AI chunk received, stopping loader...");
+          dispatch(setAiLoading({ sessionId, loading: false }));
+          firstChunk = false;
         }
-
-        const aiErrorMessage: Message = {
-          id: aiErrorMessageId,
-          sender: "ai",
-          text: errorMessage,
-          timeStamp: Date.now()
-        };
-
-        // Show a toast notification for the error
-        toast.error(`Error: ${error.message?.substring(0, 100)}`, {
-          position: "top-right",
-          autoClose: 5000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-        });
-
-        dispatch(addMessage({ sessionId, message: aiErrorMessage }));
-        setinputLoading(false);
-        setMessage("");
-        return { sessionId, updatedTitle: "" };
-      }
-
-      // Update Firestore
-      try {
-        const chatRef = doc(db, "chatSessions", sessionId);
-        const aiMessage = {
-          id: Date.now().toString(),
-          sender: "ai",
-          text: fullText,
-          timeStamp: Date.now()
-        };
-
-        await updateDoc(chatRef, {
-          messages: arrayUnion(newMessage, aiMessage),
-          updatedAt: serverTimestamp()
-        });
-
-        // Get user data to check plan and update chat count
-        const userRef = doc(db, "users", userId);
-        const userDoc = await getDoc(userRef);
-
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          const hasPremiumPlan = userData.plan === 'premium' || userData.plan === 'basic';
-
-          // Only decrement chat count for non-premium users
-          if (!hasPremiumPlan && userData.chatCount !== undefined) {
-            // Calculate new chat count
-            const newChatCount = Math.max(0, userData.chatCount - 1);
-
-            // Update Firestore
-            await updateDoc(userRef, {
-              chatCount: newChatCount
-            });
-
-            // Update Redux state
-            dispatch(updateChatCount({
-              uid: userId,
-              chatCount: newChatCount
-            }));
-          }
-        }
-
-        // Update title if this is one of the first messages
-      const updatedDoc = await getDoc(chatRef);
-        const updatedData = updatedDoc.data();
-        const updatedMessages = mapFirestoreMessages(updatedData?.messages || []);
-
-      if (updatedMessages.length > 0 && updatedMessages.length < 4) {
-          const updatedTitle = updatedMessages[0].text.slice(0, 50) + (updatedMessages[0].text.length > 50 ? '...' : '');
-        await updateDoc(chatRef, {
-          title: updatedTitle,
-          updatedAt: serverTimestamp()
-        });
-
-          // Refresh sessions to get the updated title
-          dispatch(fetchUserSessions());
-
-
-
-          // Cleanup
-          return { sessionId, updatedTitle };
-        }
-
-
-
-
-
-        // Cleanup
-        setinputLoading(false);
-        setMessage("");
-
-        return { sessionId, updatedTitle: "" };
-      } catch (firestoreError: any) {
-        console.error("Error updating Firestore:", firestoreError);
-
-        // Show error toast
-        toast.error(`Error saving message: ${firestoreError.message || 'Unknown error'}`, {
-          position: "top-right",
-          autoClose: 5000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-        });
-
-        // Cleanup
-        setinputLoading(false);
-        setMessage("");
-
-        return { sessionId, updatedTitle: "" };
-      }
-    } catch (error: any) {
-      console.error("Error in sendMessage:", error);
-      setinputLoading(false);
-
-      // Show error toast
-      toast.error(`Error sending message: ${error.message || 'Unknown error'}`, {
-        position: "top-right",
-        autoClose: 5000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
       });
 
+      setinputLoading(false);
+      setMessage("");
+
+      // ✅ Save AI + User Messages to Firestore
+      console.log("💾 [DB] Saving messages to Firestore...");
+      const chatRef = doc(db, "chatSessions", sessionId);
+      const aiMessage = { id: Date.now().toString(), sender: "ai", text: fullText, timeStamp: Date.now() };
+
+      await updateDoc(chatRef, {
+        messages: arrayUnion(newMessage, aiMessage),
+        updatedAt: serverTimestamp()
+      });
+      console.log("✅ [DB] Messages saved to Firestore.");
+
+      // ✅ Update Chat Count for Non-Premium Users
+      const userRef = doc(db, "users", userId);
+      const userDoc = await getDoc(userRef);
+
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        const hasPremiumPlan = userData.plan === 'premium' || userData.plan === 'basic';
+
+        if (!hasPremiumPlan && userData.chatCount !== undefined) {
+          const newChatCount = Math.max(0, userData.chatCount - 1);
+          await updateDoc(userRef, { chatCount: newChatCount });
+          dispatch(updateChatCount({ uid: userId, chatCount: newChatCount }));
+          console.log("📊 [DB] Chat count updated:", newChatCount);
+        }
+      }
+
+      // ✅ Update Title for New Sessions
+      const updatedDoc = await getDoc(chatRef);
+      const updatedMessages = mapFirestoreMessages(updatedDoc.data()?.messages || []);
+      let updatedTitle = "";
+
+      if (updatedMessages.length > 0 && updatedMessages.length < 4) {
+        updatedTitle = updatedMessages[0].text.slice(0, 50) + (updatedMessages[0].text.length > 50 ? '...' : '');
+        await updateDoc(chatRef, { title: updatedTitle, updatedAt: serverTimestamp() });
+        dispatch(fetchUserSessions());
+        console.log("📝 [DB] Session title updated:", updatedTitle);
+      }
+
+      return { sessionId, updatedTitle };
+
+    } catch (error: any) {
+      console.error("❌ [Chat] Error in sendMessage:", error);
+      setinputLoading(false);
+
+      toast.error(`Error: ${error.message || "Unknown error"}`, { position: "top-right", autoClose: 5000 });
       return rejectWithValue(error.message || "Failed to send message");
     }
   }
