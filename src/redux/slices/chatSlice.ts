@@ -190,6 +190,7 @@ const handleAiResponse = async (
       const errorText = await response.text();
       throw new Error(`Server Error ${response.status}: ${errorText}`);
     }
+    console.log(response);
     const reader = response.body?.getReader();
     const decoder = new TextDecoder('utf-8');
     let finalMessage = '';

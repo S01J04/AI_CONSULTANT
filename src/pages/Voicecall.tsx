@@ -5,6 +5,7 @@ import { RootState } from '../redux/store';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { Mic, MicOff, X } from 'lucide-react';
+import { v4 as uuidv4 } from 'uuid';
 
 interface Window {
     SpeechRecognition?: any;
@@ -96,15 +97,21 @@ const VoiceCallWithAI = () => {
     const getAIResponse = async (text: string, onChunk?: (chunk: string) => void) => {
         speechSynthesis.cancel();
         try {
+            console.log('Fetching AI response for:', text);
+            if (!userId) throw new Error('User ID is required for AI request');
+            if (!text || text.trim().length === 0) throw new Error('Empty text provided for AI request');
+            console.log(`🔍 Fetching AI response for user ${userId} `)
+               
             const res = await fetch(`https://ai-consultant-chatbot-371140242198.asia-south1.run.app/chat/text`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
-                body: JSON.stringify({ user_id: userId, message: text }),
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: uuidv4(), message: text , client_type: "web" }),
             });
             if (!res.ok) {
                 const errorText = await res.text();
                 throw new Error(`Server Error ${res.status}: ${errorText}`);
             }
+            console.log('AI response stream started', res);
             const reader = res.body?.getReader();
             const decoder = new TextDecoder('utf-8');
             let finalMessage = '';
