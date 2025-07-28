@@ -127,81 +127,75 @@ const handleAiResponse = async (
   sessionId: string,
   onChunk?: (chunk: string) => void
 ): Promise<string> => {
-  console.log("🔍 [AI] Starting handleAiResponse for session:", sessionId);
-
+  console.log("🚀 [AI] Starting handleAiResponse");
   try {
     const MAX_MESSAGE_LENGTH = 1000;
     let trimmedMessage = message;
-
     if (message.length > MAX_MESSAGE_LENGTH) {
-      console.warn("⚠️ [AI] Message too long, truncating.");
       trimmedMessage = message.substring(0, MAX_MESSAGE_LENGTH) + "... (message truncated)";
+      console.log("✂️ [AI] Message truncated due to length");
     }
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    console.log("📤 [AI] Sending request:", { sessionId, message: trimmedMessage });
 
-    console.log("📡 [AI] Sending request to AI backend...");
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      console.error("⏱️ [AI] Request timed out");
+      controller.abort();
+    }, 15000);
+
     const response = await fetch(`https://ai-consultant-chatbot-371140242198.asia-south1.run.app/chat/text`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'text/event-stream'
-      },
+      headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
       body: JSON.stringify({ user_id: sessionId, message: trimmedMessage, client_type: "web" }),
       signal: controller.signal
     });
-
     clearTimeout(timeoutId);
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("❌ [AI] Server Error:", errorText);
+      console.error(`❌ [AI] Server Error ${response.status}:`, errorText);
       throw new Error(`Server Error ${response.status}: ${errorText}`);
     }
 
-    console.log("✅ [AI] Response stream started:", response);
+    console.log("✅ [AI] Streaming started");
     const reader = response.body?.getReader();
     const decoder = new TextDecoder('utf-8');
     let finalMessage = '';
 
     while (reader) {
       const { done, value } = await reader.read();
-      if (done) break;
+      if (done) {
+        console.log("🔚 [AI] Streaming ended");
+        break;
+      }
 
       const chunk = decoder.decode(value, { stream: true });
       const lines = chunk.split('\n');
-
       for (const line of lines) {
         if (line.startsWith('data: ')) {
           const jsonStr = line.replace(/^data:\s*/, '').trim();
-
           try {
             const parsed = JSON.parse(jsonStr);
-
             if (parsed.message) {
+              console.log("📥 [AI Chunk Received]:", parsed.message);
               finalMessage += parsed.message;
-              console.log("💬 [AI] Chunk received:", parsed.message);
-
               if (onChunk) onChunk(finalMessage);
             }
           } catch (e) {
-            console.warn("⚠️ [AI] Non-JSON line ignored:", line);
+            console.warn("⚠️ [AI] Ignoring non-JSON line:", line);
           }
         }
       }
     }
 
     if (!finalMessage) throw new Error('No message returned from AI');
-    console.log("✅ [AI] Final AI Response:", finalMessage);
+    console.log("✅ [AI] Final message ready:", finalMessage);
     return finalMessage;
 
   } catch (error: any) {
-    if (error.name === 'AbortError') {
-      console.error("⏳ [AI] Request timed out.");
-      throw new Error('Request timed out. Please try again.');
-    }
     console.error("❌ [AI] Error in handleAiResponse:", error);
+    if (error.name === 'AbortError') throw new Error('Request timed out. Please try again.');
     throw error;
   }
 };
@@ -499,105 +493,141 @@ export const sendMessage = createAsyncThunk<
   { state: RootState; dispatch: AppDispatch; rejectValue: string }
 >(
   "chat/sendMessage",
-  async ({ setinputLoading, setMessage, message, sessionId }, { dispatch, rejectWithValue }) => {
-    console.log("📝 [Chat] sendMessage triggered for:", sessionId);
+  async (
+    { setinputLoading, setMessage, message, sessionId },
+    { dispatch, rejectWithValue }
+  ) => {
+    console.log("🚀 [sendMessage] Triggered:", { message, sessionId });
 
     try {
       const userId = auth.currentUser?.uid;
       if (!userId) {
-        console.error("❌ [Chat] User not authenticated.");
+        console.error("❌ [sendMessage] No user found");
         return rejectWithValue("User not found");
       }
 
-      // ✅ Create new session if none exists
+      // ✅ Create session if needed
       if (!sessionId) {
-        console.log("⚠️ [Chat] No session ID. Creating a new session...");
+        console.log("🆕 [sendMessage] No session found. Creating new session...");
         const action = await dispatch(createNewSession());
         if (createNewSession.fulfilled.match(action)) {
           sessionId = action.payload.id as string;
-          console.log("✅ [Chat] New session created:", sessionId);
+          console.log("✅ [sendMessage] New session created:", sessionId);
         } else {
-          console.error("❌ [Chat] Failed to create new session");
-          return rejectWithValue("Failed to create new session");
+          console.error("❌ [sendMessage] Failed to create session");
+          return rejectWithValue("Failed to create session");
         }
       }
 
-      // ✅ Add USER message to Redux
-      const newMessage: Message = { id: Date.now().toString(), sender: "user", text: message, timeStamp: Date.now() };
+      // ✅ Generate unique IDs
+      const userMessageId = `${Date.now()}-${Math.random()}`;
+      const aiMessageId = `${Date.now()}-${Math.random()}`;
+
+      // ✅ Create user message
+      const newMessage: Message = {
+        id: userMessageId,
+        sender: "user",
+        text: message,
+        timeStamp: Date.now()
+      };
+      console.log("📝 [Redux] Adding user message:", newMessage);
       dispatch(addMessage({ sessionId, message: newMessage }));
       dispatch(setAiLoading({ sessionId, loading: true }));
 
-      // ✅ Generate AI response
-      console.log("🤖 [AI] Generating response...");
-      const aiMessageId = Date.now().toString();
-      dispatch(addMessage({ sessionId, message: { id: aiMessageId, sender: "ai", text: "", timeStamp: Date.now() } }));
+      // ✅ Create AI placeholder
+      console.log("🤖 [Redux] Creating AI placeholder:", aiMessageId);
+      dispatch(addMessage({
+        sessionId,
+        message: { id: aiMessageId, sender: "ai", text: "", timeStamp: Date.now() }
+      }));
 
+      // ✅ AI Response Streaming
       let fullText = "";
       let firstChunk = true;
-      await handleAiResponse(message, sessionId, (partial) => {
-        fullText = partial;
-        dispatch(updateMessage({ sessionId, messageId: aiMessageId, text: fullText }));
+      try {
+        console.log("📤 [AI] Requesting AI response...");
+        await handleAiResponse(message, sessionId, (partial) => {
+          console.log("📥 [AI Chunk]:", partial);
+          fullText = partial;
 
-        if (firstChunk) {
-          console.log("✅ [AI] First AI chunk received, stopping loader...");
-          dispatch(setAiLoading({ sessionId, loading: false }));
-          firstChunk = false;
-        }
-      });
+          // ✅ Update only AI message (Safe)
+          dispatch(updateMessage({
+            sessionId,
+            messageId: aiMessageId,
+            text: fullText,
+            sender: "ai" // ensure we only touch AI messages
+          }));
 
-      setinputLoading(false);
-      setMessage("");
+          if (firstChunk) {
+            dispatch(setAiLoading({ sessionId, loading: false }));
+            console.log("✅ [AI] First chunk received, loader stopped");
+            firstChunk = false;
+          }
+        });
+      } catch (err) {
+        console.error("❌ [AI] Streaming failed:", err);
+      }
 
-      // ✅ Save AI + User Messages to Firestore
-      console.log("💾 [DB] Saving messages to Firestore...");
+      // ✅ Handle empty AI response
+      if (!fullText.trim()) {
+        console.warn("⚠️ [AI] Empty response. Using fallback.");
+        fullText = "I'm sorry, I couldn't process your request.";
+        dispatch(updateMessage({ sessionId, messageId: aiMessageId, text: fullText, sender: "ai" }));
+      }
+
+      // ✅ Save to Firestore
+      console.log("💾 [DB] Saving to Firestore...");
       const chatRef = doc(db, "chatSessions", sessionId);
-      const aiMessage = { id: Date.now().toString(), sender: "ai", text: fullText, timeStamp: Date.now() };
-
       await updateDoc(chatRef, {
-        messages: arrayUnion(newMessage, aiMessage),
+        messages: arrayUnion(
+          newMessage,
+          { id: aiMessageId, sender: "ai", text: fullText, timeStamp: Date.now() }
+        ),
         updatedAt: serverTimestamp()
       });
-      console.log("✅ [DB] Messages saved to Firestore.");
+      console.log("✅ [DB] Messages saved successfully");
 
-      // ✅ Update Chat Count for Non-Premium Users
+      // ✅ Update chat count (if needed)
       const userRef = doc(db, "users", userId);
       const userDoc = await getDoc(userRef);
-
       if (userDoc.exists()) {
         const userData = userDoc.data();
-        const hasPremiumPlan = userData.plan === 'premium' || userData.plan === 'basic';
-
-        if (!hasPremiumPlan && userData.chatCount !== undefined) {
+        const hasPremium = userData.plan === 'premium' || userData.plan === 'basic';
+        if (!hasPremium && userData.chatCount !== undefined) {
           const newChatCount = Math.max(0, userData.chatCount - 1);
           await updateDoc(userRef, { chatCount: newChatCount });
           dispatch(updateChatCount({ uid: userId, chatCount: newChatCount }));
-          console.log("📊 [DB] Chat count updated:", newChatCount);
+          console.log("🔄 [DB] Chat count updated:", newChatCount);
         }
       }
 
-      // ✅ Update Title for New Sessions
+      // ✅ Update title if few messages
       const updatedDoc = await getDoc(chatRef);
-      const updatedMessages = mapFirestoreMessages(updatedDoc.data()?.messages || []);
+      const updatedData = updatedDoc.data();
+      const updatedMessages = mapFirestoreMessages(updatedData?.messages || []);
       let updatedTitle = "";
-
       if (updatedMessages.length > 0 && updatedMessages.length < 4) {
         updatedTitle = updatedMessages[0].text.slice(0, 50) + (updatedMessages[0].text.length > 50 ? '...' : '');
         await updateDoc(chatRef, { title: updatedTitle, updatedAt: serverTimestamp() });
+        console.log("✏️ [DB] Updated chat title:", updatedTitle);
         dispatch(fetchUserSessions());
-        console.log("📝 [DB] Session title updated:", updatedTitle);
       }
 
+      // ✅ Cleanup
+      setinputLoading(false);
+      setMessage("");
+      console.log("✅ [sendMessage] Completed successfully");
       return { sessionId, updatedTitle };
 
     } catch (error: any) {
-      console.error("❌ [Chat] Error in sendMessage:", error);
+      console.error("❌ [sendMessage] Error:", error);
       setinputLoading(false);
-
-      toast.error(`Error: ${error.message || "Unknown error"}`, { position: "top-right", autoClose: 5000 });
+      toast.error(`Error: ${error.message || 'Unknown error'}`, { position: "top-right", autoClose: 5000 });
       return rejectWithValue(error.message || "Failed to send message");
     }
   }
 );
+
 
 // Clear User Chat Sessions
 export const clearChat = createAsyncThunk<
