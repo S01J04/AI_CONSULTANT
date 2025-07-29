@@ -263,7 +263,7 @@ async function updateUserPlanBackend(userId, planId, planName) {
     : 30 * 24 * 60 * 60 * 1000;
 
   // ✅ For 20-minute test mode:
-  // const planDurationMs = 20 * 60 * 1000;
+  // const planDurationMs = 10 * 60 * 1000;
 
   let finalExpiryDate = now + planDurationMs;
 

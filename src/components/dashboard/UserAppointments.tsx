@@ -74,9 +74,9 @@ const UserAppointments: React.FC<UserAppointmentsProps> = ({ onPayPerServicePurc
   return (
     <div className="space-y-6">
       {/* Show pay-per-service option if applicable */}
-      {showPayPerServiceOption && (
-        <PayPerServiceCard onPurchase={onPayPerServicePurchase} />
-      )}
+      {/* {showPayPerServiceOption && (
+        // <PayPerServiceCard onPurchase={onPayPerServicePurchase} />
+      )} */}
 
       <div className="space-y-4">
         {scheduledAppointments.map((appointment) => (
