@@ -147,7 +147,7 @@ const handleAiResponse = async (
     const response = await fetch(`https://ai-consultant-chatbot-371140242198.asia-south1.run.app/chat/text`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
-      body: JSON.stringify({ user_id: sessionId, message: trimmedMessage, client_type: "web" }),
+      body: JSON.stringify({ user_id: uuidv4(), message: trimmedMessage, client_type: "web" }),
       signal: controller.signal
     });
     clearTimeout(timeoutId);
@@ -565,6 +565,9 @@ export const sendMessage = createAsyncThunk<
           }
         });
       } catch (err) {
+                    dispatch(setAiLoading({ sessionId, loading: false }));
+ setinputLoading(false);
+      setMessage("");
         console.error("❌ [AI] Streaming failed:", err);
       }
 
