@@ -55,14 +55,14 @@ const VoiceCallWithAI = () => {
         }
 
         // Try asking for mic permission on mount
-        navigator.mediaDevices.getUserMedia({ audio: true })
-            .then(stream => {
-                stream.getTracks().forEach(track => track.stop());
-                console.log("Mic permission granted on load");
-            })
-            .catch(() => {
-                console.warn("Mic permission denied on load");
-            });
+        // navigator.mediaDevices.getUserMedia({ audio: true })
+        //     .then(stream => {
+        //         stream.getTracks().forEach(track => track.stop());
+        //         console.log("Mic permission granted on load");
+        //     })
+        //     .catch(() => {
+        //         console.warn("Mic permission denied on load");
+        //     });
     }, []);
 
     const drawBlackBall = () => {
@@ -290,65 +290,107 @@ const VoiceCallWithAI = () => {
                 }
             };
 
-            recognition.onerror = (event: any) => {
-                console.error('Recognition error:', event);
+            // recognition.onerror = (event: any) => {
+            //     console.error('Recognition error:', event);
                 
-                // Handle specific error types
-                switch (event.error) {
-                    case 'no-speech':
-                        toast.error('No speech detected');
-                        break;
-                    case 'aborted':
-                        toast.error('Speech recognition aborted');
-                        break;
-                    case 'audio-capture':
-                        toast.error('No microphone found');
-                        break;
-                    case 'network':
-                        toast.error('Network error occurred');
-                        break;
-                    case 'not-allowed':
-                        toast.error('Microphone access denied');
-                        break;
-                    case 'service-not-allowed':
-                        toast.error('Speech recognition service not allowed');
-                        break;
-                    case 'bad-grammar':
-                        toast.error('Bad grammar in speech');
-                        break;
-                    case 'language-not-supported':
-                        toast.error('Language not supported');
-                        break;
-                    default:
-                        toast.error(`Recognition error: ${event.error}`);
-                }
+            //     // Handle specific error types
+            //     switch (event.error) {
+            //         case 'no-speech':
+            //             toast.error('No speech detected');
+            //             break;
+            //         case 'aborted':
+            //             toast.error('Speech recognition aborted');
+            //             break;
+            //         case 'audio-capture':
+            //             toast.error('No microphone found');
+            //             break;
+            //         case 'network':
+            //             toast.error('Network error occurred');
+            //             break;
+            //         case 'not-allowed':
+            //             toast.error('Microphone access denied');
+            //             break;
+            //         case 'service-not-allowed':
+            //             toast.error('Speech recognition service not allowed');
+            //             break;
+            //         case 'bad-grammar':
+            //             toast.error('Bad grammar in speech');
+            //             break;
+            //         case 'language-not-supported':
+            //             toast.error('Language not supported');
+            //             break;
+            //         default:
+            //             toast.error(`Recognition error: ${event.error}`);
+            //     }
 
-                setStatus('Error');
+            //     setStatus('Error');
                 
-                // Attempt to restart if still active
-                if (isMicOn) {
-                    setTimeout(() => {
-                        try {
-                            recognition.start();
-                        } catch (e) {
-                            console.error('Failed to restart recognition:', e);
-                        }
-                    }, 1000);
-                }
-            };
+            //     // Attempt to restart if still active
+            //     if (isMicOn) {
+            //         setTimeout(() => {
+            //             try {
+            //                 recognition.start();
+            //             } catch (e) {
+            //                 console.error('Failed to restart recognition:', e);
+            //             }
+            //         }, 1000);
+            //     }
+            // };
+recognition.onerror = (event: any) => {
+    console.error('Recognition error:', event);
 
-            recognition.onend = () => {
-                // Only restart if still active and not speaking
-                if (isMicOnRef.current && !isSpeakingRef.current) {
-                    setTimeout(() => {
-                        try {
-                            recognition.start();
-                        } catch (e) {
-                            console.error('Failed to restart recognition:', e);
-                        }
-                    }, 100);
-                }
-            };
+    // Handle known errors gracefully
+    const retryableErrors = ['no-speech', 'aborted', 'network'];
+    const nonRetryableErrors = ['not-allowed', 'service-not-allowed', 'audio-capture'];
+
+    if (retryableErrors.includes(event.error)) {
+        toast.info(`Retrying due to: ${event.error}`);
+    } else if (nonRetryableErrors.includes(event.error)) {
+        toast.error('Mic access blocked. Please enable mic permissions.');
+        setStatus('Mic blocked');
+        stopSpeechRecognition();
+        return;
+    } else {
+        toast.error(`Recognition error: ${event.error}`);
+    }
+
+    // ✅ Auto-retry if mic is still ON
+    if (isMicOnRef.current && !isSpeakingRef.current) {
+        console.log('Retrying recognition in 500ms...');
+        setTimeout(() => {
+            try {
+                recognition.start();
+            } catch (e) {
+                console.error('Recognition restart failed:', e);
+            }
+        }, 500);
+    }
+};
+
+            // recognition.onend = () => {
+            //     // Only restart if still active and not speaking
+            //     if (isMicOnRef.current && !isSpeakingRef.current) {
+            //         setTimeout(() => {
+            //             try {
+            //                 recognition.start();
+            //             } catch (e) {
+            //                 console.error('Failed to restart recognition:', e);
+            //             }
+            //         }, 100);
+            //     }
+            // };
+recognition.onend = () => {
+    if (isMicOnRef.current && !isSpeakingRef.current) {
+        console.log('Recognition ended, restarting...');
+        setTimeout(() => {
+            try {
+                recognition.start();
+            } catch (e) {
+                console.error('Failed to restart recognition:', e);
+            }
+        }, 300);
+    }
+};
 
             // Store and start recognition
             recognitionRef.current = recognition;
@@ -369,83 +411,157 @@ const VoiceCallWithAI = () => {
         }
     };
 
-    const handleMicToggle = async () => {
-        if (!browserSupported) {
-            toast.error('Speech recognition not supported');
-            return;
-        }
+    // const handleMicToggle = async () => {
+    //     if (!browserSupported) {
+    //         toast.error('Speech recognition not supported');
+    //         return;
+    //     }
 
-        if (isMicOn) {
-            stopSpeechRecognition();
-            window.speechSynthesis.cancel();
+    //     if (isMicOn) {
+    //         stopSpeechRecognition();
+    //         window.speechSynthesis.cancel();
 
-            if (streamRef.current) {
-                streamRef.current.getTracks().forEach(track => track.stop());
-                streamRef.current = null;
-            }
+    //         if (streamRef.current) {
+    //             streamRef.current.getTracks().forEach(track => track.stop());
+    //             streamRef.current = null;
+    //         }
 
-            if (audioContextRef.current) {
-                await audioContextRef.current.close().catch(console.error);
-                audioContextRef.current = null;
-            }
+    //         if (audioContextRef.current) {
+    //             await audioContextRef.current.close().catch(console.error);
+    //             audioContextRef.current = null;
+    //         }
 
-            if (animationIdRef.current) {
-                cancelAnimationFrame(animationIdRef.current);
-                animationIdRef.current = null;
-            }
+    //         if (animationIdRef.current) {
+    //             cancelAnimationFrame(animationIdRef.current);
+    //             animationIdRef.current = null;
+    //         }
 
-            setIsMicOn(false);
-            setStatus('Mic off');
-            return;
-        }
+    //         setIsMicOn(false);
+    //         setStatus('Mic off');
+    //         return;
+    //     }
 
-        try {
-            // Request microphone permission first
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                audio: {
-                    echoCancellation: true,
-                    noiseSuppression: true,
-                    autoGainControl: true,
-                    sampleRate: 44100
-                } 
-            });
-            streamRef.current = stream;
+    //     try {
+    //         // Request microphone permission first
+    //         const stream = await navigator.mediaDevices.getUserMedia({ 
+    //             audio: {
+    //                 echoCancellation: true,
+    //                 noiseSuppression: true,
+    //                 autoGainControl: true,
+    //                 sampleRate: 44100
+    //             } 
+    //         });
+    //         streamRef.current = stream;
 
-            // Create audio context after user interaction (required for mobile)
-            const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-            const audioCtx = new AudioContext({
-                sampleRate: 44100,
-                latencyHint: 'interactive'
-            });
-            audioContextRef.current = audioCtx;
+    //         // Create audio context after user interaction (required for mobile)
+    //         const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    //         const audioCtx = new AudioContext({
+    //             sampleRate: 44100,
+    //             latencyHint: 'interactive'
+    //         });
+    //         audioContextRef.current = audioCtx;
 
-            // Resume audio context (required for iOS)
-            if (audioCtx.state === 'suspended') {
-                await audioCtx.resume();
-            }
+    //         // Resume audio context (required for iOS)
+    //         if (audioCtx.state === 'suspended') {
+    //             await audioCtx.resume();
+    //         }
 
-            const analyser = audioCtx.createAnalyser();
-            analyserRef.current = analyser;
+    //         const analyser = audioCtx.createAnalyser();
+    //         analyserRef.current = analyser;
 
-            const source = audioCtx.createMediaStreamSource(stream);
-            source.connect(analyser);
-            analyser.fftSize = 64;
+    //         const source = audioCtx.createMediaStreamSource(stream);
+    //         source.connect(analyser);
+    //         analyser.fftSize = 64;
 
-            drawBlackBall();
+    //         drawBlackBall();
 
-            setIsMicOn(true);
-            setStatus('Initializing...');
+    //         setIsMicOn(true);
+    //         setStatus('Initializing...');
             
-            // Add a small delay before starting recognition
-            setTimeout(() => {
-                startSpeechRecognition();
-            }, 500);
-        } catch (err) {
-            console.error('Mic access error:', err);
-            toast.error('Mic access denied or failed');
-            setStatus('Mic access error');
+    //         // Add a small delay before starting recognition
+    //         setTimeout(() => {
+    //             startSpeechRecognition();
+    //         }, 500);
+    //     } catch (err) {
+    //         console.error('Mic access error:', err);
+    //         toast.error('Mic access denied or failed');
+    //         setStatus('Mic access error');
+    //     }
+    // };
+const handleMicToggle = async () => {
+    if (!browserSupported) {
+        toast.error('Speech recognition not supported');
+        return;
+    }
+
+    if (isMicOn) {
+        stopSpeechRecognition();
+        window.speechSynthesis.cancel();
+
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
         }
-    };
+
+        if (audioContextRef.current) {
+            await audioContextRef.current.close().catch(console.error);
+            audioContextRef.current = null;
+        }
+
+        if (animationIdRef.current) {
+            cancelAnimationFrame(animationIdRef.current);
+            animationIdRef.current = null;
+        }
+
+        setIsMicOn(false);
+        setStatus('Mic off');
+        return;
+    }
+
+    try {
+        // ✅ Request microphone permission only after tap
+        const stream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true,
+                sampleRate: 44100,
+            },
+        });
+        streamRef.current = stream;
+
+        // ✅ Create audio context AFTER permission granted
+        const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+        const audioCtx = new AudioContext({ sampleRate: 44100, latencyHint: 'interactive' });
+        audioContextRef.current = audioCtx;
+
+        // ✅ Resume context (fix for Chrome Android & iOS)
+        if (audioCtx.state === 'suspended') {
+            await audioCtx.resume();
+        }
+
+        const analyser = audioCtx.createAnalyser();
+        analyserRef.current = analyser;
+
+        const source = audioCtx.createMediaStreamSource(stream);
+        source.connect(analyser);
+        analyser.fftSize = 64;
+
+        drawBlackBall();
+
+        setIsMicOn(true);
+        setStatus('Initializing...');
+
+        // ✅ Delay recognition start (avoid "not-allowed")
+        setTimeout(() => {
+            startSpeechRecognition();
+        }, 300);
+    } catch (err) {
+        console.error('Mic access error:', err);
+        toast.error('Mic access denied or failed');
+        setStatus('Mic access error');
+    }
+};
 
     const handleClose = async () => {
         stopSpeechRecognition();
