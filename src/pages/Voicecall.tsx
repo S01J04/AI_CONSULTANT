@@ -351,7 +351,7 @@ recognition.onerror = (event: any) => {
         stopSpeechRecognition();
         return;
     } else {
-        toast.error(`Recognition error: ${event.error}`);
+        // toast.error(`Recognition error: ${event.error}`);
     }
 
     // ✅ Auto-retry if mic is still ON
