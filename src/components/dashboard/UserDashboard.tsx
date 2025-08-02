@@ -94,7 +94,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ initialTab }) => {
   }, [dispatch, user?.uid]); // Remove sessions dependency to prevent repeated fetching
   const tabs = [
     { id: 'appointments', label: 'My Appointments', icon: Calendar },
-    { id: 'history', label: 'Appointment History', icon: History },
+    // { id: 'history', label: 'Appointment History', icon: History },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'chats', label: 'My Chats', icon: MessageCircle },
     { id: 'payments', label: 'Payments', icon: CreditCard },
@@ -299,10 +299,11 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ initialTab }) => {
         );
       case 'history':
         return (
-          <div className="space-y-6">
-            <h2 className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-white">Appointment History</h2>
-            <AppointmentHistory />
-          </div>
+          // <div className="space-y-6">
+          //   <h2 className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-white">Appointment History</h2>
+          //   <AppointmentHistory />
+          // </div>
+          <></>
         );
       case 'notifications':
         return (

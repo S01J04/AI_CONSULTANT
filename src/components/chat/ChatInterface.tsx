@@ -13,6 +13,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { validateAndSanitizeChatMessage } from '../../utils/securityUtils';
 import usePlanAccess from '../../hooks/usePlanAccess';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeHighlight from 'rehype-highlight';
 
 const ChatInterface: React.FC = () => {
   const navigate = useNavigate();
@@ -317,7 +320,12 @@ console.log(inputLoading,aiLoading,loading)
                     : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700"
                     }`}
                   >
-                    <p className="break-words whitespace-pre-wrap">{msg?.text}</p>
+                    <ReactMarkdown
+                     remarkPlugins={[remarkGfm]}
+                      rehypePlugins={[rehypeHighlight]}
+                    >
+                  {msg?.text}
+                    </ReactMarkdown>
                   </div>
                 </div>
               ) : null

@@ -62,11 +62,11 @@ export const getPasswordStrengthFeedback = (password: string): string => {
 export const sanitizeInput = (input: string): string => {
   // Remove potentially dangerous characters
   return input
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/javascript:/gi, '')
-    .replace(/on\w+=/gi, '')
-    .replace(/style=/gi, '')
-    .trim();
+    // .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    // .replace(/javascript:/gi, '')
+    // .replace(/on\w+=/gi, '')
+    // .replace(/style=/gi, '')
+    // .trim();
 };
 
 /**

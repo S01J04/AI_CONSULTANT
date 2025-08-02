@@ -71,77 +71,111 @@ const AppointmentsPage: React.FC = () => {
     );
   }
 
-  return (
-    <div className="container mx-auto px-4 py-4">
-      {/* Compact page header */}
-      <div className="mb-4 text-center">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Book a Consultation
+ return (
+  <>
+    {0 ? (
+      <div className="container mx-auto px-4 py-4">
+        {/* Compact page header */}
+        <div className="mb-4 text-center">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Book a Consultation
+          </h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Select a consultant and schedule a time that works for you
+          </p>
+        </div>
+        
+        {/* Mobile View - Tab Navigation */}
+        {isMobile && (
+          <div className="mb-4">
+            <div className="grid grid-cols-2 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+              <button 
+                onClick={() => setActiveView('experts')}
+                className={`flex items-center justify-center py-2 rounded-md transition-colors ${
+                  activeView === 'experts' 
+                    ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 shadow-sm' 
+                    : 'text-gray-600 dark:text-gray-400'
+                }`}
+              >
+                <Users className="h-4 w-4 mr-2" />
+                Consultants
+              </button>
+              <button 
+                onClick={() => setActiveView('scheduler')}
+                className={`flex items-center justify-center py-2 rounded-md transition-colors ${
+                  activeView === 'scheduler' 
+                    ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 shadow-sm' 
+                    : 'text-gray-600 dark:text-gray-400'
+                }`}
+                disabled={!appointment.selectedExpert}
+              >
+                <Calendar className="h-4 w-4 mr-2" />
+                Schedule
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Desktop Layout - Side by side with fixed height */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4" style={{ maxHeight: 'calc(100vh - 150px)' }}>
+          {/* Expert List */}
+          {(!isMobile || (isMobile && activeView === 'experts')) && (
+            <div className={`${isMobile ? 'col-span-1' : 'lg:col-span-5'} overflow-auto`} style={{ maxHeight: isMobile ? 'auto' : 'calc(100vh - 150px)' }}>
+              <ExpertList />
+            </div>
+          )}
+
+          {/* Appointment Scheduler */}
+          {(!isMobile || (isMobile && activeView === 'scheduler')) && (
+            <div className={`${isMobile ? 'col-span-1' : 'lg:col-span-7'} overflow-auto`} style={{ maxHeight: isMobile ? 'auto' : 'calc(100vh - 150px)' }}>
+              <AppointmentScheduler />
+            </div>
+          )}
+        </div>
+
+        {/* Expert Selection Feedback (Desktop Only) */}
+        {!isMobile && appointment.selectedExpert && (
+          <div className="fixed bottom-2 right-2 bg-indigo-600 text-white py-1 px-3 rounded-lg shadow-sm flex items-center space-x-2 text-sm">
+            <Calendar className="h-4 w-4" />
+            <span>
+              {appointment.selectedExpert.name} selected
+            </span>
+          </div>
+        )}
+      </div>
+    ) : (
+      <div className="flex flex-col items-center justify-center h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 text-white">
+        {/* Animated Heading */}
+        <h1 className="text-5xl md:text-6xl font-extrabold mb-4 animate-pulse">
+          🚀 Coming Soon
         </h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          Select a consultant and schedule a time that works for you
+
+        {/* Subtitle */}
+        <p className="text-lg md:text-xl text-white/80 mb-6 text-center max-w-lg">
+          We’re working hard to bring you something amazing. Stay tuned for the launch!
         </p>
-      </div>
-      
-      {/* Mobile View - Tab Navigation */}
-      {isMobile && (
-        <div className="mb-4">
-          <div className="grid grid-cols-2 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-            <button 
-              onClick={() => setActiveView('experts')}
-              className={`flex items-center justify-center py-2 rounded-md transition-colors ${
-                activeView === 'experts' 
-                  ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 shadow-sm' 
-                  : 'text-gray-600 dark:text-gray-400'
-              }`}
-            >
-              <Users className="h-4 w-4 mr-2" />
-              Consultants
-            </button>
-            <button 
-              onClick={() => setActiveView('scheduler')}
-              className={`flex items-center justify-center py-2 rounded-md transition-colors ${
-                activeView === 'scheduler' 
-                  ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 shadow-sm' 
-                  : 'text-gray-600 dark:text-gray-400'
-              }`}
-              disabled={!appointment.selectedExpert}
-            >
-              <Calendar className="h-4 w-4 mr-2" />
-              Schedule
-            </button>
-          </div>
+
+        {/* Email Notify Input */}
+        {/* <div className="flex w-full max-w-md bg-white rounded-full shadow-lg overflow-hidden">
+          <input
+            type="email"
+            placeholder="Enter your email to get updates"
+            className="flex-1 px-4 py-3 text-gray-700 focus:outline-none"
+          />
+          <button className="bg-indigo-600 px-6 py-3 font-semibold hover:bg-indigo-700 transition-colors">
+            Notify Me
+          </button>
+        </div> */}
+
+        {/* Decorative Elements */}
+        <div className="absolute bottom-8 text-sm opacity-70">
+          © {new Date().getFullYear()} Rewiree. All rights reserved.
         </div>
-      )}
-
-      {/* Desktop Layout - Side by side with fixed height */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4" style={{ maxHeight: 'calc(100vh - 150px)' }}>
-        {/* Expert List */}
-        {(!isMobile || (isMobile && activeView === 'experts')) && (
-          <div className={`${isMobile ? 'col-span-1' : 'lg:col-span-5'} overflow-auto`} style={{ maxHeight: isMobile ? 'auto' : 'calc(100vh - 150px)' }}>
-            <ExpertList />
-          </div>
-        )}
-
-        {/* Appointment Scheduler */}
-        {(!isMobile || (isMobile && activeView === 'scheduler')) && (
-          <div className={`${isMobile ? 'col-span-1' : 'lg:col-span-7'} overflow-auto`} style={{ maxHeight: isMobile ? 'auto' : 'calc(100vh - 150px)' }}>
-            <AppointmentScheduler />
-          </div>
-        )}
       </div>
+    )}
+  </>
+);
 
-      {/* Expert Selection Feedback (Desktop Only) - Smaller and less intrusive */}
-      {!isMobile && appointment.selectedExpert && (
-        <div className="fixed bottom-2 right-2 bg-indigo-600 text-white py-1 px-3 rounded-lg shadow-sm flex items-center space-x-2 text-sm">
-          <Calendar className="h-4 w-4" />
-          <span>
-            {appointment.selectedExpert.name} selected
-          </span>
-        </div>
-      )}
-    </div>
-  );
 };
 
 export default AppointmentsPage;
