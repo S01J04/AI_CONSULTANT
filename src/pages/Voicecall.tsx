@@ -1,7 +1,4 @@
-// Voice activity tracking with faster response
-    const voiceFrameCount = useRef(0);
-    const silenceFrameCount = useRef(0);
-    const hasRecentVoice = useRef(false);import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { getDatabase, ref, remove } from 'firebase/database';
 import { useSelector } from 'react-redux';
 import { RootState } from '../redux/store';
@@ -22,7 +19,10 @@ const VoiceCallWithAI = () => {
     const [isMicOn, setIsMicOn] = useState(false);
     const isMicOnRef = useRef(isMicOn);
     const isSpeakingRef = useRef(false);
-
+// Voice activity tracking with faster response
+    const voiceFrameCount = useRef(0);
+    const silenceFrameCount = useRef(0);
+    const hasRecentVoice = useRef(false);
     useEffect(() => {
         isMicOnRef.current = isMicOn;
     }, [isMicOn]);
