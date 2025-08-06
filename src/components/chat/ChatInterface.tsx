@@ -94,6 +94,28 @@ console.log(inputLoading,aiLoading,loading)
     }
   }, []);
 
+const toastShownRef = useRef(false); // Prevent duplicate toasts
+
+  useEffect(() => {
+    const count = user?.chatCount || 0;
+    if (user && !user.plan && count === 0 && !toastShownRef.current) {
+      toastShownRef.current = true; // mark as shown
+
+      toast.error(
+        <div onClick={() => navigate('/pricing')} className="cursor-pointer">
+          You’ve reached your message limit. Click here to upgrade.
+        </div>,
+        {
+          duration: 5000,
+        }
+      );
+    }
+
+    // Reset the toastShownRef if the user gets more messages or refreshes plan
+    if (count > 0 || user?.plan) {
+      toastShownRef.current = false;
+    }
+  }, [user?.chatCount, user?.plan, navigate]);
   useEffect(() => {
     if (user) {
      console.log("fetching user sessions from chat page")
@@ -375,19 +397,29 @@ console.log(inputLoading,aiLoading,loading)
       <div className="bg-white fixed w-screen md:w-[40%] bottom-0 md:bottom-3 rounded-2xl border left-1/2 transform -translate-x-1/2 dark:bg-gray-800 px-4 py-3 border-gray-300 dark:border-gray-700 shadow-lg">
         {/* Message count indicator for non-premium users */}
         {user && !user.plan && (
-          <div className="mb-2 text-xs text-center">
-            <span className={`font-medium ${(user.chatCount || 0) > 3 ? 'text-gray-600 dark:text-gray-300' : 'text-red-500'}`}>
-              {(user.chatCount || 0) > 0
-                ? `You have ${user.chatCount} free ${user.chatCount === 1 ? 'message' : 'messages'} remaining`
-                : 'You have used all your free messages. Please upgrade to continue.'}
-            </span>
-            {(user.chatCount || 0) <= 3 && (user.chatCount || 0) > 0 && (
-              <Link to="/pricing" className="ml-2 text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300">
-                Upgrade now
-              </Link>
-            )}
-          </div>
-        )}
+  <div className="mb-2 text-xs text-center">
+    <span
+      className={`font-medium ${
+        (user.chatCount || 0) > 3 ? 'text-gray-600 dark:text-gray-300' : 'text-red-500'
+      }`}
+    >
+      {(user.chatCount || 0) > 0
+        ? `You have ${user.chatCount} free ${user.chatCount === 1 ? 'message' : 'messages'} remaining`
+        : 'You have used all your free messages. Please upgrade to continue.'}
+    </span>
+
+    {/* Show Upgrade Link if chatCount is 3 or less (including 0) */}
+    {(user.chatCount || 0) <= 3 && (
+      <Link
+        to="/pricing"
+        className="ml-2 text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300"
+      >
+        Upgrade now
+      </Link>
+    )}
+  </div>
+)}
+
 
         {authLoading ? (
           <Skeleton className="w-full h-12 rounded-md" />

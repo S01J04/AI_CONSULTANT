@@ -65,7 +65,7 @@ const Navbar: React.FC = () => {
             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
               <Link
                 to="/chat"
-                className="border-transparent text-gray-500 dark:text-gray-300 hover:border-gray-300 hover:text-gray-700 dark:hover:text-white inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+className="border-transparent text-indigo-600 dark:text-white hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 inline-flex items-center px-1 pt-1 border-b-2 text-base font-bold transition duration-200"
               >
                 Chat
               </Link>
@@ -220,7 +220,7 @@ const Navbar: React.FC = () => {
             <Link
               onClick={() => dispatch(toggleSidebar())}
               to="/chat"
-              className="border-transparent text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-300 hover:text-gray-700 dark:hover:text-white block pl-3 pr-4 py-2 border-l-4 text-base font-medium"
+              className="border-transparent text-indigo-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-300 hover:text-gray-700 dark:hover:text-white block pl-3 pr-4 py-2 border-l-4 text-base font-medium"
             >
               Chat
             </Link>

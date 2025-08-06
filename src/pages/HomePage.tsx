@@ -83,8 +83,9 @@ const HomePage: React.FC = () => {
     
       >
         <img
-          src={`https://images-cdn.openxcell.com/wp-content/uploads/2025/01/27141222/Banner-5-scaled.webp`}
-          alt="hero"
+          // src={`https://images-cdn.openxcell.com/wp-content/uploads/2025/01/27141222/Banner-5-scaled.webp`}
+           src='/assets/hero.jpeg'
+            alt="hero"
           height={720}
           width={1400}
           className="mx-auto rounded-2xl object-cover h-full object-left-top"

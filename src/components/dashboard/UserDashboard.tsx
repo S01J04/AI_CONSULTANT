@@ -36,7 +36,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ initialTab }) => {
   const { userAppointments, loading: appointmentLoading } = useSelector((state: RootState) => state.appointment);
   const { isExpired, formattedExpiryDate, daysRemaining, hasActivePlan, planFeatures, remainingAppointments } = usePlanAccess();
   const { authloading, deleteAccount, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState(initialTab || 'appointments');
+  const [activeTab, setActiveTab] = useState('profile');
   const [isEditing, setIsEditing] = useState(false);
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [emailNotifications, setEmailNotifications] = useState(true);
@@ -93,12 +93,13 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ initialTab }) => {
     }
   }, [dispatch, user?.uid]); // Remove sessions dependency to prevent repeated fetching
   const tabs = [
-    { id: 'appointments', label: 'My Appointments', icon: Calendar },
+    // { id: 'appointments', label: 'My Appointments', icon: Calendar },
+    // { id: 'notifications', label: 'Notifications', icon: Bell },
     // { id: 'history', label: 'Appointment History', icon: History },
-    { id: 'notifications', label: 'Notifications', icon: Bell },
+      { id: 'profile', label: 'My Profile', icon: User },
     { id: 'chats', label: 'My Chats', icon: MessageCircle },
     { id: 'payments', label: 'Payments', icon: CreditCard },
-    { id: 'profile', label: 'My Profile', icon: User },
+  
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
@@ -248,7 +249,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ initialTab }) => {
           <h2 className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-white">
             {activeTab === 'appointments' ? 'My Appointments' :
              activeTab === 'history' ? 'Appointment History' :
-             activeTab === 'notifications' ? 'Notifications' :
+            //  activeTab === 'notifications' ? 'Notifications' :
              activeTab === 'chats' ? 'My Chats' :
              activeTab === 'payments' ? 'Payments' : 'Dashboard'}
           </h2>
@@ -624,7 +625,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ initialTab }) => {
             </div>
 
             {/* Subscription Status Card */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 lg:p-6 border-l-4 border-indigo-500 mb-6">
+            {/* <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 lg:p-6 border-l-4 border-indigo-500 mb-6">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between">
                 <div>
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Subscription Status</h3>
@@ -665,7 +666,8 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ initialTab }) => {
                   </Link>
                 </div>
               </div>
-            </div>
+            </div> */}
+            <SubscriptionStatusCard />
 
             {/* Profile Information Card */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 lg:p-6">
