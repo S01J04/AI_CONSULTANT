@@ -21,11 +21,11 @@ function Hero() {
   return (
     <div className="relative w-full bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 border-b-2 border-gray-200">
       <div className="container mx-auto flex flex-col items-center justify-center min-h-[50vh] py-20 lg:py-10">
-        <div>
+        {/* <div>
           <Button variant="secondary" size="sm" className="gap-4">
             Read our launch article <MoveRight className="w-4 h-4" />
           </Button>
-        </div>
+        </div> */}
 
         <div className="flex flex-col gap-4 text-center mt-6">
           <h1 className="text-5xl md:text-7xl max-w-3xl tracking-tighter font-regular">
@@ -51,10 +51,7 @@ function Hero() {
           </h1>
 
           <p className="text-lg md:text-xl leading-relaxed tracking-tight text-muted-foreground max-w-2xl">
-            Managing a small business today is already tough. Avoid further
-            complications by ditching outdated, tedious trade methods. Our
-            goal is to streamline SMB trade, making it easier and faster than
-            ever.
+            An AI-powered consultation platform for smarter business decisions, professional growth, and personal clarity—all in a secure, supportive space. Whether you’re navigating complex business challenges, planning your next career move, or seeking personal growth, get tailored insights from advanced AI and expert human support to unlock your path to success.
           </p>
         </div>
 
@@ -72,7 +69,7 @@ function Hero() {
           >
             <Calendar className="h-5 w-5 mr-2" />
             {/* Schedule a Call */}
-            Comming soon
+            Appointment-Comming soon
           </Link>
         </div>
       </div>
