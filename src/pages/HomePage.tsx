@@ -5,7 +5,7 @@ import {motion} from "framer-motion"
 import { ContainerScroll } from "../components/ui/container-scroll-animation";
 import { Hero } from '../components/ui/animated-hero';
 import { Logos3 } from '../components/logos3';
-
+import IMG from '/assets/hero.jpeg';
 
 const logoData = {
   heading: "Trusted by these companies",
@@ -84,7 +84,7 @@ const HomePage: React.FC = () => {
       >
         <img
           // src={`https://images-cdn.openxcell.com/wp-content/uploads/2025/01/27141222/Banner-5-scaled.webp`}
-           src='/assets/hero.jpeg'
+           src={IMG}
             alt="hero"
           height={720}
           width={1400}
