@@ -6,6 +6,8 @@ import { ContainerScroll } from "../components/ui/container-scroll-animation";
 import { Hero } from '../components/ui/animated-hero';
 import { Logos3 } from '../components/logos3';
 import IMG from '/assets/hero.jpeg';
+import IMG1 from '/assets/hero2.jpeg';
+
 
 const logoData = {
   heading: "Trusted by these companies",
@@ -88,7 +90,7 @@ const HomePage: React.FC = () => {
             alt="hero"
           height={720}
           width={1400}
-          className="mx-auto rounded-2xl object-cover h-full object-left-top"
+          className="mx-auto rounded-2xl object-cover h-full object-left-center"
           draggable={false}
         />
       </ContainerScroll>
