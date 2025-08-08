@@ -4,7 +4,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../redux/store';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { Mic, MicOff, X } from 'lucide-react';
+import { Mic, MicOff, X, Settings, Globe } from 'lucide-react';
 
 interface Window {
     SpeechRecognition?: any;
@@ -12,28 +12,107 @@ interface Window {
     webkitAudioContext?: any;
 }
 
+interface LanguageOption {
+    code: string;
+    name: string;
+    flag: string;
+    backendCode: string; // Map to your backend language codes
+}
+
+// Updated to match your backend SUPPORTED_LANGUAGES exactly
+const SUPPORTED_LANGUAGES: LanguageOption[] = [
+    { code: 'en-US', name: 'English (US)', flag: '🇺🇸', backendCode: 'en' },
+    { code: 'en-GB', name: 'English (UK)', flag: '🇬🇧', backendCode: 'en' },
+    { code: 'es-ES', name: 'Spanish', flag: '🇪🇸', backendCode: 'es' },
+    { code: 'fr-FR', name: 'French', flag: '🇫🇷', backendCode: 'fr' },
+    { code: 'de-DE', name: 'German', flag: '🇩🇪', backendCode: 'de' },
+    { code: 'it-IT', name: 'Italian', flag: '🇮🇹', backendCode: 'it' },
+    { code: 'pt-BR', name: 'Portuguese', flag: '🇧🇷', backendCode: 'pt' },
+    { code: 'pt-PT', name: 'Portuguese (PT)', flag: '🇵🇹', backendCode: 'pt' },
+    { code: 'hi-IN', name: 'Hindi', flag: '🇮🇳', backendCode: 'hi' },
+    { code: 'ur-PK', name: 'Urdu', flag: '🇵🇰', backendCode: 'ur' },
+    { code: 'ar-SA', name: 'Arabic', flag: '🇸🇦', backendCode: 'ar' },
+    { code: 'zh-CN', name: 'Chinese (Simplified)', flag: '🇨🇳', backendCode: 'zh' },
+    { code: 'ja-JP', name: 'Japanese', flag: '🇯🇵', backendCode: 'ja' },
+    { code: 'ko-KR', name: 'Korean', flag: '🇰🇷', backendCode: 'ko' },
+    { code: 'ru-RU', name: 'Russian', flag: '🇷🇺', backendCode: 'ru' },
+    { code: 'nl-NL', name: 'Dutch', flag: '🇳🇱', backendCode: 'nl' },
+    { code: 'sv-SE', name: 'Swedish', flag: '🇸🇪', backendCode: 'sv' },
+    { code: 'no-NO', name: 'Norwegian', flag: '🇳🇴', backendCode: 'no' },
+    { code: 'da-DK', name: 'Danish', flag: '🇩🇰', backendCode: 'da' },
+    { code: 'fi-FI', name: 'Finnish', flag: '🇫🇮', backendCode: 'fi' },
+    { code: 'tr-TR', name: 'Turkish', flag: '🇹🇷', backendCode: 'tr' },
+    { code: 'pl-PL', name: 'Polish', flag: '🇵🇱', backendCode: 'pl' },
+    { code: 'cs-CZ', name: 'Czech', flag: '🇨🇿', backendCode: 'cs' },
+    { code: 'uk-UA', name: 'Ukrainian', flag: '🇺🇦', backendCode: 'uk' },
+    { code: 'bg-BG', name: 'Bulgarian', flag: '🇧🇬', backendCode: 'bg' },
+    { code: 'hr-HR', name: 'Croatian', flag: '🇭🇷', backendCode: 'hr' },
+    { code: 'sr-RS', name: 'Serbian', flag: '🇷🇸', backendCode: 'sr' },
+    { code: 'sk-SK', name: 'Slovak', flag: '🇸🇰', backendCode: 'sk' },
+    { code: 'sl-SI', name: 'Slovenian', flag: '🇸🇮', backendCode: 'sl' },
+    { code: 'ro-RO', name: 'Romanian', flag: '🇷🇴', backendCode: 'ro' },
+    { code: 'hu-HU', name: 'Hungarian', flag: '🇭🇺', backendCode: 'hu' },
+    { code: 'el-GR', name: 'Greek', flag: '🇬🇷', backendCode: 'el' },
+    { code: 'he-IL', name: 'Hebrew', flag: '🇮🇱', backendCode: 'he' },
+    { code: 'th-TH', name: 'Thai', flag: '🇹🇭', backendCode: 'th' },
+    { code: 'vi-VN', name: 'Vietnamese', flag: '🇻🇳', backendCode: 'vi' },
+    { code: 'id-ID', name: 'Indonesian', flag: '🇮🇩', backendCode: 'id' },
+    { code: 'ms-MY', name: 'Malay', flag: '🇲🇾', backendCode: 'ms' },
+    { code: 'tl-PH', name: 'Tagalog', flag: '🇵🇭', backendCode: 'tl' },
+    { code: 'ta-IN', name: 'Tamil', flag: '🇮🇳', backendCode: 'ta' },
+    { code: 'kn-IN', name: 'Kannada', flag: '🇮🇳', backendCode: 'kn' },
+    { code: 'mr-IN', name: 'Marathi', flag: '🇮🇳', backendCode: 'mr' },
+    { code: 'ne-NP', name: 'Nepali', flag: '🇳🇵', backendCode: 'ne' },
+    { code: 'sw-KE', name: 'Swahili', flag: '🇰🇪', backendCode: 'sw' },
+    { code: 'af-ZA', name: 'Afrikaans', flag: '🇿🇦', backendCode: 'af' },
+    { code: 'cy-GB', name: 'Welsh', flag: '🏴󐁧󐁢󐁷󐁬󐁳󐁿', backendCode: 'cy' },
+    { code: 'is-IS', name: 'Icelandic', flag: '🇮🇸', backendCode: 'is' },
+    { code: 'et-EE', name: 'Estonian', flag: '🇪🇪', backendCode: 'et' },
+    { code: 'lv-LV', name: 'Latvian', flag: '🇱🇻', backendCode: 'lv' },
+    { code: 'lt-LT', name: 'Lithuanian', flag: '🇱🇹', backendCode: 'lt' },
+    { code: 'mk-MK', name: 'Macedonian', flag: '🇲🇰', backendCode: 'mk' },
+    { code: 'be-BY', name: 'Belarusian', flag: '🇧🇾', backendCode: 'be' },
+    { code: 'az-AZ', name: 'Azerbaijani', flag: '🇦🇿', backendCode: 'az' },
+    { code: 'kk-KZ', name: 'Kazakh', flag: '🇰🇿', backendCode: 'kk' },
+    { code: 'hy-AM', name: 'Armenian', flag: '🇦🇲', backendCode: 'hy' },
+    { code: 'ka-GE', name: 'Georgian', flag: '🇬🇪', backendCode: 'ka' },
+    { code: 'fa-IR', name: 'Persian', flag: '🇮🇷', backendCode: 'fa' },
+    { code: 'bs-BA', name: 'Bosnian', flag: '🇧🇦', backendCode: 'bs' },
+    { code: 'ca-ES', name: 'Catalan', flag: '🇪🇸', backendCode: 'ca' },
+    { code: 'gl-ES', name: 'Galician', flag: '🇪🇸', backendCode: 'gl' },
+    { code: 'mi-NZ', name: 'Māori', flag: '🇳🇿', backendCode: 'mi' }
+];
+
 const VoiceCallWithAI = () => {
     const { user } = useSelector((state: RootState) => state.auth);
     const navigate = useNavigate();
     const userId = user?.uid;
     const [isMicOn, setIsMicOn] = useState(false);
+    const [selectedLanguage, setSelectedLanguage] = useState<LanguageOption>(SUPPORTED_LANGUAGES[0]);
+    const [showLanguageSelector, setShowLanguageSelector] = useState(false);
+    const [languageSearchTerm, setLanguageSearchTerm] = useState('');
+    const [serverLanguages, setServerLanguages] = useState<string[]>([]);
     const isMicOnRef = useRef(isMicOn);
     const isSpeakingRef = useRef(false);
-// Voice activity tracking with faster response
+
+    // Voice activity tracking with improved timing
     const voiceFrameCount = useRef(0);
     const silenceFrameCount = useRef(0);
     const hasRecentVoice = useRef(false);
+    
     useEffect(() => {
         isMicOnRef.current = isMicOn;
     }, [isMicOn]);
 
-    const [status, setStatus] = useState('Idle');
+    const [status, setStatus] = useState('🎙 Ready to connect');
     const [transcribedText, setTranscribedText] = useState('');
+    const [detectedLanguage, setDetectedLanguage] = useState('');
     const [browserSupported, setBrowserSupported] = useState(true);
     const [isConnected, setIsConnected] = useState(false);
     const [isListening, setIsListening] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
     const [isPlaying, setIsPlaying] = useState(false);
+    const [connectionQuality, setConnectionQuality] = useState<'good' | 'fair' | 'poor'>('good');
 
     // Audio handling refs
     const streamRef = useRef<MediaStream | null>(null);
@@ -55,19 +134,29 @@ const VoiceCallWithAI = () => {
     const recordingStartTimeRef = useRef<number>(0);
     const voiceDetectedRef = useRef(false);
     const lastVoiceTimeRef = useRef<number>(0);
+    const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const connectionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Optimized constants for low delay
-    const VOICE_THRESHOLD = -50; // Even more lenient for faster detection
-    const SILENCE_THRESHOLD = -60; // Lower silence threshold
-    const MIN_RECORDING_DURATION = 300; // Much shorter minimum
-    const MAX_RECORDING_DURATION = 4000; // Much shorter maximum
-    const MIN_AUDIO_SIZE = 512; // Smaller minimum size
-    const SILENCE_FRAMES_TO_STOP = 8; // Fewer frames needed
-    const VOICE_FRAMES_TO_START = 2; // Fewer frames to start
+    // Improved timing constants
+    const VOICE_THRESHOLD = -45;
+    const SILENCE_THRESHOLD = -55;
+    const MIN_RECORDING_DURATION = 1000; // 1 second minimum
+    const MAX_RECORDING_DURATION = 10000; // 10 seconds maximum
+    const MIN_AUDIO_SIZE = 2048;
+    const SILENCE_FRAMES_TO_STOP = 15;
+    const VOICE_FRAMES_TO_START = 3;
+    const SILENCE_DURATION_TO_STOP = 1800; // 1.8 seconds
     const API_URL = 'ai-consultant-chatbot-371140242198.asia-south1.run.app';
+    const CONNECTION_TIMEOUT = 30000; // 30 seconds
 
     const db = getDatabase();
     const callRef = ref(db, `calls/${userId}`);
+
+    // Filter languages based on search
+    const filteredLanguages = SUPPORTED_LANGUAGES.filter(lang =>
+        lang.name.toLowerCase().includes(languageSearchTerm.toLowerCase()) ||
+        lang.code.toLowerCase().includes(languageSearchTerm.toLowerCase())
+    );
 
     useEffect(() => {
         if (!userId) {
@@ -77,27 +166,28 @@ const VoiceCallWithAI = () => {
     }, [userId, navigate]);
 
     useEffect(() => {
-        // Check for browser support
+        // Enhanced browser support checking
         const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         const isChrome = /Chrome/i.test(navigator.userAgent);
         const isSafari = /Safari/i.test(navigator.userAgent) && !/Chrome/i.test(navigator.userAgent);
         
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
             setBrowserSupported(false);
-            setStatus('Microphone access not supported');
+            setStatus('❌ Microphone access not supported');
             toast.error('Microphone access not supported in this browser.');
         } else if (!window.WebSocket) {
             setBrowserSupported(false);
-            setStatus('WebSocket not supported');
+            setStatus('❌ WebSocket not supported');
             toast.error('WebSocket not supported in this browser.');
         } else if (isMobile && isSafari) {
             setBrowserSupported(false);
-            setStatus('Safari not supported on mobile');
-            toast.error('Voice recognition is not supported in Safari on mobile. Please use Chrome instead.');
+            setStatus('❌ Safari not supported on mobile');
+            toast.error('Voice features not supported in Safari on mobile. Please use Chrome.');
+        } else if (isMobile && !isChrome) {
+            toast.warn('For best experience, use Chrome browser on mobile devices.');
         }
     }, []);
 
-    // Cleanup resources
     const cleanupResources = useCallback(() => {
         console.log('Cleaning up resources...');
         
@@ -154,7 +244,7 @@ const VoiceCallWithAI = () => {
         setIsMicOn(false);
     }, []);
 
-    const drawBlackBall = useCallback(() => {
+    const drawVisualization = useCallback(() => {
         const canvas = canvasRef.current;
         const ctx = canvas?.getContext('2d');
         if (!ctx || !analyserRef.current || !canvas) return;
@@ -170,20 +260,60 @@ const VoiceCallWithAI = () => {
             const volume = dataArray.reduce((acc, val) => acc + val, 0) / bufferLength;
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            const radius = 30 + volume / 5;
+            const radius = Math.max(40, Math.min(80, 40 + volume / 3));
             const centerX = canvas.width / 2;
             const centerY = canvas.height / 2;
 
+            // Enhanced color coding with connection quality
+            let color = '#6B7280'; // gray-500
+            let pulseIntensity = 0.1;
+
+            if (!isConnected) {
+                color = '#EF4444'; // red-500
+            } else if (isProcessing) {
+                color = '#8B5CF6'; // purple-500
+                pulseIntensity = 0.3;
+            } else if (isPlaying) {
+                color = '#3B82F6'; // blue-500
+                pulseIntensity = 0.4;
+            } else if (isListening && hasRecentVoice.current) {
+                color = '#10B981'; // green-500
+                pulseIntensity = 0.5;
+            } else if (isListening) {
+                color = '#F59E0B'; // amber-500
+                pulseIntensity = 0.2;
+            }
+
+            // Draw outer pulse ring
+            const pulseRadius = radius + Math.sin(Date.now() / 200) * 10 * pulseIntensity;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, pulseRadius, 0, 2 * Math.PI);
+            ctx.strokeStyle = color + '40'; // 25% opacity
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Draw main circle
             ctx.beginPath();
             ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-            ctx.fillStyle = isListening ? 'green' : isPlaying ? 'blue' : 'black';
+            ctx.fillStyle = color;
             ctx.fill();
+            
+            // Add language code and status
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(selectedLanguage.backendCode.toUpperCase(), centerX, centerY - 5);
+            
+            // Add connection quality indicator
+            ctx.font = '10px Arial';
+            const qualityText = connectionQuality === 'good' ? '●●●' : 
+                              connectionQuality === 'fair' ? '●●○' : '●○○';
+            ctx.fillText(qualityText, centerX, centerY + 15);
         };
 
         draw();
-    }, [isListening, isPlaying]);
+    }, [isListening, isPlaying, isProcessing, isConnected, selectedLanguage, connectionQuality]);
 
-    // Fast and responsive voice detection
     const detectVoiceActivity = useCallback(() => {
         if (!analyserRef.current) return { hasVoice: false, volume: -100 };
 
@@ -191,31 +321,29 @@ const VoiceCallWithAI = () => {
         const dataArray = new Uint8Array(bufferLength);
         analyserRef.current.getByteFrequencyData(dataArray);
 
-        // Get average volume
+        // Calculate RMS for better voice detection
         let sum = 0;
         for (let i = 0; i < bufferLength; i++) {
-            sum += dataArray[i];
+            sum += dataArray[i] * dataArray[i];
         }
-        const average = sum / bufferLength;
-        const volume = average === 0 ? -100 : 20 * Math.log10(average / 255);
+        const rms = Math.sqrt(sum / bufferLength);
+        const volume = rms === 0 ? -100 : 20 * Math.log10(rms / 255);
 
         const hasVoice = volume > VOICE_THRESHOLD;
         
-        // Only log occasionally to avoid spam
-        if (Math.random() < 0.1) {
-            console.log(`Vol: ${volume.toFixed(1)}dB, Voice: ${hasVoice}`);
+        // Enhanced logging
+        if (hasVoice || Math.random() < 0.02) {
+            const recordingDuration = Date.now() - recordingStartTimeRef.current;
+            console.log(`🎤 Vol: ${volume.toFixed(1)}dB, Voice: ${hasVoice}, Duration: ${recordingDuration}ms, Lang: ${selectedLanguage.backendCode}`);
         }
         
         return { hasVoice, volume };
-    }, []);
+    }, [selectedLanguage]);
 
-    // Smooth audio playback with proper buffering
     const playAudioSmooth = useCallback(async () => {
-        if (isPlayingQueueRef.current || audioQueueRef.current.length === 0) {
-            return;
-        }
+        if (isPlayingQueueRef.current || audioQueueRef.current.length === 0) return;
 
-        console.log('Starting smooth audio playback...');
+        console.log('🔊 Starting smooth audio playback...');
         isPlayingQueueRef.current = true;
         setIsPlaying(true);
         isSpeakingRef.current = true;
@@ -225,91 +353,76 @@ const VoiceCallWithAI = () => {
                 const audioItem = audioQueueRef.current.shift();
                 if (!audioItem) continue;
 
-                // Create blob and play
                 const audioBlob = new Blob([audioItem.buffer], { type: 'audio/mpeg' });
-                if (audioBlob.size < 100) continue; // Skip tiny chunks
+                if (audioBlob.size < 100) continue;
 
                 const audioUrl = URL.createObjectURL(audioBlob);
                 const audioElement = new Audio(audioUrl);
                 currentAudioRef.current = audioElement;
                 
                 audioElement.preload = 'auto';
-                audioElement.volume = 1.0;
+                audioElement.volume = 0.9;
 
-                // Wait for audio to load and play
-                await new Promise<void>((resolve, reject) => {
+                await new Promise<void>((resolve) => {
                     let resolved = false;
+                    const resolveOnce = () => {
+                        if (!resolved) {
+                            resolved = true;
+                            URL.revokeObjectURL(audioUrl);
+                            resolve();
+                        }
+                    };
 
                     audioElement.oncanplaythrough = () => {
-                        if (!resolved) {
-                            audioElement.play().then(() => {
-                                console.log('Audio chunk playing smoothly');
-                            }).catch(reject);
-                        }
+                        audioElement.play()
+                            .then(() => console.log('🔊 Audio chunk playing'))
+                            .catch(resolveOnce);
                     };
 
-                    audioElement.onended = () => {
-                        if (!resolved) {
-                            resolved = true;
-                            URL.revokeObjectURL(audioUrl);
-                            resolve();
-                        }
+                    audioElement.onended = resolveOnce;
+                    audioElement.onerror = (e) => {
+                        console.error('Audio playback error:', e);
+                        resolveOnce();
                     };
 
-                    audioElement.onerror = (error) => {
-                        if (!resolved) {
-                            resolved = true;
-                            console.error('Audio playback error:', error);
-                            URL.revokeObjectURL(audioUrl);
-                            resolve(); // Continue with next chunk
-                        }
-                    };
-
-                    // Timeout fallback
-                    setTimeout(() => {
-                        if (!resolved) {
-                            resolved = true;
-                            console.warn('Audio playback timeout, moving to next chunk');
-                            URL.revokeObjectURL(audioUrl);
-                            resolve();
-                        }
-                    }, 10000);
+                    setTimeout(resolveOnce, 8000); // 8 second timeout
                 });
 
-                // Small gap between chunks for smoothness
-                await new Promise(resolve => setTimeout(resolve, 50));
+                await new Promise(resolve => setTimeout(resolve, 50)); // Small gap
             }
         } catch (error) {
-            console.error('Error in smooth audio playback:', error);
+            console.error('❌ Error in smooth audio playback:', error);
         } finally {
-            console.log('Audio playback completed');
+            console.log('✅ Audio playback completed');
             isPlayingQueueRef.current = false;
             setIsPlaying(false);
             isSpeakingRef.current = false;
             currentAudioRef.current = null;
 
-            // Restart listening if not processing
             if (!isProcessing && isMicOnRef.current) {
                 responseFinished();
             }
         }
     }, [isProcessing]);
 
-    // Start recording with simplified voice detection
     const startRecording = useCallback(() => {
         if (!streamRef.current || mediaRecorderRef.current?.state === 'recording') return;
 
-        console.log('Starting recording with simplified voice detection...');
+        console.log(`🎙 Starting recording in ${selectedLanguage.name} (${selectedLanguage.backendCode})...`);
         recordingStartTimeRef.current = Date.now();
         voiceDetectedRef.current = false;
         lastVoiceTimeRef.current = 0;
         voiceFrameCount.current = 0;
         silenceFrameCount.current = 0;
+        hasRecentVoice.current = false;
 
-        const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg';
+        const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 
+                        'audio/webm;codecs=opus' : 
+                        MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg';
+        
         mediaRecorderRef.current = new MediaRecorder(streamRef.current, { 
             mimeType,
-            audioBitsPerSecond: 16000
+            audioBitsPerSecond: 48000 // Higher quality
         });
         audioChunksRef.current = [];
 
@@ -317,7 +430,7 @@ const VoiceCallWithAI = () => {
         if (maxRecordingTimerRef.current) clearTimeout(maxRecordingTimerRef.current);
         maxRecordingTimerRef.current = setTimeout(() => {
             if (mediaRecorderRef.current?.state === 'recording') {
-                console.log("Max recording duration reached, stopping recording.");
+                console.log("⏰ Max recording duration reached");
                 stopRecording();
             }
         }, MAX_RECORDING_DURATION);
@@ -330,7 +443,7 @@ const VoiceCallWithAI = () => {
 
         mediaRecorderRef.current.onstart = () => {
             setIsListening(true);
-            setStatus('🎤 Listening...');
+            setStatus(`🎤 Listening in ${selectedLanguage.name}...`);
             startVoiceDetection();
         };
 
@@ -343,9 +456,11 @@ const VoiceCallWithAI = () => {
             
             const recordingDuration = Date.now() - recordingStartTimeRef.current;
             
-            // Send if we have audio chunks and reasonable duration
-            if (audioChunksRef.current.length > 0 && recordingDuration >= MIN_RECORDING_DURATION && !isProcessing) {
-                console.log(`📤 Sending (${recordingDuration}ms, ${audioChunksRef.current.length} chunks)`);
+            if (audioChunksRef.current.length > 0 && 
+                recordingDuration >= MIN_RECORDING_DURATION && 
+                !isProcessing) {
+                
+                console.log(`📤 Sending ${recordingDuration}ms recording (${audioChunksRef.current.length} chunks)`);
                 setStatus('🔄 Processing...');
                 setIsProcessing(true);
                 
@@ -368,18 +483,17 @@ const VoiceCallWithAI = () => {
                     restartListening();
                 }
             } else {
-                console.log(`⏭️ Skipping - Duration: ${recordingDuration}ms`);
+                console.log(`⏭ Skipping - Duration: ${recordingDuration}ms`);
                 restartListening();
             }
         };
 
-        mediaRecorderRef.current.start(100); // Smaller chunks for faster response
-    }, [isProcessing]);
+        mediaRecorderRef.current.start(250); // Balanced chunk size
+    }, [isProcessing, selectedLanguage]);
 
-    // Stop recording
     const stopRecording = useCallback(() => {
         if (mediaRecorderRef.current?.state === 'recording') {
-            console.log('Stopping recording...');
+            console.log('🛑 Stopping recording...');
             if (silenceTimerRef.current) {
                 clearInterval(silenceTimerRef.current);
                 silenceTimerRef.current = null;
@@ -388,7 +502,6 @@ const VoiceCallWithAI = () => {
         }
     }, []);
 
-    // Fast voice detection during recording
     const startVoiceDetection = useCallback(() => {
         if (silenceTimerRef.current) clearInterval(silenceTimerRef.current);
 
@@ -406,42 +519,89 @@ const VoiceCallWithAI = () => {
                 
                 if (!voiceDetectedRef.current && voiceFrameCount.current >= VOICE_FRAMES_TO_START) {
                     voiceDetectedRef.current = true;
-                    setStatus('🎤 Speaking...');
+                    setStatus(`🗣 Speaking in ${selectedLanguage.name}...`);
                 }
             } else {
                 silenceFrameCount.current++;
                 voiceFrameCount.current = 0;
             }
 
-            // Quick stop on silence after detecting voice
-            if (hasRecentVoice.current && 
-                silenceFrameCount.current >= SILENCE_FRAMES_TO_STOP && 
-                recordingDuration >= MIN_RECORDING_DURATION &&
-                !isProcessing) {
-                console.log(`Quick stop after ${silenceFrameCount.current} silence frames`);
+            // Improved stopping logic
+            const silenceDuration = Date.now() - lastVoiceTimeRef.current;
+            const shouldStop = hasRecentVoice.current && 
+                             silenceFrameCount.current >= SILENCE_FRAMES_TO_STOP && 
+                             silenceDuration >= SILENCE_DURATION_TO_STOP &&
+                             recordingDuration >= MIN_RECORDING_DURATION &&
+                             !isProcessing;
+
+            if (shouldStop) {
+                console.log(`🔇 Stopping after ${silenceFrameCount.current} silence frames (${silenceDuration}ms)`);
                 stopRecording();
             }
-        }, 50); // Faster checking for responsiveness
-    }, [isListening, isPlaying, isProcessing, detectVoiceActivity, stopRecording]);
+        }, 100);
+    }, [isListening, isPlaying, isProcessing, detectVoiceActivity, stopRecording, selectedLanguage]);
 
-    // Restart with minimal delay
     const restartListening = useCallback(() => {
         if (isMicOnRef.current && socketRef.current?.readyState === WebSocket.OPEN) {
             setTimeout(() => {
                 startRecording();
-                setStatus('🎤 Ready...');
-            }, 100); // Very fast restart
+                setStatus(`🎤 Ready (${selectedLanguage.name})...`);
+            }, 300);
         }
-    }, [startRecording]);
+    }, [startRecording, selectedLanguage]);
 
-    // Response finished
     const responseFinished = useCallback(() => {
-        console.log('Response finished, restarting listening...');
+        console.log('✅ Response finished, restarting listening...');
         setIsProcessing(false);
         audioBufferRef.current = [];
         audioQueueRef.current = [];
         restartListening();
     }, [restartListening]);
+
+    // Language selection handler with backend integration
+    const handleLanguageChange = (language: LanguageOption) => {
+        console.log(`🌍 Changing language to: ${language.name} (${language.backendCode})`);
+        setSelectedLanguage(language);
+        setShowLanguageSelector(false);
+        setLanguageSearchTerm('');
+        
+        // Send language change to server if connected
+        if (socketRef.current?.readyState === WebSocket.OPEN) {
+            socketRef.current.send(JSON.stringify({
+                type: "language_change",
+                language: language.backendCode, // Use backend language code
+                language_name: language.name,
+                full_locale: language.code
+            }));
+            
+            console.log(`📡 Sent language change: ${language.backendCode}`);
+        }
+        
+        toast.success(`Language changed to ${language.name}`);
+    };
+
+    const setupHeartbeat = useCallback(() => {
+        if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
+        
+        heartbeatIntervalRef.current = setInterval(() => {
+            if (socketRef.current?.readyState === WebSocket.OPEN) {
+                socketRef.current.send(JSON.stringify({
+                    type: "ping",
+                    timestamp: Date.now(),
+                    language: selectedLanguage.backendCode
+                }));
+                
+                // Update connection quality based on response time
+                const pingStart = Date.now();
+                setTimeout(() => {
+                    const pingTime = Date.now() - pingStart;
+                    if (pingTime < 100) setConnectionQuality('good');
+                    else if (pingTime < 300) setConnectionQuality('fair');
+                    else setConnectionQuality('poor');
+                }, 100);
+            }
+        }, 30000); // Every 30 seconds
+    }, [selectedLanguage]);
 
     const handleMicToggle = async () => {
         if (!browserSupported) {
@@ -451,7 +611,7 @@ const VoiceCallWithAI = () => {
 
         if (isMicOn) {
             cleanupResources();
-            setStatus('Call ended');
+            setStatus('🔌 Call ended');
             return;
         }
 
@@ -461,84 +621,127 @@ const VoiceCallWithAI = () => {
         }
 
         try {
-            setStatus('Connecting...');
+            setStatus('🔄 Connecting...');
             
-            // Get microphone access
+            // Enhanced microphone access
             const constraints = {
                 audio: {
                     echoCancellation: true,
                     noiseSuppression: true,
                     autoGainControl: true,
-                    sampleRate: { ideal: 16000 },
+                    sampleRate: { ideal: 48000 },
                     channelCount: { ideal: 1 },
+                    latency: { ideal: 0.01 }
                 } as MediaStreamConstraints['audio']
             };
 
             const stream = await navigator.mediaDevices.getUserMedia({ audio: constraints });
             streamRef.current = stream;
+            console.log('🎤 Microphone access granted');
 
-            // Setup audio context with better settings
+            // Setup enhanced audio context
             const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
             const audioCtx = new AudioContext({ 
-                sampleRate: 16000,
+                sampleRate: 48000,
                 latencyHint: 'interactive' 
             });
             audioContextRef.current = audioCtx;
 
             if (audioCtx.state === 'suspended') {
                 await audioCtx.resume();
-                console.log('Audio context resumed');
+                console.log('🔊 Audio context resumed');
             }
 
             const analyser = audioCtx.createAnalyser();
             analyserRef.current = analyser;
             const source = audioCtx.createMediaStreamSource(stream);
             source.connect(analyser);
-            analyser.fftSize = 512; // Smaller for better performance
-            analyser.smoothingTimeConstant = 0.8; // More stable readings
+            analyser.fftSize = 2048;
+            analyser.smoothingTimeConstant = 0.8;
             analyser.minDecibels = -90;
             analyser.maxDecibels = -10;
 
-            drawBlackBall();
+            drawVisualization();
 
-            // Setup WebSocket connection
+            // Setup WebSocket with enhanced configuration
             const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsUrl = `${wsProtocol}//${API_URL}/ws/voice/${encodeURIComponent(userId)}`;
-            console.log('Connecting to WebSocket:', wsUrl);
+            console.log('🔌 Connecting to WebSocket:', wsUrl);
+            
             socketRef.current = new WebSocket(wsUrl);
             socketRef.current.binaryType = 'arraybuffer';
 
+            // Connection timeout
+            connectionTimeoutRef.current = setTimeout(() => {
+                if (!isConnected) {
+                    console.error('⏰ Connection timeout');
+                    setStatus('❌ Connection timeout');
+                    // toast.error('Connection timeout. Please try again.');
+                    cleanupResources();
+                }
+            }, CONNECTION_TIMEOUT);
+
             socketRef.current.onopen = () => {
-                console.log('WebSocket connected');
-                setStatus('Connected! Initializing...');
+                console.log('✅ WebSocket connected');
+                setStatus('🔄 Initializing...');
+                
+                if (connectionTimeoutRef.current) {
+                    clearTimeout(connectionTimeoutRef.current);
+                    connectionTimeoutRef.current = null;
+                }
+                
                 if (socketRef.current) {
+                    // Send enhanced initialization with your backend's expected format
                     socketRef.current.send(JSON.stringify({
                         tts_voice: "alloy",
-                        audio_format: MediaRecorder.isTypeSupported('audio/webm') ? 'webm' : 'ogg',
-                        language: "en-US", // Explicitly set to US English
-                        response_language: "en-US", // Force English responses
-                        locale: "en-US",
-                        force_english: true, // Additional flag
-                        streaming_audio: true
+                        audio_format: MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'webm_opus' : 'webm',
+                        language: selectedLanguage.backendCode, // Use backend code
+                        response_language: selectedLanguage.backendCode,
+                        locale: selectedLanguage.code, // Full locale for reference
+                        force_language: true,
+                        streaming_audio: true,
+                        transcription_language: selectedLanguage.backendCode,
+                        output_language: selectedLanguage.backendCode,
+                        language_detection: false,
+                        // Additional configuration
+                        client_info: {
+                            browser: navigator.userAgent,
+                            timestamp: Date.now(),
+                            supported_formats: ['webm', 'ogg', 'wav']
+                        }
                     }));
+                    
+                    console.log(`📡 Sent initialization with language: ${selectedLanguage.backendCode}`);
                 }
             };
 
             socketRef.current.onmessage = async (event) => {
                 if (typeof event.data === 'string') {
                     const data = JSON.parse(event.data);
-                    console.log('Received message:', data.type);
+                    console.log('📨 Received:', data.type);
                     
                     switch (data.type) {
                         case "connected":
-                            setStatus('✅ Connected! Speak now...');
+                            setStatus(`✅ Connected! Speak in ${selectedLanguage.name}...`);
                             setIsConnected(true);
                             setIsMicOn(true);
+                            setServerLanguages(data.supported_languages || []);
+                            setupHeartbeat();
                             startRecording();
+                            console.log('🎯 Server languages:', data.supported_languages);
                             break;
                             
                         case "transcript":
                             setTranscribedText(data.text);
+                            console.log('📝 Transcript:', data.text);
+                            
+                            // Enhanced language mismatch handling
+                            if (data.detected_language && data.detected_language !== selectedLanguage.backendCode) {
+                                setDetectedLanguage(data.detected_language);
+                                console.warn(`⚠️ Language mismatch: detected ${data.detected_language}, expected ${selectedLanguage.backendCode}`);
+                            } else {
+                                setDetectedLanguage('');
+                            }
                             break;
                             
                         case "processing":
@@ -549,17 +752,15 @@ const VoiceCallWithAI = () => {
                             break;
 
                         case "text_chunk":
-                            console.log('Received text chunk:', data.text);
+                            console.log('📄 Text chunk received');
                             break;
                             
                         case "audio_format":
-                            console.log('Audio format confirmed:', data.format);
+                            console.log('🔊 Audio format:', data.format);
                             break;
 
                         case "audio_chunk_complete":
-                            console.log('Audio chunk complete, buffer size:', audioBufferRef.current.length);
                             if (audioBufferRef.current.length > 0) {
-                                // Combine buffered chunks into one smooth segment
                                 const combinedBuffer = new Uint8Array(
                                     audioBufferRef.current.reduce((total, chunk) => total + chunk.byteLength, 0)
                                 );
@@ -575,18 +776,16 @@ const VoiceCallWithAI = () => {
                                 });
                                 audioBufferRef.current = [];
 
-                                // Start playing if we have enough buffered
-                                if (audioQueueRef.current.length >= 1 && !isPlayingQueueRef.current) {
+                                if (!isPlayingQueueRef.current) {
                                     playAudioSmooth();
                                 }
                             }
                             break;
                             
                         case "complete":
-                            console.log('Response complete');
+                            console.log('✅ Response complete');
                             setIsProcessing(false);
                             
-                            // Mark last chunk and start playback if not already playing
                             if (audioQueueRef.current.length > 0) {
                                 audioQueueRef.current[audioQueueRef.current.length - 1].isLast = true;
                             }
@@ -601,52 +800,76 @@ const VoiceCallWithAI = () => {
                             break;
                             
                         case "error":
-                            console.error('Server error:', data.message);
-                            setStatus(`Error: ${data.message}`);
+                            console.error('❌ Server error:', data.message);
+                            setStatus(`❌ Error: ${data.message}`);
                             setIsProcessing(false);
                             toast.error(`Error: ${data.message}`);
-                            restartListening();
+                            
+                            // Handle specific error types
+                            if (data.message.includes('language')) {
+                                toast.info(`Try speaking in ${selectedLanguage.name}`);
+                            }
+                            
+                            setTimeout(() => restartListening(), 2000);
+                            break;
+                            
+                        case "language_mismatch":
+                            console.warn('🌍 Language mismatch:', data);
+                            toast.warn(`Detected ${data.detected} but expected ${selectedLanguage.name}`);
+                            setDetectedLanguage(data.detected);
+                            break;
+                            
+                        case "language_changed":
+                            console.log('🌍 Language changed on server:', data.language);
+                            toast.success(`Server language: ${data.language_name}`);
                             break;
                             
                         case "heartbeat":
-                            console.log('Heartbeat received');
+                        case "pong":
+                            // Connection is alive
                             break;
+                            
+                        default:
+                            console.log('❓ Unknown message type:', data.type);
                     }
                 } else if (event.data instanceof ArrayBuffer && event.data.byteLength > 0) {
-                    // Buffer audio chunks for smooth playback
-                    console.log('Buffering audio chunk:', event.data.byteLength, 'bytes');
                     audioBufferRef.current.push(event.data);
                 }
             };
             
             socketRef.current.onclose = (event) => {
-                console.log('WebSocket closed:', event.code, event.reason);
-                setStatus('Disconnected! Click mic to reconnect.');
+                console.log('🔌 WebSocket closed:', event.code, event.reason);
+                setStatus('🔌 Disconnected! Click mic to reconnect.');
+                setIsConnected(false);
                 cleanupResources();
+                
+                // if (event.code !== 1000) { // Not a normal closure
+                //     toast.error('Connection lost. Please try again.');
+                // }
             };
             
             socketRef.current.onerror = (error) => {
-                console.error('WebSocket error:', error);
-                setStatus('Connection error! Please try again.');
-                toast.error('Connection failed. Please try again.');
+                console.error('❌ WebSocket error:', error);
+                setStatus('❌ Connection error! Please try again.');
+                toast.error('Connection failed. Please check your internet.');
                 cleanupResources();
             };
 
         } catch (err) {
-            console.error('Mic access error:', err);
+            console.error('❌ Mic access error:', err);
             toast.error('Microphone access denied. Please check permissions.');
-            setStatus('Microphone access error');
+            setStatus('❌ Microphone access error');
+            cleanupResources();
         }
     };
 
     const handleClose = async () => {
         cleanupResources();
-        setStatus('Call ended.');
+        setStatus('👋 Call ended.');
         remove(callRef);
         navigate(-1);
     };
 
-    // Cleanup on unmount
     useEffect(() => {
         return () => {
             cleanupResources();
@@ -654,65 +877,187 @@ const VoiceCallWithAI = () => {
     }, [cleanupResources]);
 
     return (
-        <div className="w-full h-screen bg-gradient-to-r flex justify-center items-center relative">
-            <div className="bg-white text-black dark:bg-zinc-900 rounded-xl w-full max-w-2xl p-8 space-y-6 relative">
-                <h2 className="text-3xl font-semibold text-center">🎙️ AI Voice Call</h2>
-                <p className="text-lg text-center">{status}</p>
-                {transcribedText && <p className="text-lg text-center">You said: {transcribedText}</p>}
+        <div className=" bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center relative">
+            <div className="bg-white/80 backdrop-blur-lg text-black dark:bg-gray-900/80 dark:text-white rounded-2xl w-full max-w-3xl p-8 space-y-6 relative shadow-2xl border border-white/20">
+                
+                {/* Header */}
+                <div className="text-center space-y-2">
+                    <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                        🎙 AI Voice Assistant
+                    </h2>
+                </div>
 
+                            
+                {/* Language Selector */}
+                <div className="flex justify-center">
+                    <div className="relative">
+                        <button
+                            onClick={() => setShowLanguageSelector(!showLanguageSelector)}
+                            className="flex items-center space-x-3 px-6 py-3 bg-white/50 dark:bg-gray-700/50 rounded-xl hover:bg-white/70 dark:hover:bg-gray-600/70 transition-all duration-200 border border-gray-200 dark:border-gray-600 shadow-lg backdrop-blur-sm"
+                            disabled={isProcessing || isListening}
+                        >
+                            <Settings className="h-5 w-5" />
+                            <span className="text-lg">{selectedLanguage.flag} {selectedLanguage.name}</span>
+                            <span className="text-sm text-gray-500">({selectedLanguage.backendCode})</span>
+                        </button>
+                        
+                        {showLanguageSelector && (
+                            <div className="absolute top-full mt-2 w-80 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border dark:border-gray-600 z-20 max-h-80 overflow-hidden">
+                                {/* Search */}
+                                <div className="p-3 border-b dark:border-gray-600">
+                                    <input
+                                        type="text"
+                                        placeholder="Search languages..."
+                                        value={languageSearchTerm}
+                                        onChange={(e) => setLanguageSearchTerm(e.target.value)}
+                                        className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm"
+                                    />
+                                </div>
+                                
+                                {/* Language List */}
+                                <div className="max-h-64 overflow-y-auto">
+                                    {filteredLanguages.map((lang) => (
+                                        <button
+                                            key={lang.code}
+                                            onClick={() => handleLanguageChange(lang)}
+                                            className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-between group transition-colors"
+                                            disabled={isProcessing || isListening}
+                                        >
+                                            <div className="flex items-center space-x-3">
+                                                <span className="text-lg">{lang.flag}</span>
+                                                <div>
+                                                    <span className="font-medium">{lang.name}</span>
+                                                    <span className="text-sm text-gray-500 ml-2">({lang.backendCode})</span>
+                                                </div>
+                                            </div>
+                                            {lang.code === selectedLanguage.code && (
+                                                <span className="text-green-500 font-bold">✓</span>
+                                            )}
+                                            {serverLanguages.includes(lang.backendCode) && (
+                                                <span className="text-blue-500 text-xs">●</span>
+                                            )}
+                                        </button>
+                                    ))}
+                                    
+                                    {filteredLanguages.length === 0 && (
+                                        <div className="p-4 text-center text-gray-500">
+                                            No languages found
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Browser Support Warning */}
                 {!browserSupported && (
-                    <div className="bg-red-100 text-red-700 p-4 rounded text-center mb-4">
-                        <strong>Voice features are not supported in this browser.</strong><br />
-                        On mobile, only Chrome for Android is supported.<br />
-                        iOS Safari and most other mobile browsers do <b>NOT</b> support voice features.<br />
-                        Please use a compatible browser for voice chat features.
+                    <div className="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 p-4 rounded-xl text-center space-y-2 border border-red-200 dark:border-red-700">
+                        <div className="font-bold">⚠️ Voice features are not supported</div>
+                        <div className="text-sm">
+                            <p>On mobile: Use Chrome for Android</p>
+                            <p>iOS Safari and some browsers don't support voice features</p>
+                            <p>Please use a compatible browser for voice chat</p>
+                        </div>
                     </div>
                 )}
 
+                {/* Transcription Display */}
+                {transcribedText && (
+                    <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-xl text-center space-y-2 border border-blue-200 dark:border-blue-700">
+                        <p className="text-lg">
+                            <span className="font-semibold text-blue-700 dark:text-blue-300">You said:</span>
+                        </p>
+                        <p className="text-lg italic">"{transcribedText}"</p>
+                        {detectedLanguage && (
+                            <div className="flex items-center justify-center space-x-2 text-sm">
+                                <span className="text-yellow-600 dark:text-yellow-400">⚠️ Detected:</span>
+                                <span className="font-medium">{detectedLanguage}</span>
+                                <span className="text-gray-500">Expected:</span>
+                                <span className="font-medium">{selectedLanguage.backendCode}</span>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Visualization */}
                 <div className="flex justify-center">
-                    <canvas ref={canvasRef} width={200} height={200} className="rounded-full bg-transparent" />
+                    <div className="relative">
+                        <canvas 
+                            ref={canvasRef} 
+                            width={250} 
+                            height={250} 
+                            className="rounded-full bg-transparent drop-shadow-2xl" 
+                        />
+                        {/* Status overlay */}
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <div className="text-center space-y-1">
+                                {isProcessing && (
+                                    <div className="animate-spin text-2xl">🤖</div>
+                                )}
+                                {isListening && !isProcessing && (
+                                    <div className="animate-pulse text-2xl">🎤</div>
+                                )}
+                                {isPlaying && (
+                                    <div className="animate-bounce text-2xl">🔊</div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 
-                <div className="flex justify-center space-x-6">
+                {/* Controls */}
+                <div className="flex justify-center space-x-8">
                     <div className="relative group">
                         <button 
                             onClick={handleMicToggle} 
-                            className={`p-4 rounded-full transition-all shadow-md ${
+                            className={`p-6 rounded-full transition-all duration-300 shadow-lg transform hover:scale-110 ${
                                 isMicOn 
-                                    ? 'bg-green-100 hover:bg-green-200' 
-                                    : 'bg-gray-100 hover:bg-green-200'
-                            }`}
+                                    ? 'bg-gradient-to-r from-green-400 to-green-600 hover:from-green-500 hover:to-green-700 text-white' 
+                                    : 'bg-gradient-to-r from-gray-400 to-gray-600 hover:from-green-400 hover:to-green-600 text-white'
+                            } ${!browserSupported ? 'opacity-50 cursor-not-allowed' : ''}`}
                             disabled={!browserSupported}
                         >
                             {isMicOn ? 
-                                <Mic className="h-6 w-6 text-green-600" /> : 
-                                <MicOff className="h-6 w-6 text-red-600" />
+                                <Mic className="h-8 w-8" /> : 
+                                <MicOff className="h-8 w-8" />
                             }
                         </button>
-                        <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all bg-black text-white text-xs px-2 py-1 rounded">
-                            {isMicOn ? "End Call" : "Start Call"}
+                        <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all bg-black text-white text-sm px-3 py-1 rounded-lg whitespace-nowrap">
+                            {isMicOn ? "End Call" : "Start Voice Call"}
                         </div>
                     </div>
 
                     <button 
                         onClick={handleClose} 
-                        className="p-5 bg-gray-100 rounded-full hover:bg-red-200 transition-all shadow-md" 
+                        className="p-6 bg-gradient-to-r from-red-400 to-red-600 hover:from-red-500 hover:to-red-700 rounded-full transition-all duration-300 shadow-lg text-white transform hover:scale-110" 
                         aria-label="Close"
                     >
-                        <X className="h-5 w-5 text-black" />
+                        <X className="h-8 w-8" />
                     </button>
                 </div>
 
-                <div className="mt-4 text-xs text-gray-500 text-center">
-                    <p>• Speak clearly and naturally in English</p>
-                    <p>• System responds quickly (2-4 seconds)</p>
-                    <p>• AI will only respond in English</p>
-                    <p>• Voice threshold: {VOICE_THRESHOLD}dB</p>
+                {/* Debug Info */}
+                <div className="mt-6 text-xs text-gray-500 dark:text-gray-400 text-center space-y-1 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-xl">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <div>Language: <span className="font-mono">{selectedLanguage.backendCode}</span></div>
+                        <div>Min Recording: {MIN_RECORDING_DURATION}ms</div>
+                        <div>Max Recording: {MAX_RECORDING_DURATION}ms</div>
+                        <div>Voice Threshold: {VOICE_THRESHOLD}dB</div>
+                    </div>
+                    <div className="pt-1 border-t border-gray-200 dark:border-gray-700">
+                        Status: {isConnected ? '🟢 Connected' : '🔴 Disconnected'} | 
+                        Quality: {connectionQuality} | 
+                        Server Languages: {serverLanguages.length}
+                    </div>
                 </div>
             </div>
             
-            <div className="absolute bottom-0 w-full text-center">
-                <p className="text-sm">Powered by AI Voice Tech</p>
+            {/* Footer */}
+            <div className="absolute bottom-4 w-full text-center">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                    🚀 Powered by Rewiree
+                </p>
             </div>
         </div>
     );

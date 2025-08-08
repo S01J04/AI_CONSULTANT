@@ -98,7 +98,7 @@ const toastShownRef = useRef(false); // Prevent duplicate toasts
 
   useEffect(() => {
     const count = user?.chatCount || 0;
-    if (user && !user.plan && count === 0 && !toastShownRef.current) {
+    if (user && user.plan !== 'premium' && count === 0 && !toastShownRef.current) {
       toastShownRef.current = true; // mark as shown
 
       toast.error(
