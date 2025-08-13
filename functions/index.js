@@ -240,7 +240,6 @@ exports.verifyPaymentStatus = functions.https.onRequest((req, res) => {
 
 
 
-
 async function updateUserPlanBackend(userId, planId, planName) {
   if (!userId || !planId) throw new Error("Missing userId or planId");
 
@@ -248,43 +247,29 @@ async function updateUserPlanBackend(userId, planId, planName) {
   const userDoc = await userRef.get();
   if (!userDoc.exists) throw new Error("User not found");
 
-  const currentUserData = userDoc.data();
-
-  // Set appointments limit
-  let appointmentsTotal = 0;
-  if (planId === 'premium') appointmentsTotal = 2;
-  else if (planId === 'pay-per-call') appointmentsTotal = 1;
-
   const now = Date.now();
 
-  // Set plan duration (✅ change this line if testing with 20 mins)
-  const planDurationMs = planId === 'pay-per-call'
-    ? 7 * 24 * 60 * 60 * 1000
-    : 30 * 24 * 60 * 60 * 1000;
-
-  // ✅ For 20-minute test mode:
-  // const planDurationMs = 10 * 60 * 1000;
-
+  // Set plan duration
+  const planDurationMs = 30 * 24 * 60 * 60 * 1000; // 30 days default
   let finalExpiryDate = now + planDurationMs;
 
+  const currentUserData = userDoc.data();
   const isRenewal = currentUserData.plan === planId;
-
-  // If renewing and not yet expired, extend from current expiry
-  if (
-    isRenewal &&
-    currentUserData.planExpiryDate &&
-    currentUserData.planExpiryDate > now
-  ) {
+  if (isRenewal && currentUserData.planExpiryDate > now) {
     finalExpiryDate = currentUserData.planExpiryDate + planDurationMs;
   }
 
-  // Total appointments = base + existing extra
-  const baseAppointments = appointmentsTotal;
-  const currentAdditionalAppointments = currentUserData.additionalAppointments || 0;
-  const newAppointmentsTotal = baseAppointments + currentAdditionalAppointments;
+  // ✅ Assign chat retention and voice minutes based on plan
+  let chatRetentionDays = 10;
+  let voiceMinutesRemaining = 0; // default no calls
 
-  // ✅ Reset appointments after same duration as plan
-  const newAppointmentsResetDate = now + planDurationMs;
+  if (planId === "basic") {
+    chatRetentionDays = 60;
+    voiceMinutesRemaining = 0; // no calls in Basic
+  } else if (planId === "premium") {
+    chatRetentionDays = 90;
+    voiceMinutesRemaining = 120; // example: 120 mins for Premium
+  }
 
   const updateData = {
     plan: planId,
@@ -293,14 +278,137 @@ async function updateUserPlanBackend(userId, planId, planName) {
     planPurchasedAt: isRenewal ? (currentUserData.planPurchasedAt || now) : now,
     planExpiryDate: finalExpiryDate,
     hadSubscriptionBefore: true,
-    appointmentsTotal: newAppointmentsTotal,
-    appointmentsResetDate: newAppointmentsResetDate,
-    appointmentsUsed: 0,
+    chatRetentionDays,
+    voiceMinutesRemaining,
+    appointmentsUsed: 0
   };
 
   await userRef.update(updateData);
 
-  console.log(
-    `✅ User ${userId} upgraded to '${planId}' plan. Expires: ${new Date(finalExpiryDate).toLocaleString()}, Appointments reset: ${new Date(newAppointmentsResetDate).toLocaleString()}`
-  );
+  console.log(`✅ User ${userId} upgraded to '${planId}'. Chats kept ${chatRetentionDays} days, Calls: ${voiceMinutesRemaining} mins.`);
 }
+
+// exports.cleanupOldChatMessages = functions.pubsub.schedule("every 24 hours").onRun(async () => {
+//   const now = Date.now();
+//   const usersSnapshot = await db.collection("users").get();
+
+//   if (usersSnapshot.empty) {
+//     console.log("✅ No users found for cleanup.");
+//     return null;
+//   }
+
+//   for (const userDoc of usersSnapshot.docs) {
+//     const userId = userDoc.id;
+//     const userData = userDoc.data();
+//     const retentionDays = userData?.chatRetentionDays || 10; // default 10 days for free
+//     const retentionMs = retentionDays * 24 * 60 * 60 * 1000;
+//     const cutoffTime = now - retentionMs;
+
+//     console.log(`🧹 Checking chatSessions for ${userId}, retention: ${retentionDays} days`);
+
+//     const chatSessionsRef = db.collection("users").doc(userId).collection("chatSessions");
+//     const chatSessionsSnapshot = await chatSessionsRef.get();
+
+//     if (chatSessionsSnapshot.empty) {
+//       console.log(`No chat sessions for ${userId}`);
+//       continue;
+//     }
+
+//     for (const sessionDoc of chatSessionsSnapshot.docs) {
+//       const sessionData = sessionDoc.data();
+
+//       if (!Array.isArray(sessionData.messages) || sessionData.messages.length === 0) {
+//         continue;
+//       }
+
+//       // Filter messages that are within the retention period
+//       const updatedMessages = sessionData.messages.filter(msg => {
+//         return msg.timeStamp >= cutoffTime;
+//       });
+
+//       if (updatedMessages.length !== sessionData.messages.length) {
+//         await sessionDoc.ref.update({ messages: updatedMessages });
+//         console.log(`✅ Cleaned old messages from session ${sessionDoc.id} for user ${userId}`);
+//       }
+//     }
+//   }
+
+//   return null;
+// });
+
+
+exports.deductVoiceMinutes = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    // Handle preflight
+    if (req.method === 'OPTIONS') {
+      res.set('Access-Control-Allow-Origin', '*');
+      res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      res.set('Access-Control-Allow-Headers', 'Content-Type');
+      return res.status(204).send('');
+    }
+
+    try {
+      // Read from query params instead of body
+      const token = req.query.token;
+      const minutesToDeduct = Number(req.query.minutes) || 0;
+
+      console.log("Incoming request:", {
+        method: req.method,
+        tokenProvided: !!token,
+        minutesToDeduct
+      });
+
+      if (!token) {
+        console.warn("No token provided");
+        return res.status(401).send("Missing token");
+      }
+      if (minutesToDeduct <= 0) {
+        console.warn("Invalid minutes:", minutesToDeduct);
+        return res.status(400).send("Invalid minutes");
+      }
+
+      // Verify token
+      const decodedToken = await admin.auth().verifyIdToken(token);
+      const userId = decodedToken.uid;
+      console.log("Authenticated user:", userId);
+
+      // Fetch user doc
+      const userRef = db.collection("users").doc(userId);
+      const userDoc = await userRef.get();
+      if (!userDoc.exists) {
+        console.warn("User not found:", userId);
+        return res.status(404).send("User not found");
+      }
+
+      // Deduct minutes
+      const userData = userDoc.data();
+      let remaining = userData.voiceMinutesRemaining || 0;
+      console.log("Current minutes:", remaining);
+
+      if (remaining <= 0) {
+        console.warn("No minutes left for user:", userId);
+        return res.status(200).json({
+          success: false,
+          remainingMinutes: 0,
+          message: "No minutes left"
+        });
+      }
+
+      remaining -= minutesToDeduct;
+      if (remaining < 0) remaining = 0;
+
+      await userRef.update({ voiceMinutesRemaining: remaining });
+      console.log(`Deducted ${minutesToDeduct} minutes, remaining: ${remaining}`);
+
+      return res.status(200).json({
+        success: true,
+        remainingMinutes: remaining
+      });
+
+    } catch (error) {
+      console.error("Error in deductVoiceMinutes:", error);
+      return res.status(500).send(error.message);
+    }
+  });
+});
+

@@ -36,32 +36,33 @@ interface PaymentState {
 
 const initialState: PaymentState = {
   plans: [
-    // {
-    //   id: 'basic',
-    //   name: 'Basic Plan',
-    //   description: 'Access to AI chat with limited features',
-    //   price: 499,
-    //   currency: 'INR',
-    //   duration: 30,
-    //   features: [
-    //     'Unlimited text chat with AI',
-    //     'Chat history for 30 days',
-    //     'No voice calls',
-    //     'No appointments',
-    //   ],
-    // },
+    {
+      id: 'basic',
+      name: 'Basic Plan',
+      description: 'Access to AI chat with limited features',
+      price: 999,
+      currency: 'INR',
+      duration: 30,
+      features: [
+        'Limited text chat with AI',
+        'Chat history for 60 days',
+        'No voice calls',
+        'Priority support',
+        // 'No appointments',
+      ],
+    },
     {
       id: 'premium',
       name: 'Premium Plan',
       description: 'Full access to AI consultation with premium features',
-      price: 799,
+      price: 1499,
       currency: 'INR',
       duration: 30,
       features: [
         'Unlimited text chat with AI',
-        'Voice calls with AI',
+        'Voice calls with AI for 60 minutes',
         'Chat history for 90 days',
-        '2 expert appointments per month',
+        // '2 expert appointments per month',
         'Priority support',
       ],
     },

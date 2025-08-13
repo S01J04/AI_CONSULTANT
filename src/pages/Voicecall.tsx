@@ -1,10 +1,15 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { getDatabase, ref, remove } from 'firebase/database';
+// Removed Firebase Realtime Database imports
 import { useSelector } from 'react-redux';
 import { RootState } from '../redux/store';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { Mic, MicOff, X, Settings, Globe } from 'lucide-react';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from '../firebase/config';
+import { doc, getDoc } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
+import { min } from 'date-fns';
 
 interface Window {
     SpeechRecognition?: any;
@@ -149,8 +154,7 @@ const VoiceCallWithAI = () => {
     const API_URL = 'ai-consultant-chatbot-371140242198.asia-south1.run.app';
     const CONNECTION_TIMEOUT = 30000; // 30 seconds
 
-    const db = getDatabase();
-    const callRef = ref(db, `calls/${userId}`);
+    // Removed Realtime Database setup
 
     // Filter languages based on search
     const filteredLanguages = SUPPORTED_LANGUAGES.filter(lang =>
@@ -603,6 +607,97 @@ const VoiceCallWithAI = () => {
         }, 30000); // Every 30 seconds
     }, [selectedLanguage]);
 
+
+const minuteIntervalRef = useRef<NodeJS.Timeout | null>(null);
+const uiTimerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+const timeLeftSecondsRef = useRef(0);
+const timerStoppedRef = useRef(false);
+
+const startCallTimer = (startingMinutes: number) => {
+  timeLeftSecondsRef.current = startingMinutes * 60;
+  timerStoppedRef.current = false;
+  updateTimerUI();
+  console.log('[Timer] Starting call timer:', startingMinutes, 'minutes');
+
+  // ⏳ Update countdown UI every second
+  if (uiTimerIntervalRef.current) clearInterval(uiTimerIntervalRef.current);
+  uiTimerIntervalRef.current = setInterval(() => {
+    if (timerStoppedRef.current) {
+      console.log('[Timer] UI interval stopped');
+      return;
+    }
+    timeLeftSecondsRef.current--;
+    updateTimerUI();
+
+    if (timeLeftSecondsRef.current <= 0) {
+      console.log('[Timer] Time exhausted, stopping call');
+      stopCallTimer();
+      toast.error("Minutes exhausted, call ended");
+      cleanupResources();
+    }
+  }, 1000);
+
+  // 🔄 Every 1 minute → call backend to deduct minutes
+  if (minuteIntervalRef.current) clearInterval(minuteIntervalRef.current);
+  minuteIntervalRef.current = setInterval(async () => {
+    if (timerStoppedRef.current) {
+      console.log('[Timer] Backend interval stopped');
+      return;
+    }
+    try {
+      const auth = getAuth();
+      const user = auth.currentUser;
+      if (!user) throw new Error("User not logged in");
+
+      // Get token
+      const token = await user.getIdToken();
+      // Send request with Authorization header
+      const res = await fetch(`https://us-central1-rewiree-4ff17.cloudfunctions.net/deductVoiceMinutes?token=${encodeURIComponent(token)}&minutes=1`, {
+        method: "POST",
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (!res.ok) throw new Error(`Error: ${res.status}`);
+      const result = await res.json();
+
+      if (result.remainingMinutes <= 0) {
+        console.log('[Timer] Minutes exhausted from backend, stopping call');
+        stopCallTimer();
+        toast.error("Minutes exhausted, call ended");
+        cleanupResources();
+      }
+    } catch (err) {
+      console.error("❌ Deduct minutes failed:", err);
+      stopCallTimer();
+      cleanupResources();
+    }
+  }, 1 * 60 * 1000);
+};
+
+const updateTimerUI = () => {
+  const minutes = String(Math.floor(timeLeftSecondsRef.current / 60)).padStart(2, "0");
+  const seconds = String(timeLeftSecondsRef.current % 60).padStart(2, "0");
+  const timerElem = document.getElementById("callTimer");
+  if (timerElem) {
+    timerElem.innerText = `Time Left: ${minutes}:${seconds}`;
+  }
+};
+
+const stopCallTimer = () => {
+  timerStoppedRef.current = true;
+  if (minuteIntervalRef.current) {
+    clearInterval(minuteIntervalRef.current);
+    minuteIntervalRef.current = null;
+    console.log('[Timer] Cleared backend interval');
+  }
+  if (uiTimerIntervalRef.current) {
+    clearInterval(uiTimerIntervalRef.current);
+    uiTimerIntervalRef.current = null;
+    console.log('[Timer] Cleared UI interval');
+  }
+};
+
+
     const handleMicToggle = async () => {
         if (!browserSupported) {
             toast.error('Voice features not supported');
@@ -610,6 +705,8 @@ const VoiceCallWithAI = () => {
         }
 
         if (isMicOn) {
+            console.log('[Mic] Stopping mic, cleaning up and stopping timer');
+            stopCallTimer();
             cleanupResources();
             setStatus('🔌 Call ended');
             return;
@@ -722,14 +819,30 @@ const VoiceCallWithAI = () => {
                     
                     switch (data.type) {
                         case "connected":
-                            setStatus(`✅ Connected! Speak in ${selectedLanguage.name}...`);
-                            setIsConnected(true);
-                            setIsMicOn(true);
-                            setServerLanguages(data.supported_languages || []);
-                            setupHeartbeat();
-                            startRecording();
-                            console.log('🎯 Server languages:', data.supported_languages);
-                            break;
+  setStatus(`✅ Connected! Speak in ${selectedLanguage.name}...`);
+  setIsConnected(true);
+  setIsMicOn(true);
+  setServerLanguages(data.supported_languages || []);
+  setupHeartbeat();
+  startRecording();
+  console.log("🎯 Server languages:", data.supported_languages);
+                            // 📡 Fetch remaining minutes from Firestore
+                            
+  const userSnap = await getDoc(doc(db, "users", userId));
+  if (userSnap.exists()) {
+    const remaining = userSnap.data().voiceMinutesRemaining || 0;
+    if (remaining > 0) {
+      startCallTimer(remaining); // countdown from remaining minutes
+    } else {
+      toast.error("No minutes left to start a call");
+        cleanupResources();
+    }
+  } else {
+    toast.error("User data not found");
+    cleanupResources();
+  }
+  break;
+
                             
                         case "transcript":
                             setTranscribedText(data.text);
@@ -862,16 +975,20 @@ const VoiceCallWithAI = () => {
             cleanupResources();
         }
     };
+const callTimerRef = useRef<NodeJS.Timeout | null>(null);
 
     const handleClose = async () => {
+        console.log('[Close] Closing call, cleaning up and stopping timer');
+        stopCallTimer();
         cleanupResources();
         setStatus('👋 Call ended.');
-        remove(callRef);
         navigate(-1);
     };
 
     useEffect(() => {
         return () => {
+            console.log('[Unmount] Component unmount, cleaning up and stopping timer');
+            stopCallTimer();
             cleanupResources();
         };
     }, [cleanupResources]);
@@ -1051,6 +1168,8 @@ const VoiceCallWithAI = () => {
                         Server Languages: {serverLanguages.length}
                     </div>
                 </div>
+                            <div id='callTimer' className='absolute top-0 right-0 pr-5 pt-4'></div>
+
             </div>
             
             {/* Footer */}

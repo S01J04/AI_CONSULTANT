@@ -16,8 +16,8 @@
   "dependencies": {
     "axios": "^1.10.0",
     "cors": "^2.8.5",
-    "firebase-admin": "^12.6.0",
-    "firebase-functions": "^6.0.1",
+    "firebase-admin": "^13.4.0",
+    "firebase-functions": "^6.4.0",
     "pg-sdk-node": "^2.0.2"
   },
   "devDependencies": {
