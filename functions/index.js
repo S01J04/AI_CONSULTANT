@@ -4,7 +4,7 @@ const cors = require("cors")({ origin: true }); // Allow CORS for all origins
 const { v4: uuidv4 } = require("uuid");
 const admin = require("firebase-admin");
 const { StandardCheckoutClient } = require("pg-sdk-node");
-
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 admin.initializeApp();
 
 const db = admin.firestore();
@@ -288,53 +288,65 @@ async function updateUserPlanBackend(userId, planId, planName) {
   console.log(`✅ User ${userId} upgraded to '${planId}'. Chats kept ${chatRetentionDays} days, Calls: ${voiceMinutesRemaining} mins.`);
 }
 
-// exports.cleanupOldChatMessages = functions.pubsub.schedule("every 24 hours").onRun(async () => {
-//   const now = Date.now();
-//   const usersSnapshot = await db.collection("users").get();
+exports.cleanupOldChatMessages = onSchedule("every 24 hours",async () => {
+  const now = Date.now();
+  const usersSnapshot = await db.collection("users").get();
 
-//   if (usersSnapshot.empty) {
-//     console.log("✅ No users found for cleanup.");
-//     return null;
-//   }
+  if (usersSnapshot.empty) {
+    console.log("✅ No users found for cleanup.");
+    return null;
+  }
 
-//   for (const userDoc of usersSnapshot.docs) {
-//     const userId = userDoc.id;
-//     const userData = userDoc.data();
-//     const retentionDays = userData?.chatRetentionDays || 10; // default 10 days for free
-//     const retentionMs = retentionDays * 24 * 60 * 60 * 1000;
-//     const cutoffTime = now - retentionMs;
+  for (const userDoc of usersSnapshot.docs) {
+    const userId = userDoc.id;
+    const userData = userDoc.data();
+    const retentionDays = userData?.chatRetentionDays || 10; // default 10 days for free
+    const retentionMs = retentionDays * 24 * 60 * 60 * 1000;
+    const cutoffTime = now - retentionMs;
 
-//     console.log(`🧹 Checking chatSessions for ${userId}, retention: ${retentionDays} days`);
+    console.log(`🧹 Checking chatSessions for ${userId}, retention: ${retentionDays} days`);
 
-//     const chatSessionsRef = db.collection("users").doc(userId).collection("chatSessions");
-//     const chatSessionsSnapshot = await chatSessionsRef.get();
+    const chatSessionsRef = db.collection("users").doc(userId).collection("chatSessions");
+    const chatSessionsSnapshot = await chatSessionsRef.get();
 
-//     if (chatSessionsSnapshot.empty) {
-//       console.log(`No chat sessions for ${userId}`);
-//       continue;
-//     }
+    if (chatSessionsSnapshot.empty) {
+      console.log(`No chat sessions for ${userId}`);
+      continue;
+    }
 
-//     for (const sessionDoc of chatSessionsSnapshot.docs) {
-//       const sessionData = sessionDoc.data();
+    for (const sessionDoc of chatSessionsSnapshot.docs) {
+      const sessionData = sessionDoc.data();
 
-//       if (!Array.isArray(sessionData.messages) || sessionData.messages.length === 0) {
-//         continue;
-//       }
+      if (!Array.isArray(sessionData.messages) || sessionData.messages.length === 0) {
+        continue;
+      }
 
-//       // Filter messages that are within the retention period
-//       const updatedMessages = sessionData.messages.filter(msg => {
-//         return msg.timeStamp >= cutoffTime;
-//       });
+      // Filter messages that are within the retention period
+      const updatedMessages = sessionData.messages.filter(msg => {
+        return msg.timeStamp >= cutoffTime;
+      });
 
-//       if (updatedMessages.length !== sessionData.messages.length) {
-//         await sessionDoc.ref.update({ messages: updatedMessages });
-//         console.log(`✅ Cleaned old messages from session ${sessionDoc.id} for user ${userId}`);
-//       }
-//     }
-//   }
+      if (updatedMessages.length !== sessionData.messages.length) {
+        await sessionDoc.ref.update({ messages: updatedMessages });
+        console.log(`✅ Cleaned old messages from session ${sessionDoc.id} for user ${userId}`);
+      }
+    }
+  }
 
-//   return null;
-// });
+  return null;
+});
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 exports.deductVoiceMinutes = functions.https.onRequest((req, res) => {
