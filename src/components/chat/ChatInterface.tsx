@@ -16,6 +16,7 @@ import usePlanAccess from '../../hooks/usePlanAccess';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
+import TokenUsageDisplay from './TokenUsageDisplay';
 
 const ChatInterface: React.FC = () => {
   const navigate = useNavigate();
@@ -58,7 +59,7 @@ const ChatInterface: React.FC = () => {
       inputfocus.current.style.height = `${inputfocus.current.scrollHeight}px`;
     }
   }, [message, transcript, isRecording]);
-console.log(inputLoading,aiLoading,loading)
+//console.log(inputLoading,aiLoading,loading)
   // First useEffect - only scroll on user input and initial loading
   useEffect(() => {
     // Only scroll when:
@@ -118,7 +119,7 @@ const toastShownRef = useRef(false); // Prevent duplicate toasts
   }, [user?.chatCount, user?.plan, navigate]);
   useEffect(() => {
     if (user) {
-     console.log("fetching user sessions from chat page")
+     //console.log("fetching user sessions from chat page")
      dispatch(fetchUserSessions() as any);
      }
   }, []);
@@ -129,32 +130,14 @@ const toastShownRef = useRef(false); // Prevent duplicate toasts
   // Handle retrying when network error occurs
   useEffect(() => {
     if (user && retrying) {
-      console.log("Retrying to fetch user sessions from chat interface")
+      //console.log("Retrying to fetch user sessions from chat interface")
       toast.info("Reconnecting to server...");
       dispatch(fetchUserSessions() as any);
       setRetrying(false);
     }
   }, [retrying, user, dispatch]);
 
-  // Show toast when network error occurs
-  // useEffect(() => {
-  //   if (networkError) {
-  //     toast.error("Network error. Please check your internet connection.", {
-  //       position: "top-right",
-  //       autoClose: 5000,
-  //       hideProgressBar: false,
-  //       closeOnClick: true,
-  //       pauseOnHover: true,
-  //       draggable: true,
-  //     });
-  //   }
-  // }, [networkError]);
-
-  const handleRetry = () => {
-    setRetrying(true);
-    dispatch(setNetworkError(false));
-  };
-
+ 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -173,7 +156,7 @@ const toastShownRef = useRef(false); // Prevent duplicate toasts
       setinputLoading(false);
       if (isRecording) {
         // Don't show toast for empty voice messages to avoid annoying the user
-        console.log('Invalid voice message detected, ignoring');
+        //console.log('Invalid voice message detected, ignoring');
       } else if (!message.trim()) {
         toast.warning('Please enter a message before sending');
       } else if (message.length > MAX_MESSAGE_LENGTH) {
@@ -208,7 +191,7 @@ const toastShownRef = useRef(false); // Prevent duplicate toasts
     }
 
     // Log the current chat count for debugging
-    console.log(`Current chat count: ${user.chatCount}`);
+    //console.log(`Current chat count: ${user.chatCount}`);
 
 
     try {
@@ -285,7 +268,7 @@ const toastShownRef = useRef(false); // Prevent duplicate toasts
 
       {/* Chat messages */}
       {/* Chat Messages */}
-      <div ref={messagesContainerRef} className="flex-1 pb-6 p-4 overflow-y-auto scrollbar-hide scroll-smooth space-y-4">
+      <div ref={messagesContainerRef} className="flex-1 border  pb-12 p-4 overflow-y-auto scrollbar-hide scroll-smooth space-y-4">
         {/* Show skeleton loader only when the app is initially loading */}
         {authLoading ? (
           [...Array(5)].map((_, index) => (
@@ -334,9 +317,9 @@ const toastShownRef = useRef(false); // Prevent duplicate toasts
         ) : (
           <>
             {/* Show previous messages */}
-            {currentSession?.messages?.map((msg) => (
+            {currentSession?.messages?.map((msg, idx) => (
               msg ? (
-                <div ref={messagesEndRef} key={msg?.id} className={`flex pt-5 ${msg?.sender === "user" ? "justify-end" : "justify-start"}`}>
+                <div ref={messagesEndRef} key={msg?.id ? `${msg.id}-${idx}` : idx} className={`flex pt-5 ${msg?.sender === "user" ? "justify-end" : "justify-start"}`}>
                   <div className={`max-w-[75%] rounded-lg px-4 py-2 ${msg?.sender === "user"
                     ? "bg-indigo-600 text-white"
                     : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700"
@@ -394,7 +377,7 @@ const toastShownRef = useRef(false); // Prevent duplicate toasts
       )} */}
 
       {/* Chat Input */}
-      <div className="bg-white fixed w-screen md:w-[40%] bottom-0 md:bottom-3 rounded-2xl border left-1/2 transform -translate-x-1/2 dark:bg-gray-800 px-4 py-3 border-gray-300 dark:border-gray-700 shadow-lg">
+      <div className="bg-white fixed w-screen md:w-[40%] bottom-0 md:bottom-3 rounded-2xl border left-1/2 transform -translate-x-1/2 dark:bg-gray-800 px-4 py-1 md:py-3 border-gray-300 dark:border-gray-700 shadow-lg">
         {/* Message count indicator for non-premium users */}
         {user && !user.plan && (
   <div className="mb-2 text-xs text-center">
@@ -486,7 +469,8 @@ const toastShownRef = useRef(false); // Prevent duplicate toasts
                     }
                   }
                 }}
-              />
+                />
+               {user && user.plan &&  <TokenUsageDisplay />}
               <div className={`absolute right-2 bottom-1 text-xs ${message.length > MAX_MESSAGE_LENGTH ? 'text-red-500 font-bold' : 'text-gray-400'}`}>
                 {message.length}/{MAX_MESSAGE_LENGTH}
               </div>

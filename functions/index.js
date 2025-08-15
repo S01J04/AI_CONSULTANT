@@ -249,26 +249,31 @@ async function updateUserPlanBackend(userId, planId, planName) {
 
   const now = Date.now();
 
-  // Set plan duration
-  const planDurationMs = 30 * 24 * 60 * 60 * 1000; // 30 days default
+  // Set plan duration (default 30 days)
+  const planDurationMs = 30 * 24 * 60 * 60 * 1000;
   let finalExpiryDate = now + planDurationMs;
 
   const currentUserData = userDoc.data();
   const isRenewal = currentUserData.plan === planId;
+
+  // If renewing early, extend expiry
   if (isRenewal && currentUserData.planExpiryDate > now) {
     finalExpiryDate = currentUserData.planExpiryDate + planDurationMs;
   }
 
-  // ✅ Assign chat retention and voice minutes based on plan
+  // Plan-specific settings
   let chatRetentionDays = 10;
-  let voiceMinutesRemaining = 0; // default no calls
+  let voiceMinutesRemaining = 0;
+  let tokenLimit = 0;
 
   if (planId === "basic") {
     chatRetentionDays = 60;
-    voiceMinutesRemaining = 0; // no calls in Basic
+    voiceMinutesRemaining = 0;
+    tokenLimit = 230000; // Example: 230k tokens for Basic
   } else if (planId === "premium") {
     chatRetentionDays = 90;
-    voiceMinutesRemaining = 120; // example: 120 mins for Premium
+    voiceMinutesRemaining = 5;
+    tokenLimit = 230000; // Example: 230k tokens for Premium
   }
 
   const updateData = {
@@ -276,7 +281,9 @@ async function updateUserPlanBackend(userId, planId, planName) {
     planName,
     planUpdatedAt: now,
     planPurchasedAt: isRenewal ? (currentUserData.planPurchasedAt || now) : now,
-    planExpiryDate: finalExpiryDate,
+    planExpiryDate: finalExpiryDate, // ✅ Will expire after this date
+    tokenLimit,
+    tokensUsed: 0, // ✅ Reset usage on purchase/renewal
     hadSubscriptionBefore: true,
     chatRetentionDays,
     voiceMinutesRemaining,
@@ -285,8 +292,11 @@ async function updateUserPlanBackend(userId, planId, planName) {
 
   await userRef.update(updateData);
 
-  console.log(`✅ User ${userId} upgraded to '${planId}'. Chats kept ${chatRetentionDays} days, Calls: ${voiceMinutesRemaining} mins.`);
+  console.log(`✅ User ${userId} upgraded to '${planId}'.
+  Token limit: ${tokenLimit}, Expiry: ${new Date(finalExpiryDate)}, 
+  Chats kept: ${chatRetentionDays} days, Calls: ${voiceMinutesRemaining} mins.`);
 }
+
 
 exports.cleanupOldChatMessages = onSchedule("every 24 hours",async () => {
   const now = Date.now();
@@ -424,3 +434,97 @@ exports.deductVoiceMinutes = functions.https.onRequest((req, res) => {
   });
 });
 
+
+
+// exports.paymentWebhook = functions.https.onRequest(async (req, res) => {
+//   try {
+//     console.log("📩 Webhook received from PhonePe:", req.body);
+
+//     // PhonePe should send your merchantOrderId in the payload
+//     const sessionId = req.body?.merchantOrderId;
+//     if (!sessionId) {
+//       return res.status(400).send("Missing merchantOrderId");
+//     }
+
+//     // Reuse your existing verification logic
+//     await verifyAndUpdatePayment(sessionId);
+
+//     // PhonePe expects a success acknowledgment
+//     return res.status(200).send("OK");
+//   } catch (error) {
+//     console.error("❌ Webhook error:", error);
+//     return res.status(500).send("Error processing webhook");
+//   }
+// });
+
+
+// async function verifyAndUpdatePayment(sessionId) {
+//   const accessToken = await getPhonePeOAuthToken();
+
+//   const phonepeRes = await axios.get(
+//     PHONEPE_ORDER_STATUS_URL.replace('{{merchantOrderId}}', sessionId),
+//     { headers: { Authorization: `O-Bearer ${accessToken}` } }
+//   );
+
+//   const phonepeData = phonepeRes.data;
+//   const phonepeStatus = phonepeData?.state;
+
+//   const paymentDocRef = db.collection("payments").doc(sessionId);
+//   const paymentDoc = await paymentDocRef.get();
+//   if (!paymentDoc.exists) {
+//     throw new Error(`Payment doc not found for ${sessionId}`);
+//   }
+
+//   const paymentData = paymentDoc.data();
+//   let currentStatus = paymentData.status || "pending";
+
+//   if (phonepeStatus === "COMPLETED" && currentStatus === "pending") {
+//     await paymentDocRef.update({
+//       status: "completed",
+//       phonepeState: phonepeStatus,
+//       transactionId: phonepeData.paymentDetails?.[0]?.transactionId || null,
+//       paymentMode: phonepeData.paymentDetails?.[0]?.paymentMode || null,
+//       paidAmount: phonepeData.paymentDetails?.[0]?.amount || null,
+//       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+//     });
+//     await updateUserPlanBackend(paymentData.userId, paymentData.planId, paymentData.planName);
+//     currentStatus = "completed";
+
+//   } else if (["FAILED", "EXPIRED"].includes(phonepeStatus)) {
+//     await paymentDocRef.update({
+//       status: "failed",
+//       phonepeState: phonepeStatus,
+//       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+//     });
+//     currentStatus = "failed";
+//   }
+
+//   return currentStatus;
+// }
+
+
+
+// exports.verifyPaymentStatus = functions.https.onRequest((req, res) => {
+//   cors(req, res, async () => {
+//     try {
+//       const sessionId = req.query.session_id;
+//       if (!sessionId) {
+//         return res.status(400).json({ success: false, error: "Missing session_id" });
+//       }
+
+//       const currentStatus = await verifyAndUpdatePayment(sessionId);
+
+//       const userRef = db.collection("users").doc((await db.collection("payments").doc(sessionId).get()).data().userId);
+//       const userDoc = await userRef.get();
+
+//       return res.json({
+//         success: true,
+//         paymentStatus: currentStatus,
+//         user: userDoc.data()
+//       });
+//     } catch (error) {
+//       console.error("❌ verifyPaymentStatus error:", error);
+//       return res.status(500).json({ success: false, error: error.message });
+//     }
+//   });
+// });
