@@ -99,7 +99,8 @@ const toastShownRef = useRef(false); // Prevent duplicate toasts
 
   useEffect(() => {
     const count = user?.chatCount || 0;
-    if (user && user.plan !== 'premium' && user.plan !== 'basic' && count === 0 && !toastShownRef.current) {
+   setTimeout(() => {
+     if (user && user.plan !== 'premium' && user.plan !== 'basic' && count === 0 && !toastShownRef.current) {
       toastShownRef.current = true; // mark as shown
 
       toast.error(
@@ -111,6 +112,7 @@ const toastShownRef = useRef(false); // Prevent duplicate toasts
         }
       );
     }
+   }, 3000);
 
     // Reset the toastShownRef if the user gets more messages or refreshes plan
     if (count > 0 || user?.plan) {
