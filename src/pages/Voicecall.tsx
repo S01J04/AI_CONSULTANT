@@ -211,7 +211,7 @@ const VoiceCallWithAI = () => {
     // Save to backend
     const result = await manageCallSession('pause', timeLeftSecondsRef.current);
     console.log('[Timer] Paused state saved to backend');
-    toast.success(result.message);
+    // toast.success(result.message);
     
   } catch (error) {
     console.error("Error pausing timer:", error);
