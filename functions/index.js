@@ -517,8 +517,8 @@ exports.manageCallSession = functions.https.onRequest((req, res) => {
               callStatus: "paused",
               pausedTimerSeconds: timerSeconds,
               lastPauseTime: now,
-              // Save remaining minutes as backup
-              voiceMinutesRemaining: Math.ceil(timerSeconds / 60)
+              // Save remaining minutes as backup (use floor to avoid rounding up)
+              voiceMinutesRemaining: Math.floor(timerSeconds / 60)
             });
 
             return {
@@ -549,7 +549,8 @@ exports.manageCallSession = functions.https.onRequest((req, res) => {
 
           case 'end':
             const finalSeconds = timerSeconds || userData.pausedTimerSeconds || 0;
-            const finalMinutes = Math.ceil(finalSeconds / 60);
+            // Use floor to avoid rounding up when converting seconds to remaining minutes
+            const finalMinutes = Math.floor(finalSeconds / 60);
 
             transaction.update(userRef, {
               callStatus: "ended",

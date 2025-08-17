@@ -743,8 +743,11 @@ const updateTimerUI = () => {
 const stopCallTimer = async () => {
   try {
     console.log('[Timer] Stopping call timer');
+    // Capture whether the timer was already stopped/paused before we mark it stopped
+    const wasAlreadyStopped = timerStoppedRef.current;
+    // Mark the timer as stopped for local logic
     timerStoppedRef.current = true;
-    
+
     // Clear intervals
     if (minuteIntervalRef.current) {
       clearInterval(minuteIntervalRef.current);
@@ -755,16 +758,30 @@ const stopCallTimer = async () => {
       uiTimerIntervalRef.current = null;
     }
 
-    // Save final state to backend
-    if (sessionStartTime && timeLeftSecondsRef.current >= 0) {
-      const result = await manageCallSession('end', timeLeftSecondsRef.current);
-      console.log('[Timer] Final state saved to backend');
+    // Save final state to backend **only if this was an active session (not already paused/stopped)**
+    if (!wasAlreadyStopped && sessionStartTime && timeLeftSecondsRef.current >= 0) {
+      try {
+        // Ensure backend has the exact paused seconds (pause first) so resume can use exact seconds
+        try {
+          console.log('[Timer] Persisting paused seconds before end:', timeLeftSecondsRef.current);
+          await manageCallSession('pause', timeLeftSecondsRef.current);
+          console.log('[Timer] Paused seconds persisted');
+        } catch (pauseErr) {
+          console.warn('[Timer] Failed to persist paused seconds before end, continuing to end:', pauseErr);
+        }
+
+        const result = await manageCallSession('pause', timeLeftSecondsRef.current);
+        console.log('[Timer] Final state saved to backend', result?.message || '');
+      } catch (err) {
+        console.error('[Timer] Error saving final state to backend:', err);
+      }
+    } else {
+      console.log('[Timer] Session already paused or previously stopped; skipping end() call to preserve paused state');
     }
 
     // Reset states
     setSessionStartTime(null);
     setIsLoadingTimer(false);
-    
   } catch (error) {
     console.error("Error stopping timer:", error);
     toast.error("Failed to properly end call");
@@ -1060,7 +1077,17 @@ const callTimerRef = useRef<NodeJS.Timeout | null>(null);
 
     const handleClose = async () => {
         console.log('[Close] Closing call, cleaning up and stopping timer');
-        stopCallTimer();
+        // If the mic is off (likely paused), avoid forcing an 'end' which can overwrite paused seconds
+        if (!isMicOn) {
+            console.log('[Close] Call is paused - skip stopping timer to preserve paused state');
+            cleanupResources();
+            setStatus('👋 Call paused.');
+            navigate(-1);
+            return;
+        }
+
+        // If mic is on (active), attempt to stop the timer normally
+        await stopCallTimer();
         cleanupResources();
         setStatus('👋 Call ended.');
         navigate(-1);
