@@ -10,6 +10,8 @@ import { db, functions } from '../firebase/config';
 import { doc, getDoc } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { min } from 'date-fns';
+import { manageCallSession } from '../utils/manageCallSession';
+import { getCallSessionState } from '../utils/getCallSessionState';
 
 interface Window {
     SpeechRecognition?: any;
@@ -191,6 +193,32 @@ const VoiceCallWithAI = () => {
             toast.warn('For best experience, use Chrome browser on mobile devices.');
         }
     }, []);
+    const pauseCallTimer = async () => {
+  try {
+    console.log('[Timer] Pausing call at:', timeLeftSecondsRef.current, 'seconds');
+    
+    // Stop local timers first
+    timerStoppedRef.current = true;
+    if (minuteIntervalRef.current) {
+      clearInterval(minuteIntervalRef.current);
+      minuteIntervalRef.current = null;
+    }
+    if (uiTimerIntervalRef.current) {
+      clearInterval(uiTimerIntervalRef.current);
+      uiTimerIntervalRef.current = null;
+    }
+
+    // Save to backend
+    const result = await manageCallSession('pause', timeLeftSecondsRef.current);
+    console.log('[Timer] Paused state saved to backend');
+    toast.success(result.message);
+    
+  } catch (error) {
+    console.error("Error pausing timer:", error);
+    toast.error(`Failed to pause call: ${error.message}`);
+  }
+};
+
 
     const cleanupResources = useCallback(() => {
         console.log('Cleaning up resources...');
@@ -613,66 +641,95 @@ const uiTimerIntervalRef = useRef<NodeJS.Timeout | null>(null);
 const timeLeftSecondsRef = useRef(0);
 const timerStoppedRef = useRef(false);
 
-const startCallTimer = (startingMinutes: number) => {
-  timeLeftSecondsRef.current = startingMinutes * 60;
-  timerStoppedRef.current = false;
-  updateTimerUI();
-  console.log('[Timer] Starting call timer:', startingMinutes, 'minutes');
-
-  // ⏳ Update countdown UI every second
-  if (uiTimerIntervalRef.current) clearInterval(uiTimerIntervalRef.current);
-  uiTimerIntervalRef.current = setInterval(() => {
-    if (timerStoppedRef.current) {
-      console.log('[Timer] UI interval stopped');
-      return;
+// Timer/session states
+// Deduct one minute from backend (Cloud Function)
+async function deductMinuteFromDatabase() {
+  try {
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (!user) throw new Error('User not logged in');
+    const token = await user.getIdToken();
+    // Call backend Cloud Function to deduct 1 minute
+    const res = await fetch(`https://us-central1-rewiree-4ff17.cloudfunctions.net/deductVoiceMinutes?token=${encodeURIComponent(token)}&minutes=1`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!res.ok) throw new Error(`Error: ${res.status}`);
+    const result = await res.json();
+    if (result.remainingMinutes < 0) {
+      throw new Error('No minutes remaining');
     }
-    timeLeftSecondsRef.current--;
+    return result;
+  } catch (err) {
+    console.error('Failed to deduct minute:', err);
+    throw err;
+  }
+}
+const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
+const [isLoadingTimer, setIsLoadingTimer] = useState(false);
+
+const startCallTimer = async (isResume: boolean = false) => {
+  try {
+    setIsLoadingTimer(true);
+    
+    let result;
+    if (isResume) {
+      // Resume existing session
+      result = await manageCallSession('resume');
+      timeLeftSecondsRef.current = result.resumeFromSeconds;
+      console.log('[Timer] Resuming from backend:', result.resumeFromSeconds, 'seconds');
+    } else {
+      // Start new session
+      result = await manageCallSession('start');
+      timeLeftSecondsRef.current = result.remainingMinutes * 60;
+      console.log('[Timer] Starting fresh with:', result.remainingMinutes, 'minutes');
+    }
+
+    setSessionStartTime(Date.now());
+    timerStoppedRef.current = false;
+    setIsLoadingTimer(false);
     updateTimerUI();
 
-    if (timeLeftSecondsRef.current <= 0) {
-      console.log('[Timer] Time exhausted, stopping call');
-      stopCallTimer();
-      toast.error("Minutes exhausted, call ended");
-      cleanupResources();
-    }
-  }, 1000);
+    // Start UI countdown
+    if (uiTimerIntervalRef.current) clearInterval(uiTimerIntervalRef.current);
+    uiTimerIntervalRef.current = setInterval(() => {
+      if (timerStoppedRef.current) return;
+      
+      timeLeftSecondsRef.current--;
+      updateTimerUI();
 
-  // 🔄 Every 1 minute → call backend to deduct minutes
-  if (minuteIntervalRef.current) clearInterval(minuteIntervalRef.current);
-  minuteIntervalRef.current = setInterval(async () => {
-    if (timerStoppedRef.current) {
-      console.log('[Timer] Backend interval stopped');
-      return;
-    }
-    try {
-      const auth = getAuth();
-      const user = auth.currentUser;
-      if (!user) throw new Error("User not logged in");
-
-      // Get token
-      const token = await user.getIdToken();
-      // Send request with Authorization header
-      const res = await fetch(`https://us-central1-rewiree-4ff17.cloudfunctions.net/deductVoiceMinutes?token=${encodeURIComponent(token)}&minutes=1`, {
-        method: "POST",
-        headers: { 'Content-Type': 'application/json' }
-      });
-
-      if (!res.ok) throw new Error(`Error: ${res.status}`);
-      const result = await res.json();
-
-      if (result.remainingMinutes <= 0) {
-        console.log('[Timer] Minutes exhausted from backend, stopping call');
+      if (timeLeftSecondsRef.current <= 0) {
+        console.log('[Timer] Time exhausted, ending call');
         stopCallTimer();
-        toast.error("Minutes exhausted, call ended");
+        toast.error("Time exhausted, call ended");
         cleanupResources();
       }
-    } catch (err) {
-      console.error("❌ Deduct minutes failed:", err);
-      stopCallTimer();
-      cleanupResources();
-    }
-  }, 1 * 60 * 1000);
+    }, 1000);
+
+    // Deduct minutes from backend every minute
+    if (minuteIntervalRef.current) clearInterval(minuteIntervalRef.current);
+    minuteIntervalRef.current = setInterval(async () => {
+      if (timerStoppedRef.current) return;
+      
+      try {
+        await deductMinuteFromDatabase();
+      } catch (err) {
+        console.error("Failed to deduct minute:", err);
+        stopCallTimer();
+        cleanupResources();
+      }
+    }, 60 * 1000);
+
+    toast.success(result.message);
+
+  } catch (error) {
+    console.error("Error starting timer:", error);
+    toast.error(`Failed to start call: ${error.message}`);
+    setIsLoadingTimer(false);
+    cleanupResources();
+  }
 };
+
 
 const updateTimerUI = () => {
   const minutes = String(Math.floor(timeLeftSecondsRef.current / 60)).padStart(2, "0");
@@ -683,43 +740,79 @@ const updateTimerUI = () => {
   }
 };
 
-const stopCallTimer = () => {
-  timerStoppedRef.current = true;
-  if (minuteIntervalRef.current) {
-    clearInterval(minuteIntervalRef.current);
-    minuteIntervalRef.current = null;
-    console.log('[Timer] Cleared backend interval');
-  }
-  if (uiTimerIntervalRef.current) {
-    clearInterval(uiTimerIntervalRef.current);
-    uiTimerIntervalRef.current = null;
-    console.log('[Timer] Cleared UI interval');
+const stopCallTimer = async () => {
+  try {
+    console.log('[Timer] Stopping call timer');
+    timerStoppedRef.current = true;
+    
+    // Clear intervals
+    if (minuteIntervalRef.current) {
+      clearInterval(minuteIntervalRef.current);
+      minuteIntervalRef.current = null;
+    }
+    if (uiTimerIntervalRef.current) {
+      clearInterval(uiTimerIntervalRef.current);
+      uiTimerIntervalRef.current = null;
+    }
+
+    // Save final state to backend
+    if (sessionStartTime && timeLeftSecondsRef.current >= 0) {
+      const result = await manageCallSession('end', timeLeftSecondsRef.current);
+      console.log('[Timer] Final state saved to backend');
+    }
+
+    // Reset states
+    setSessionStartTime(null);
+    setIsLoadingTimer(false);
+    
+  } catch (error) {
+    console.error("Error stopping timer:", error);
+    toast.error("Failed to properly end call");
   }
 };
 
 
     const handleMicToggle = async () => {
         if (!browserSupported) {
-            toast.error('Voice features not supported');
-            return;
-        }
+    toast.error('Voice features not supported');
+    return;
+  }
 
-        if (isMicOn) {
-            console.log('[Mic] Stopping mic, cleaning up and stopping timer');
-            stopCallTimer();
-            cleanupResources();
-            setStatus('🔌 Call ended');
-            return;
-        }
+  if (isMicOn) {
+    console.log('[Mic] Pausing call');
+    await pauseCallTimer();
+    cleanupResources();
+    setStatus('⏸️ Call paused - Click to resume');
+    return;
+  }
 
-        if (!userId) {
-            toast.error('User ID is required');
-            return;
-        }
+  if (!userId) {
+    toast.error('User ID is required');
+    return;
+  }
 
-        try {
-            setStatus('🔄 Connecting...');
-            
+  if (isLoadingTimer) {
+    toast.info('Loading timer state...');
+    return;
+  }
+
+  try {
+    setStatus('🔄 Connecting...');
+    
+    // Check backend state first
+    const sessionState = await getCallSessionState();
+    
+    if (!sessionState.subscriptionActive) {
+      toast.error("Subscription expired. Please renew your plan.");
+      cleanupResources();
+      return;
+    }
+
+    if (sessionState.voiceMinutesRemaining <= 0) {
+      toast.error("No voice minutes remaining. Please upgrade your plan.");
+      cleanupResources();
+      return;
+    }
             // Enhanced microphone access
             const constraints = {
                 audio: {
@@ -819,29 +912,17 @@ const stopCallTimer = () => {
                     
                     switch (data.type) {
                         case "connected":
-  setStatus(`✅ Connected! Speak in ${selectedLanguage.name}...`);
-  setIsConnected(true);
-  setIsMicOn(true);
-  setServerLanguages(data.supported_languages || []);
-  setupHeartbeat();
-  startRecording();
-  console.log("🎯 Server languages:", data.supported_languages);
-                            // 📡 Fetch remaining minutes from Firestore
-                            
-  const userSnap = await getDoc(doc(db, "users", userId));
-  if (userSnap.exists()) {
-    const remaining = userSnap.data().voiceMinutesRemaining || 0;
-    if (remaining > 0) {
-      startCallTimer(remaining); // countdown from remaining minutes
-    } else {
-      toast.error("No minutes left to start a call");
-        cleanupResources();
-    }
-  } else {
-    toast.error("User data not found");
-    cleanupResources();
-  }
-  break;
+            setStatus(`✅ Connected! Speak in ${selectedLanguage.name}...`);
+            setIsConnected(true);
+            setIsMicOn(true);
+            setServerLanguages(data.supported_languages || []);
+            setupHeartbeat();
+            startRecording();
+            
+            // Determine if resuming or starting fresh
+            const isResume = sessionState.callStatus === "paused" && sessionState.pausedTimerSeconds;
+            await startCallTimer(isResume);
+            break;
 
                             
                         case "transcript":
@@ -984,12 +1065,35 @@ const callTimerRef = useRef<NodeJS.Timeout | null>(null);
         setStatus('👋 Call ended.');
         navigate(-1);
     };
+useEffect(() => {
+  const checkPausedSession = async () => {
+    if (!userId) return;
+    
+    try {
+      const sessionState = await getCallSessionState();
+      
+      if (sessionState.callStatus === "paused" && sessionState.pausedTimerSeconds) {
+        setStatus('⏸️ You have a paused call - Click mic to resume');
+        // Show remaining time in paused state
+        timeLeftSecondsRef.current = sessionState.pausedTimerSeconds;
+        updateTimerUI();
+        toast.info("You have a paused call. Click the mic to resume.");
+      }
+    } catch (error) {
+      console.error("Error checking paused session:", error);
+    }
+  };
 
-    useEffect(() => {
-        return () => {
-            console.log('[Unmount] Component unmount, cleaning up and stopping timer');
-            stopCallTimer();
-            cleanupResources();
+  if (userId) {
+    checkPausedSession();
+  }
+}, [userId]);
+
+useEffect(() => {
+    return () => {
+        console.log('[Unmount] Component unmount, cleaning up and stopping timer');
+        stopCallTimer();
+        cleanupResources();
         };
     }, [cleanupResources]);
 

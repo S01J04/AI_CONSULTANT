@@ -244,58 +244,69 @@ async function updateUserPlanBackend(userId, planId, planName) {
   if (!userId || !planId) throw new Error("Missing userId or planId");
 
   const userRef = db.collection('users').doc(userId);
-  const userDoc = await userRef.get();
-  if (!userDoc.exists) throw new Error("User not found");
+  
+  return db.runTransaction(async (transaction) => {
+    const userDoc = await transaction.get(userRef);
+    if (!userDoc.exists) throw new Error("User not found");
 
-  const now = Date.now();
+    const now = Date.now();
+    const planDurationMs = 30 * 24 * 60 * 60 * 1000;
+    let finalExpiryDate = now + planDurationMs;
 
-  // Set plan duration (default 30 days)
-  const planDurationMs = 30 * 24 * 60 * 60 * 1000;
-  let finalExpiryDate = now + planDurationMs;
+    const currentUserData = userDoc.data();
+    const isRenewal = currentUserData.plan === planId;
 
-  const currentUserData = userDoc.data();
-  const isRenewal = currentUserData.plan === planId;
+    // If renewing early, extend expiry
+    if (isRenewal && currentUserData.planExpiryDate > now) {
+      finalExpiryDate = currentUserData.planExpiryDate + planDurationMs;
+    }
 
-  // If renewing early, extend expiry
-  if (isRenewal && currentUserData.planExpiryDate > now) {
-    finalExpiryDate = currentUserData.planExpiryDate + planDurationMs;
-  }
+    // Plan-specific settings
+    let chatRetentionDays = 10;
+    let voiceMinutesRemaining = 0;
+    let tokenLimit = 0;
 
-  // Plan-specific settings
-  let chatRetentionDays = 10;
-  let voiceMinutesRemaining = 0;
-  let tokenLimit = 0;
+    if (planId === "basic") {
+      chatRetentionDays = 60;
+      voiceMinutesRemaining = 0; // No voice minutes for basic
+      tokenLimit = 230000;
+    } else if (planId === "premium") {
+      chatRetentionDays = 90;
+      voiceMinutesRemaining = 5;
+      tokenLimit = 230000;
+    }
 
-  if (planId === "basic") {
-    chatRetentionDays = 60;
-    voiceMinutesRemaining = 0;
-    tokenLimit = 230000; // Example: 230k tokens for Basic
-  } else if (planId === "premium") {
-    chatRetentionDays = 90;
-    voiceMinutesRemaining = 5;
-    tokenLimit = 230000; // Example: 230k tokens for Premium
-  }
+    // For renewals, add minutes instead of replacing
+    if (isRenewal && currentUserData.voiceMinutesRemaining > 0) {
+      voiceMinutesRemaining += currentUserData.voiceMinutesRemaining;
+    }
 
-  const updateData = {
-    plan: planId,
-    planName,
-    planUpdatedAt: now,
-    planPurchasedAt: isRenewal ? (currentUserData.planPurchasedAt || now) : now,
-    planExpiryDate: finalExpiryDate, // ✅ Will expire after this date
-    tokenLimit,
-    tokensUsed: 0, // ✅ Reset usage on purchase/renewal
-    hadSubscriptionBefore: true,
-    chatRetentionDays,
-    voiceMinutesRemaining,
-    appointmentsUsed: 0
-  };
+    const updateData = {
+      plan: planId,
+      planName,
+      planUpdatedAt: now,
+      planPurchasedAt: isRenewal ? (currentUserData.planPurchasedAt || now) : now,
+      planExpiryDate: finalExpiryDate,
+      tokenLimit,
+      tokensUsed: 0, // Reset on purchase/renewal
+      hadSubscriptionBefore: true,
+      chatRetentionDays,
+      voiceMinutesRemaining,
+      appointmentsUsed: 0,
+      // Clear any active call state on new subscription
+      callStatus: "ended",
+      pausedTimerSeconds: null,
+      totalMinutesUsed: currentUserData.totalMinutesUsed || 0 // Preserve usage history
+    };
 
-  await userRef.update(updateData);
+    transaction.update(userRef, updateData);
 
-  console.log(`✅ User ${userId} upgraded to '${planId}'.
-  Token limit: ${tokenLimit}, Expiry: ${new Date(finalExpiryDate)}, 
-  Chats kept: ${chatRetentionDays} days, Calls: ${voiceMinutesRemaining} mins.`);
+    console.log(`User ${userId} upgraded to '${planId}'. Voice minutes: ${voiceMinutesRemaining}, Expiry: ${new Date(finalExpiryDate)}`);
+    
+    return updateData;
+  });
 }
+
 
 
 exports.cleanupOldChatMessages = onSchedule("every 24 hours",async () => {
@@ -359,9 +370,7 @@ exports.cleanupOldChatMessages = onSchedule("every 24 hours",async () => {
 
 
 
-exports.deductVoiceMinutes = functions.https.onRequest((req, res) => {
-  cors(req, res, async () => {
-    // Handle preflight
+exports.deductVoiceMinutes = functions.https.onRequest((req, res) => { cors(req, res, async () =>{
     if (req.method === 'OPTIONS') {
       res.set('Access-Control-Allow-Origin', '*');
       res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -370,71 +379,258 @@ exports.deductVoiceMinutes = functions.https.onRequest((req, res) => {
     }
 
     try {
-      // Read from query params instead of body
       const token = req.query.token;
       const minutesToDeduct = Number(req.query.minutes) || 0;
 
-      console.log("Incoming request:", {
-        method: req.method,
-        tokenProvided: !!token,
-        minutesToDeduct
-      });
-
       if (!token) {
-        console.warn("No token provided");
-        return res.status(401).send("Missing token");
+        return res.status(401).json({ success: false, error: "Missing token" });
       }
       if (minutesToDeduct <= 0) {
-        console.warn("Invalid minutes:", minutesToDeduct);
-        return res.status(400).send("Invalid minutes");
+        return res.status(400).json({ success: false, error: "Invalid minutes" });
       }
 
       // Verify token
       const decodedToken = await admin.auth().verifyIdToken(token);
       const userId = decodedToken.uid;
-      console.log("Authenticated user:", userId);
 
-      // Fetch user doc
-      const userRef = db.collection("users").doc(userId);
-      const userDoc = await userRef.get();
-      if (!userDoc.exists) {
-        console.warn("User not found:", userId);
-        return res.status(404).send("User not found");
-      }
+      // Use transaction to prevent race conditions
+      const result = await db.runTransaction(async (transaction) => {
+        const userRef = db.collection("users").doc(userId);
+        const userDoc = await transaction.get(userRef);
 
-      // Deduct minutes
-      const userData = userDoc.data();
-      let remaining = userData.voiceMinutesRemaining || 0;
-      console.log("Current minutes:", remaining);
+        if (!userDoc.exists) {
+          throw new Error("User not found");
+        }
 
-      if (remaining <= 0) {
-        console.warn("No minutes left for user:", userId);
-        return res.status(200).json({
-          success: false,
-          remainingMinutes: 0,
-          message: "No minutes left"
+        const userData = userDoc.data();
+        let remaining = userData.voiceMinutesRemaining || 0;
+
+        // Check if user has active subscription
+        const now = Date.now();
+        const planExpiry = userData.planExpiryDate || 0;
+        const isSubscriptionActive = planExpiry > now;
+
+        if (!isSubscriptionActive) {
+          throw new Error("Subscription expired");
+        }
+
+        if (remaining <= 0) {
+          return {
+            success: false,
+            remainingMinutes: 0,
+            message: "No minutes left"
+          };
+        }
+
+        remaining -= minutesToDeduct;
+        if (remaining < 0) remaining = 0;
+
+        // Update user document
+        transaction.update(userRef, {
+          voiceMinutesRemaining: remaining,
+          lastMinuteDeduction: admin.firestore.FieldValue.serverTimestamp(),
+          totalMinutesUsed: (userData.totalMinutesUsed || 0) + minutesToDeduct
         });
-      }
 
-      remaining -= minutesToDeduct;
-      if (remaining < 0) remaining = 0;
-
-      await userRef.update({ voiceMinutesRemaining: remaining });
-      console.log(`Deducted ${minutesToDeduct} minutes, remaining: ${remaining}`);
-
-      return res.status(200).json({
-        success: true,
-        remainingMinutes: remaining
+        return {
+          success: true,
+          remainingMinutes: remaining,
+          message: `Deducted ${minutesToDeduct} minute(s)`
+        };
       });
+
+      console.log(`Voice minutes deduction for ${userId}:`, result);
+      return res.status(200).json(result);
 
     } catch (error) {
       console.error("Error in deductVoiceMinutes:", error);
-      return res.status(500).send(error.message);
+      return res.status(500).json({
+        success: false,
+        error: error.message || "Internal server error"
+      });
     }
   });
 });
 
+// New function to manage call session state
+exports.manageCallSession = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    if (req.method === 'OPTIONS') {
+      res.set('Access-Control-Allow-Origin', '*');
+      res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+      res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      return res.status(204).send('');
+    }
 
+    try {
+      const { action, token, timerSeconds } = req.body;
+
+      if (!token) {
+        return res.status(401).json({ success: false, error: "Missing token" });
+      }
+
+      // Verify token
+      const decodedToken = await admin.auth().verifyIdToken(token);
+      const userId = decodedToken.uid;
+
+      const result = await db.runTransaction(async (transaction) => {
+        const userRef = db.collection("users").doc(userId);
+        const userDoc = await transaction.get(userRef);
+
+        if (!userDoc.exists) {
+          throw new Error("User not found");
+        }
+
+        const userData = userDoc.data();
+        const now = admin.firestore.FieldValue.serverTimestamp();
+
+        switch (action) {
+          case 'start':
+            // Check subscription and minutes
+            const planExpiry = userData.planExpiryDate || 0;
+            if (planExpiry <= Date.now()) {
+              throw new Error("Subscription expired");
+            }
+            if ((userData.voiceMinutesRemaining || 0) <= 0) {
+              throw new Error("No minutes remaining");
+            }
+
+            transaction.update(userRef, {
+              callStatus: "active",
+              callStartTime: now,
+              pausedTimerSeconds: null
+            });
+
+            return {
+              success: true,
+              callStatus: "active",
+              remainingMinutes: userData.voiceMinutesRemaining || 0,
+              message: "Call started"
+            };
+
+          case 'pause':
+            if (!timerSeconds && timerSeconds !== 0) {
+              throw new Error("Timer seconds required for pause");
+            }
+
+            transaction.update(userRef, {
+              callStatus: "paused",
+              pausedTimerSeconds: timerSeconds,
+              lastPauseTime: now,
+              // Save remaining minutes as backup
+              voiceMinutesRemaining: Math.ceil(timerSeconds / 60)
+            });
+
+            return {
+              success: true,
+              callStatus: "paused",
+              pausedTimerSeconds: timerSeconds,
+              message: "Call paused"
+            };
+
+          case 'resume':
+            const pausedSeconds = userData.pausedTimerSeconds;
+            if (pausedSeconds === null || pausedSeconds === undefined) {
+              throw new Error("No paused session found");
+            }
+
+            transaction.update(userRef, {
+              callStatus: "active",
+              pausedTimerSeconds: null,
+              lastResumeTime: now
+            });
+
+            return {
+              success: true,
+              callStatus: "active",
+              resumeFromSeconds: pausedSeconds,
+              message: "Call resumed"
+            };
+
+          case 'end':
+            const finalSeconds = timerSeconds || userData.pausedTimerSeconds || 0;
+            const finalMinutes = Math.ceil(finalSeconds / 60);
+
+            transaction.update(userRef, {
+              callStatus: "ended",
+              pausedTimerSeconds: null,
+              voiceMinutesRemaining: finalMinutes,
+              lastCallEndTime: now
+            });
+
+            return {
+              success: true,
+              callStatus: "ended",
+              remainingMinutes: finalMinutes,
+              message: "Call ended"
+            };
+
+          default:
+            throw new Error("Invalid action");
+        }
+      });
+
+      console.log(`Call session ${action} for ${userId}:`, result);
+      return res.status(200).json(result);
+
+    } catch (error) {
+      console.error("Error in manageCallSession:", error);
+      return res.status(500).json({
+        success: false,
+        error: error.message || "Internal server error"
+      });
+    }
+  });
+});
+exports.getCallSessionState = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    if (req.method === 'OPTIONS') {
+      res.set('Access-Control-Allow-Origin', '*');
+      res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+      res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      return res.status(204).send('');
+    }
+
+    try {
+      const token = req.query.token;
+
+      if (!token) {
+        return res.status(401).json({ success: false, error: "Missing token" });
+      }
+
+      const decodedToken = await admin.auth().verifyIdToken(token);
+      const userId = decodedToken.uid;
+
+      const userRef = db.collection("users").doc(userId);
+      const userDoc = await userRef.get();
+
+      if (!userDoc.exists) {
+        return res.status(404).json({ success: false, error: "User not found" });
+      }
+
+      const userData = userDoc.data();
+      const now = Date.now();
+      const isSubscriptionActive = (userData.planExpiryDate || 0) > now;
+
+      return res.status(200).json({
+        success: true,
+        callStatus: userData.callStatus || "ended",
+        pausedTimerSeconds: userData.pausedTimerSeconds || null,
+        voiceMinutesRemaining: userData.voiceMinutesRemaining || 0,
+        subscriptionActive: isSubscriptionActive,
+        planExpiryDate: userData.planExpiryDate,
+        totalMinutesUsed: userData.totalMinutesUsed || 0
+      });
+
+    } catch (error) {
+      console.error("Error in getCallSessionState:", error);
+      return res.status(500).json({
+        success: false,
+        error: error.message || "Internal server error"
+      });
+    }
+  });
+});
 
 // exports.paymentWebhook = functions.https.onRequest(async (req, res) => {
 //   try {
