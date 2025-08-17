@@ -44,7 +44,7 @@ const initialState: PaymentState = {
       currency: 'INR',
       duration: 30,
       features: [
-        '230k tokens per month',
+        '230k tokens per subscription',
         'Chat history for 60 days',
         'No voice calls',
         'Priority support',
@@ -59,10 +59,10 @@ const initialState: PaymentState = {
       currency: 'INR',
       duration: 30,
       features: [
-        '230k tokens per month',
-        'Voice calls with AI for 60 minutes',
+        '230k tokens per subscription',
+        'Voice call with AI for 5 minutes',
         'Chat history for 90 days',
-        // '2 expert appointments per month',
+        // '2 expert appointments per subscription',
         'Priority support',
       ],
     },
