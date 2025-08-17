@@ -1104,7 +1104,7 @@ useEffect(() => {
         // Show remaining time in paused state
         timeLeftSecondsRef.current = sessionState.pausedTimerSeconds;
         updateTimerUI();
-        toast.info("You have a paused call. Click the mic to resume.");
+        // toast.info("You have a paused call. Click the mic to resume.");
       }
     } catch (error) {
       console.error("Error checking paused session:", error);
