@@ -1,13 +1,21 @@
-import React, { useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { MessageSquare, Calendar, Shield, Zap, Users, Award } from 'lucide-react';
-import {motion} from "framer-motion"
+import React, { useEffect } from "react";
+import { Link } from "react-router-dom";
+import {
+  MessageSquare,
+  Calendar,
+  Shield,
+  Zap,
+  Users,
+  Award,
+} from "lucide-react";
+import { motion } from "framer-motion";
 import { ContainerScroll } from "../components/ui/container-scroll-animation";
-import { Hero } from '../components/ui/animated-hero';
-import { Logos3 } from '../components/logos3';
-import IMG from '/assets/hero.jpeg';
-import IMG1 from '/assets/hero2.jpeg';
+import { Hero } from "../components/ui/animated-hero";
+import { Logos3 } from "../components/logos3";
+import IMG from "/assets/hero.jpeg";
+import IMG2 from "/assets/heromobile.png";
 
+import IMG1 from "/assets/hero2.jpeg";
 
 const logoData = {
   heading: "Trusted by these companies",
@@ -61,7 +69,7 @@ const logoData = {
       className: "h-7 w-auto",
     },
   ],
-};  
+};
 const HomePage: React.FC = () => {
   useEffect(() => {
     // Scroll to the top when the component mounts
@@ -71,30 +79,43 @@ const HomePage: React.FC = () => {
     <div className="bg-white overflow-x-hidden dark:bg-gray-900">
       {/* Hero Section */}
 
-    <Hero />
-    <div className="flex flex-col  border-b-2 border-gray-200 dark:border-gray-700 overflow-hidden ">
-      <ContainerScroll
-     titleComponent={
-      <h1 className="text-4xl font-semibold text-black dark:text-white">
-        Unlock the Future of AI Consulting <br />
-        <span className="text-4xl md:text-[6rem] font-bold mt-1 leading-none text-indigo-600">
-          Smart AI Solutions
-        </span>
-      </h1>
-    }
-    
-      >
-        <img
-          // src={`https://images-cdn.openxcell.com/wp-content/uploads/2025/01/27141222/Banner-5-scaled.webp`}
-           src={IMG}
-            alt="hero"
-          height={720}
-          width={1400}
-          className="mx-auto rounded-2xl object-cover h-full object-left-center"
-          draggable={false}
-        />
-      </ContainerScroll>
-    </div>
+      <Hero />
+      <div className="flex flex-col  border-b-2 border-gray-200 dark:border-gray-700 overflow-hidden ">
+        <ContainerScroll
+          titleComponent={
+            <h1 className="text-4xl font-semibold text-black dark:text-white">
+              Unlock the Future of AI Consulting <br />
+              <span className="text-4xl md:text-[6rem] font-bold mt-1 leading-none text-indigo-600">
+                Smart AI Solutions
+              </span>
+            </h1>
+          }
+        >
+          {/* <img
+                    // src={`https://images-cdn.openxcell.com/wp-content/uploads/2025/01/27141222/Banner-5-scaled.webp`}
+                    src={IMG}
+                      alt="hero"
+                    height={720}
+                    width={1400}
+                    className="mx-auto rounded-2xl object-cover h-full object-left-center"
+                    draggable={false}
+                    /> */}
+          <picture>
+            {/* Mobile image */}
+            <source className="block md:hidden object-top" srcSet={IMG2} media="(max-width: 768px)" />
+
+            {/* Desktop image */}
+            <img
+              src={IMG}
+              alt="hero"
+                    height={720}
+                    width={1400}
+                    className="mx-auto rounded-2xl object-cover h-full object-top"
+                    draggable={false}
+            />
+          </picture>
+        </ContainerScroll>
+      </div>
       {/* Features Section */}
       <div className=" bg-gray-50  dark:bg-gray-800 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -106,7 +127,9 @@ const HomePage: React.FC = () => {
               Why Choose Rewiree
             </p>
             <p className="max-w-xl mt-5 mx-auto text-xl text-gray-500 dark:text-gray-300">
-              Our platform combines cutting-edge AI technology with human expertise to provide you with the best health consultation experience.
+              Our platform combines cutting-edge AI technology with human
+              expertise to provide you with the best health consultation
+              experience.
             </p>
           </div>
 
@@ -124,7 +147,8 @@ const HomePage: React.FC = () => {
                       Instant AI Responses
                     </h3>
                     <p className="mt-5 text-base text-gray-500 dark:text-gray-400">
-                      Get immediate answers to your health questions from our advanced AI system, available 24/7 without waiting.
+                      Get immediate answers to your health questions from our
+                      advanced AI system, available 24/7 without waiting.
                     </p>
                   </div>
                 </div>
@@ -142,7 +166,9 @@ const HomePage: React.FC = () => {
                       Expert Human Consultations
                     </h3>
                     <p className="mt-5 text-base text-gray-500 dark:text-gray-400">
-                      Schedule voice or video calls with qualified healthcare professionals for personalized advice and treatment options.
+                      Schedule voice or video calls with qualified healthcare
+                      professionals for personalized advice and treatment
+                      options.
                     </p>
                   </div>
                 </div>
@@ -160,7 +186,9 @@ const HomePage: React.FC = () => {
                       Secure & Private
                     </h3>
                     <p className="mt-5 text-base text-gray-500 dark:text-gray-400">
-                      Your health data is protected with end-to-end encryption and complies with HIPAA, GDPR, and other privacy regulations.
+                      Your health data is protected with end-to-end encryption
+                      and complies with HIPAA, GDPR, and other privacy
+                      regulations.
                     </p>
                   </div>
                 </div>
@@ -252,7 +280,9 @@ const HomePage: React.FC = () => {
         <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:py-16 lg:px-8 lg:flex lg:items-center lg:justify-between">
           <h2 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
             <span className="block">Ready to get started?</span>
-            <span className="block text-indigo-200">Try our AI consultation today.</span>
+            <span className="block text-indigo-200">
+              Try our AI consultation today.
+            </span>
           </h2>
           <div className="mt-8 flex lg:mt-0 lg:flex-shrink-0">
             <div className="inline-flex rounded-md shadow">
